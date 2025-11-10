@@ -22,3 +22,15 @@ Thumbs.db
 *.download
 test_*.bin
 /tmp/
+
+# Coverage reports
+cobertura.xml
+tarpaulin-report.html
+*.profraw
+*.profdata
+
+# Benchmark results
+/benches/results/
+
+# Documentation build
+/target/doc/

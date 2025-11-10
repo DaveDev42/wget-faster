@@ -1,0 +1,40 @@
+# Clippy configuration for wget-faster
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Allow trivially_copy_pass_by_ref for types below this size (in bytes)
+trivial-copy-size-limit = 128
+
+# Single char binding threshold
+single-char-binding-names-threshold = 4
+
+# Too many arguments threshold
+too-many-arguments-threshold = 8
+
+# Too many lines threshold
+too-many-lines-threshold = 150
+
+# Large stack arrays threshold (in bytes)
+array-size-threshold = 512000
+
+# Vec box size threshold
+vec-box-size-threshold = 4096
+
+# Max trait bounds
+max-trait-bounds = 3
+
+# Max struct field count before suggesting a refactor
+struct-field-names-threshold = 25
+
+# Max fn params before suggesting a refactor
+max-fn-params-bools = 3
+
+# Disallowed names (variable names to avoid)
+disallowed-names = ["foo", "bar", "baz", "quux"]
+
+# Allowed duplicate crates (for transitional periods)
+# allowed-duplicate-crates = []

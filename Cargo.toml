@@ -5,6 +5,43 @@ members = [
     "wget-faster-cli",
 ]
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unused_imports = "warn"
+unused_mut = "warn"
+dead_code = "warn"
+
+[workspace.lints.clippy]
+# Pedantic lints (but allow some common patterns)
+pedantic = "warn"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+
+# Restriction lints (potentially dangerous patterns)
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+
+# Cargo lints
+cargo = "warn"
+
+# Complexity lints
+cognitive_complexity = "warn"
+too_many_arguments = "warn"
+too_many_lines = "warn"
+type_complexity = "warn"
+
+# Performance lints
+perf = "warn"
+
+# Correctness lints (errors by default, but being explicit)
+correctness = "deny"
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

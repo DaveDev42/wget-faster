@@ -1,0 +1,57 @@
+# cargo-deny configuration for wget-faster
+# https://embarkstudios.github.io/cargo-deny/
+
+[advisories]
+# Deny crates with security vulnerabilities
+vulnerability = "deny"
+# Warn about unmaintained crates
+unmaintained = "warn"
+# Warn about yanked crates
+yanked = "warn"
+# Ignore specific advisories (use with caution)
+ignore = []
+
+[licenses]
+# Allow only specific licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-DFS-2016",
+]
+# Deny copyleft licenses (we're BSD-3-Clause)
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "AGPL-3.0",
+    "LGPL-2.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+]
+# How to handle unknown licenses
+unlicensed = "deny"
+# Confidence threshold for license detection
+confidence-threshold = 0.8
+
+[bans]
+# Deny multiple versions of the same crate
+multiple-versions = "warn"
+# Wildcards in dependencies
+wildcards = "deny"
+# Specific crates to deny
+deny = []
+# Allow specific duplicates (temporarily)
+skip = []
+# Skip checking of dev/build dependencies
+skip-tree = []
+
+[sources]
+# Require crates from crates.io
+unknown-registry = "deny"
+# Deny git dependencies (for releases)
+unknown-git = "deny"
+# Allow these git sources (for development)
+allow-git = []

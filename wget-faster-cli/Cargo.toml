@@ -29,3 +29,6 @@ chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 filetime = { workspace = true }
+
+[lints]
+workspace = true
