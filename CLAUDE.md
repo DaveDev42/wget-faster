@@ -222,12 +222,106 @@ pub async fn download(&self, url: &str) -> Result<Bytes> {
 
 ## Testing
 
+### Unit and Integration Tests
+
 **Unit tests:** `cargo test --lib` (wget-faster-lib/tests/)
 - Integration tests, cookie tests, progress tests
 
 **CLI tests:** `cargo test --bin wget-faster`
 
-**wget compatibility:** Separate GPL-3.0 repo (binary-only testing)
+### wget Compatibility Testing
+
+**Test Repository:** [wget-faster-test](https://github.com/daveDev42/wget-faster-test) (GPL-3.0, separate repo)
+- Binary-only testing (no code linking to maintain BSD license)
+- Runs GNU wget's official test suite against wget-faster
+
+**Running wget compatibility tests:**
+
+```bash
+# Navigate to the test repository (sibling directory)
+cd ../wget-faster-test
+
+# Build wget-faster first
+cd ../wget-faster
+cargo build --release
+
+# Run all tests
+cd ../wget-faster-test
+./run_tests.sh
+
+# Run specific test suite
+./run_tests.sh --perl-only      # Only Perl tests
+./run_tests.sh --python-only    # Only Python tests (if available)
+
+# Specify wget-faster binary path
+./run_tests.sh --wget-faster /path/to/wgetf
+```
+
+**Viewing test results:**
+
+```bash
+# View the latest test report (markdown format)
+cd ../wget-faster-test/reports
+ls -t report_*.md | head -1 | xargs cat
+
+# View the latest test results (JSON format)
+ls -t test_results_*.json | head -1 | xargs cat
+
+# Or use the report file directly
+cat reports/report_$(ls -t reports/ | grep report | head -1)
+```
+
+**Current test status (v0.0.1):**
+- **Pass rate:** ~18% (16/87 Perl tests)
+- **Passing tests:** Basic HTTP downloads, cookies, resume functionality, Content-Disposition
+- **Common failures:**
+  - FTP tests (not implemented)
+  - IRI/IDN tests (internationalization not implemented)
+  - HTTPS advanced features (client certs, CRL)
+  - CLI argument parsing issues (`-n` option, `--debug` duplication)
+  - Relative file path handling
+
+**Test report format:**
+- Summary table (passed/total/pass rate by suite)
+- Failed test details (exit code, stderr, execution time)
+- Complete test list with status and timing
+
+**Directory structure:**
+```
+wget-faster-test/
+├── runner/              # Python test execution framework
+│   ├── test_runner.py
+│   └── report_generator.py
+├── reports/             # Generated test results and reports
+│   ├── test_results_*.json
+│   └── report_*.md
+├── wget-repo/           # GNU wget source (git clone)
+│   └── tests/           # Perl test suite
+├── config/              # Test configuration
+└── run_tests.sh         # Main test script
+```
+
+**Interpreting test failures:**
+
+1. **Exit code 77:** Test skipped (feature not detected via `wget --version`)
+2. **Exit code 1:** Test failed (behavior differs from wget)
+3. **"missing URL":** CLI parsing issue, wget feature detection failed
+4. **"unexpected argument":** Option not implemented or parsed incorrectly
+5. **"builder error for url (ftp://...)":** FTP not supported (HTTP-only client)
+
+**Improving test pass rate:**
+
+Priority fixes to increase pass rate quickly:
+1. Implement `-n` / `--no-directories` option
+2. Allow `--debug` to be specified multiple times
+3. Fix relative file path handling for `-i` and `--post-file`
+4. Improve HTTP error status code handling (400, 401, 404)
+5. Fix Content-Disposition with timestamping (`-N`)
+
+Long-term improvements (v0.2.0+):
+- FTP/FTPS support (17 tests)
+- IRI/IDN support (14 tests)
+- HTTPS advanced features (8 tests)
 
 ## Quick Reference: Finding Implementations
 
