@@ -1,5 +1,7 @@
 # wget-faster
 
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+
 A high-performance, drop-in replacement for GNU wget written in Rust with async support and parallel downloads.
 
 ## Features
@@ -115,9 +117,11 @@ wget-faster/
 
 ## License
 
-**wget-faster is licensed under BSD-3-Clause.**
+This project is licensed under the **BSD-3-Clause License** - see the [LICENSE](LICENSE) file for details.
 
-This project is completely independent of GNU wget. We do not include, copy, or modify any GPL-licensed code from wget.
+### License Independence
+
+wget-faster is completely independent of GNU wget. We do not include, copy, or modify any GPL-licensed code from wget.
 
 For compatibility testing, we maintain a **separate repository** (wget-faster-test) that is GPL-3.0 licensed and includes wget test suite integration. This ensures complete license separation while enabling comprehensive wget compatibility testing.
 
