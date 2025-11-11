@@ -86,6 +86,84 @@ impl ProgressInfo {
     pub fn format_eta(&self) -> Option<String> {
         self.eta.map(format_duration)
     }
+
+    /// Format progress in wget-style output
+    ///
+    /// Example: "50% [=========>          ] 5.00MB  1.50MB/s    eta 3s"
+    pub fn format_wget_style(&self) -> String {
+        let mut output = String::new();
+
+        // Percentage
+        if let Some(pct) = self.percentage() {
+            output.push_str(&format!("{:>3.0}%", pct));
+        } else {
+            output.push_str(" ---%");
+        }
+
+        // Progress bar
+        if let Some(pct) = self.percentage() {
+            let bar_width = 20;
+            let filled = ((pct / 100.0) * bar_width as f64) as usize;
+            output.push_str(" [");
+            for i in 0..bar_width {
+                if i < filled {
+                    output.push('=');
+                } else if i == filled {
+                    output.push('>');
+                } else {
+                    output.push(' ');
+                }
+            }
+            output.push(']');
+        } else {
+            output.push_str(" [<=>                ]");
+        }
+
+        // Downloaded size
+        output.push(' ');
+        output.push_str(&format!("{:>8}", self.format_downloaded()));
+
+        // Speed
+        output.push_str(&format!("  {:>10}", self.format_speed()));
+
+        // ETA
+        if let Some(eta_str) = self.format_eta() {
+            output.push_str(&format!("    eta {}", eta_str));
+        }
+
+        output
+    }
+
+    /// Format progress in compact style (one line)
+    ///
+    /// Example: "[50%] 5.00MB/10.00MB @ 1.50MB/s ETA: 3s"
+    pub fn format_compact(&self) -> String {
+        let mut output = String::new();
+
+        // Percentage in brackets
+        if let Some(pct) = self.percentage() {
+            output.push_str(&format!("[{:>3.0}%] ", pct));
+        } else {
+            output.push_str("[---] ");
+        }
+
+        // Downloaded / Total
+        output.push_str(&self.format_downloaded());
+        if let Some(total) = self.format_total() {
+            output.push('/');
+            output.push_str(&total);
+        }
+
+        // Speed
+        output.push_str(&format!(" @ {}", self.format_speed()));
+
+        // ETA
+        if let Some(eta) = self.format_eta() {
+            output.push_str(&format!(" ETA: {}", eta));
+        }
+
+        output
+    }
 }
 
 /// Callback function for progress updates
@@ -177,5 +255,37 @@ mod tests {
         assert_eq!(format_duration(Duration::from_secs(90)), "1m 30s");
         assert_eq!(format_duration(Duration::from_secs(3600)), "1h");
         assert_eq!(format_duration(Duration::from_secs(3661)), "1h 1m 1s");
+    }
+
+    #[test]
+    fn test_wget_style_format() {
+        let mut progress = ProgressInfo::new("https://example.com/file.zip".to_string());
+        progress.total_size = Some(10 * 1024 * 1024); // 10MB
+        progress.downloaded = 5 * 1024 * 1024; // 5MB
+        progress.speed = 1.5 * 1024.0 * 1024.0; // 1.5MB/s
+        progress.eta = Some(Duration::from_secs(3));
+
+        let output = progress.format_wget_style();
+        assert!(output.contains(" 50%"), "Expected 50%, got: {}", output);
+        assert!(output.contains("=========="), "Expected progress bar, got: {}", output);
+        assert!(output.contains("5.00MB"), "Expected 5.00MB, got: {}", output);
+        assert!(output.contains("1.50MB/s"), "Expected 1.50MB/s, got: {}", output);
+        assert!(output.contains("eta 3s"), "Expected eta 3s, got: {}", output);
+    }
+
+    #[test]
+    fn test_compact_format() {
+        let mut progress = ProgressInfo::new("https://example.com/file.zip".to_string());
+        progress.total_size = Some(10 * 1024 * 1024); // 10MB
+        progress.downloaded = 5 * 1024 * 1024; // 5MB
+        progress.speed = 1.5 * 1024.0 * 1024.0; // 1.5MB/s
+        progress.eta = Some(Duration::from_secs(3));
+
+        let output = progress.format_compact();
+        eprintln!("compact output: '{}'", output);
+        assert!(output.contains("[ 50%]") || output.contains("[50%]"), "Expected [50%], got: {}", output);
+        assert!(output.contains("5.00MB/10.00MB"), "Expected 5.00MB/10.00MB, got: {}", output);
+        assert!(output.contains("@ 1.50MB/s") || output.contains("@1.50MB/s"), "Expected @ 1.50MB/s, got: {}", output);
+        assert!(output.contains("ETA: 3s"), "Expected ETA: 3s, got: {}", output);
     }
 }

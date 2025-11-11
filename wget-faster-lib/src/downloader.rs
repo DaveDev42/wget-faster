@@ -5,9 +5,10 @@ use crate::{
 use bytes::Bytes;
 use futures_util::StreamExt;
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use tokio::time::sleep;
 
 /// Main downloader for HTTP/HTTPS downloads
 ///
@@ -465,6 +466,7 @@ impl Downloader {
         let total_size = response.content_length();
         let mut downloaded = 0u64;
         let start_time = Instant::now();
+        let mut last_chunk_time = Instant::now();
 
         let mut stream = response.bytes_stream();
         let mut buffer = Vec::new();
@@ -473,6 +475,18 @@ impl Downloader {
             let chunk = chunk?;
             buffer.extend_from_slice(&chunk);
             downloaded += chunk.len() as u64;
+
+            // Apply speed limiting if configured
+            if let Some(speed_limit) = self.client.config().speed_limit {
+                let chunk_size = chunk.len() as u64;
+                let expected_duration = Duration::from_secs_f64(chunk_size as f64 / speed_limit as f64);
+                let actual_duration = last_chunk_time.elapsed();
+
+                if actual_duration < expected_duration {
+                    sleep(expected_duration - actual_duration).await;
+                }
+                last_chunk_time = Instant::now();
+            }
 
             if let Some(callback) = &progress_callback {
                 let mut progress = ProgressInfo::new(url.to_string());
@@ -513,6 +527,7 @@ impl Downloader {
         let total_size = response.content_length().map(|s| s + resume_from);
         let mut downloaded = resume_from;
         let start_time = Instant::now();
+        let mut last_chunk_time = Instant::now();
 
         let mut stream = response.bytes_stream();
 
@@ -520,6 +535,18 @@ impl Downloader {
             let chunk = chunk?;
             writer.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
+
+            // Apply speed limiting if configured
+            if let Some(speed_limit) = self.client.config().speed_limit {
+                let chunk_size = chunk.len() as u64;
+                let expected_duration = Duration::from_secs_f64(chunk_size as f64 / speed_limit as f64);
+                let actual_duration = last_chunk_time.elapsed();
+
+                if actual_duration < expected_duration {
+                    sleep(expected_duration - actual_duration).await;
+                }
+                last_chunk_time = Instant::now();
+            }
 
             if let Some(callback) = &progress_callback {
                 let mut progress = ProgressInfo::new(url.to_string());

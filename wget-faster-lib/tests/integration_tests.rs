@@ -516,3 +516,78 @@ async fn test_metadata_contains_headers() {
 
     mock.assert_async().await;
 }
+
+
+#[tokio::test]
+async fn test_speed_limiting() {
+    let mut server = Server::new_async().await;
+
+    // 100KB of data
+    let data_size = 100 * 1024;
+    let data = vec![0u8; data_size];
+
+    let mock = server
+        .mock("GET", "/large-file")
+        .with_status(200)
+        .with_header("content-length", &data_size.to_string())
+        .with_body(&data)
+        .create_async()
+        .await;
+
+    // Limit to 50KB/s
+    let speed_limit = 50 * 1024;
+    let config = DownloadConfig {
+        speed_limit: Some(speed_limit),
+        ..Default::default()
+    };
+
+    let downloader = Downloader::new(config).unwrap();
+    let url = format!("{}/large-file", server.url());
+
+    let start = std::time::Instant::now();
+    let result = downloader.download_to_memory(&url).await;
+    let duration = start.elapsed();
+
+    assert!(result.is_ok());
+    let bytes = result.unwrap();
+    assert_eq!(bytes.len(), data_size);
+
+    // Should take at least 2 seconds (100KB at 50KB/s)
+    // Allow some margin for overhead
+    assert!(duration.as_secs_f64() >= 1.8, "Download was too fast: {:?}", duration);
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_no_speed_limit() {
+    let mut server = Server::new_async().await;
+
+    let data_size = 50 * 1024; // 50KB
+    let data = vec![0u8; data_size];
+
+    let mock = server
+        .mock("GET", "/file")
+        .with_status(200)
+        .with_body(&data)
+        .create_async()
+        .await;
+
+    let config = DownloadConfig {
+        speed_limit: None,
+        ..Default::default()
+    };
+
+    let downloader = Downloader::new(config).unwrap();
+    let url = format!("{}/file", server.url());
+
+    let start = std::time::Instant::now();
+    let result = downloader.download_to_memory(&url).await;
+    let duration = start.elapsed();
+
+    assert!(result.is_ok());
+    // Without speed limit, should be much faster (< 1 second for local mock)
+    assert!(duration.as_secs_f64() < 1.0);
+
+    mock.assert_async().await;
+}

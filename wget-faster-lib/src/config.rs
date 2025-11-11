@@ -115,6 +115,9 @@ pub struct DownloadConfig {
 
     /// Minimum file size threshold for parallel downloads (bytes)
     pub parallel_threshold: u64,
+
+    /// Use pretty/modern progress output instead of wget-style (default: false for wget compatibility)
+    pub pretty_output: bool,
 }
 
 /// HTTP request method
@@ -178,6 +181,7 @@ impl Default for DownloadConfig {
             print_server_response: false,
             auth_no_challenge: false,
             parallel_threshold: 10 * 1024 * 1024, // 10MB
+            pretty_output: false, // wget-compatible by default
         }
     }
 }
