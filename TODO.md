@@ -25,20 +25,28 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 **Goal**: Achieve 60%+ pass rate on wget core test suite
 
-**Current Status (2025-11-11 - After v0.0.3 improvements):**
-- Total: **34/169 tests passing (20.1%)** ⬆️ +4 tests (+2.3%)
-- Perl: **24/87 tests passing (27.6%)** ⬆️ +4 tests (+4.6%)
-- Python: **10/82 tests passing (12.2%)** (unchanged)
+**Current Status (2025-11-12 - Latest test run):**
+- Total: **36/169 tests passing (21.3%)** ⬆️ +6 tests (+3.5% from v0.0.2)
+- Perl: **25/87 tests passing (28.7%)** ⬆️ +5 tests (+5.7%)
+- Python: **11/82 tests passing (13.4%)** ⬆️ +1 test (+1.2%)
 
-**Recent improvements:**
+**Recent improvements (v0.0.3):**
 - ✅ HTTP 401/407 authentication retry with credentials
 - ✅ .netrc file support for automatic authentication
-- ✅ Exit codes already correct (3 for I/O, 6 for auth, 8 for HTTP errors)
-- ✅ Spider mode exit codes already working
-- ✅ HTTP status code handling (204, 4xx, 5xx) already working
-- ✅ Relative path handling already working
-- ✅ Timestamping file mtime already working
-- ✅ Content-Disposition basic support already working
+- ✅ Exit codes (3 for I/O, 6 for auth, 8 for HTTP errors)
+- ✅ Spider mode (--spider and --spider-fail working)
+- ✅ Timestamping (-N) with file mtime setting
+- ✅ Content-Disposition header parsing (basic + advanced)
+- ✅ Resume/continue functionality (-c)
+
+**New passing tests:**
+- Perl (25 total):
+  - Test-N.px, Test-N-HTTP-Content-Disposition.px (timestamping)
+  - Test--spider-fail.px (spider mode with error detection)
+  - Test-HTTP-Content-Disposition-2.px (Content-Disposition)
+  - Test-restrict-ascii.px (filename restrictions)
+- Python (11 total):
+  - Test-Content-disposition.py (Content-Disposition)
 
 ### Test Infrastructure
 - [x] **Create wget-faster-test repository** ✅
@@ -151,30 +159,27 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 4. Timestamping (-N) ❌ **HIGH PRIORITY**
-**Impact:** 6 tests failing
-- [ ] Set file modification time to server's Last-Modified header value
-- [ ] Send If-Modified-Since header with timestamp
+#### 4. Timestamping (-N) ✅ **COMPLETED** → ⚠️ **3 edge cases remain**
+**Impact:** 3 tests still failing (down from 6)
+- [x] Set file modification time to server's Last-Modified header value ✅
+- [x] Send If-Modified-Since header with timestamp ✅
+- [x] Handle timestamping with Content-Disposition headers ✅
 - [ ] Handle 304 Not Modified response (don't re-download)
-- [ ] Handle timestamping with Content-Disposition headers
-- [ ] Handle case when server doesn't send Last-Modified
+- [ ] Handle case when server doesn't send Last-Modified (Test-N-no-info.px)
+- [ ] Handle timestamping with smaller file size (Test-N-smaller.px)
+- [ ] Handle timestamping with old file (Test-N-old.px)
 
-**Current issue:** Setting file timestamp to current time instead of Last-Modified
+**Status:** Basic timestamping working! Passing:
+- ✅ Test-N.px
+- ✅ Test-N-current.px
+- ✅ Test-N--no-content-disposition.px
+- ✅ Test-N--no-content-disposition-trivial.px
+- ✅ Test-N-HTTP-Content-Disposition.px
 
-**Example failure:**
-```
-Test-N.px: wrong timestamp for file dummy.txt
-  Expected: 1097310600 (2004-10-09 08:23:20 UTC)
-  Actual:   1762866563 (2025-11-11 22:09:23 UTC)
-```
-
-**Affected tests:**
-- `Test-N.px`
-- `Test-N-old.px`
-- `Test-N-smaller.px`
-- `Test-N-no-info.px`
-- `Test-N--no-content-disposition.px`
-- `Test-N-HTTP-Content-Disposition.px`
+**Remaining failures:**
+- `Test-N-old.px` - Timestamp comparison logic
+- `Test-N-smaller.px` - File size change handling
+- `Test-N-no-info.px` - Missing Last-Modified header
 
 **Files:** `wget-faster-lib/src/downloader.rs`
 
@@ -211,19 +216,24 @@ Test-N.px: wrong timestamp for file dummy.txt
 
 ---
 
-#### 7. Content-Disposition Filename Handling ❌ **MEDIUM**
-**Impact:** 3 tests failing
-- [ ] Extract filename from Content-Disposition header
-- [ ] Save file with Content-Disposition filename instead of URL filename
-- [ ] Handle Content-Disposition with timestamping (-N)
-- [ ] Handle `--no-content-disposition` flag properly
+#### 7. Content-Disposition Filename Handling ✅ **MOSTLY COMPLETED** → ⚠️ **1 edge case**
+**Impact:** 1 test still failing (down from 3)
+- [x] Extract filename from Content-Disposition header ✅
+- [x] Save file with Content-Disposition filename instead of URL filename ✅
+- [x] Handle Content-Disposition with timestamping (-N) ✅
+- [x] Handle `--no-content-disposition` flag properly ✅
+- [ ] Handle duplicate filenames (add .1, .2, .3 suffix) - Test-HTTP-Content-Disposition-1.px
 
-**Current issue:** Not using Content-Disposition filename
+**Status:** Content-Disposition working! Passing:
+- ✅ Test-HTTP-Content-Disposition-2.px
+- ✅ Test-N-HTTP-Content-Disposition.px
+- ✅ Test-O-HTTP-Content-Disposition.px
+- ✅ Test--no-content-disposition.px
+- ✅ Test--no-content-disposition-trivial.px
+- ✅ Test-Content-disposition.py (Python)
 
-**Affected tests:**
-- `Test-HTTP-Content-Disposition.px` (expects filename.html, gets dummy.html)
-- `Test-HTTP-Content-Disposition-1.px`
-- `Test-N-HTTP-Content-Disposition.px`
+**Remaining failure:**
+- `Test-HTTP-Content-Disposition-1.px` - Expects filename.html.2 when file exists
 
 **Files:** `wget-faster-lib/src/downloader.rs`
 
@@ -754,7 +764,7 @@ cargo run -- https://example.com/file.txt
 
 ---
 
-**Last reviewed**: 2025-11-11
-**Current Status**: v0.0.3 in progress (34/169 tests passing, 20.1%) ⬆️ +2.3%
-**Recent work**: ✅ HTTP auth retry + .netrc support implemented (+4 tests)
+**Last reviewed**: 2025-11-12
+**Current Status**: v0.0.3 in progress (36/169 tests passing, 21.3%) ⬆️ +3.5%
+**Recent work**: ✅ Timestamping (-N) + Content-Disposition working (+6 tests total)
 **Next review**: After remaining v0.0.3 fixes (target: 30-35% pass rate)

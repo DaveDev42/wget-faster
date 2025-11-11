@@ -255,7 +255,7 @@ pub struct Args {
 
     // ===== Directory Options =====
     /// Don't create directories
-    #[arg(short = 'n', long, action = clap::ArgAction::SetTrue, overrides_with = "no_directories")]
+    #[arg(short = 'n', long)]
     pub no_directories: bool,
 
     /// Force creation of directories

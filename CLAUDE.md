@@ -149,13 +149,13 @@ pub enum Output {
 - ✅ Quota (`-Q`) & wait controls (`-w`)
 - ✅ Spider mode (`--spider`)
 - ✅ Input files (`-i`, `-F`)
+- ✅ .netrc authentication (automatic credentials)
 
 ### Not Yet Implemented
 - ❌ HTTP/3 (QUIC) - planned v0.1.0
 - ❌ Link conversion (`-k`) - planned v0.2.0
-- ❌ Server response display (`-S`) - planned v0.0.2
+- ❌ Server response display (`-S`) - planned v0.0.4
 - ❌ FTP/FTPS - planned v0.2.0
-- ❌ .netrc authentication - planned v0.2.0
 - ❌ WARC format - planned v0.2.0
 
 ## Common Development Tasks
@@ -275,21 +275,24 @@ ls -t test_results_*.json | head -1 | xargs cat
 cat reports/report_$(ls -t reports/ | grep report | head -1)
 ```
 
-**Current test status (v0.0.3 - 2025-11-11):**
-- **Pass rate:** 20.1% (34/169 total tests) ⬆️ **+2.3%**
-  - Perl: 27.6% (24/87 tests) ⬆️ **+4.6%** (+4 tests)
-  - Python: 12.2% (10/82 tests) (unchanged)
-- **Passing tests:** Basic HTTP downloads, cookies, resume functionality, Content-Disposition, recursive downloads, spider mode basic tests, timestamping basic tests
+**Current test status (v0.0.3 - 2025-11-12):**
+- **Pass rate:** 21.3% (36/169 total tests) ⬆️ **+3.5%** from v0.0.2
+  - Perl: 28.7% (25/87 tests) ⬆️ **+5.7%** (+5 tests)
+  - Python: 13.4% (11/82 tests) ⬆️ **+1.2%** (+1 test)
+- **Passing tests:** Basic HTTP downloads, cookies, resume functionality (-c), Content-Disposition (all variants), recursive downloads, spider mode (basic + fail detection), timestamping (-N with all Content-Disposition variants), output handling (-O), meta-robots, filename restrictions (ASCII)
 - **Recent improvements (v0.0.3):**
-  - ✅ Exit code handling (wget-compatible exit codes: 3 for file I/O, 6 for auth, 8 for HTTP errors)
-  - ✅ Spider mode exit codes (returns 8 for broken links)
-  - ✅ CLI argument parsing (allow `--no-directories` multiple times)
-  - ✅ HTTP status code handling (don't save 204/4xx/5xx without `--content-on-error`)
-  - ✅ Relative file path handling (already working for `--post-file` and `-i`)
-  - ✅ Timestamping (-N) file mtime setting (sets file modification time to Last-Modified header)
+  - ✅ HTTP 401/407 authentication retry with credentials
+  - ✅ .netrc file support for automatic authentication
+  - ✅ Exit codes (3 for I/O, 6 for auth, 8 for HTTP errors)
+  - ✅ Spider mode (--spider and --spider-fail working)
+  - ✅ Timestamping (-N) with file mtime setting → 5/8 tests passing
+  - ✅ Content-Disposition header parsing (basic + advanced) → 6/7 tests passing
+  - ✅ Resume/continue functionality (-c)
 - **Common failures:**
-  - Authentication challenge response (401 requires retry with credentials - many tests)
-  - Content-Disposition filename extraction (header parsing not fully implemented - 3 tests)
+  - HTTP 204 No Content handling (creates empty file, should not create file - 1 test)
+  - Recursive downloads with link conversion (-r -E -k - 2 tests: needs -k implementation)
+  - Content-Disposition edge case (duplicate filename numbering .1, .2, .3 - 1 test)
+  - Timestamping edge cases (old files, size changes, missing Last-Modified - 3 tests)
   - FTP tests (not implemented - 18 tests)
   - IRI/IDN tests (internationalization not implemented - 11 tests)
   - Advanced HTTPS/TLS features (client certs, CRL - 8 tests)
@@ -324,14 +327,19 @@ wget-faster-test/
 
 **Improving test pass rate (v0.0.3 priorities):**
 
-Critical fixes (can increase pass rate to ~40%):
-1. **Exit code handling** - Return wget-compatible exit codes (3 for file I/O, 6 for auth, 8 for HTTP errors)
-2. **Spider mode exit codes** - Return 8 when spider finds broken links (4xx/5xx)
-3. **CLI argument parsing** - Allow `--no-directories` to be specified multiple times
-4. **Timestamping (-N)** - Set file modification time to server's Last-Modified header
-5. **HTTP status code handling** - Don't save files for 204 No Content or 4xx/5xx errors
-6. **Relative path handling** - Fix `--post-file` and `-i` path resolution
-7. **Content-Disposition** - Use filename from Content-Disposition header
+Recently completed fixes (+6 tests):
+1. ✅ **HTTP auth retry** - Implemented 401/407 authentication retry with credentials
+2. ✅ **.netrc support** - Automatic authentication from .netrc file
+3. ✅ **Timestamping (-N)** - File mtime setting (5/8 tests passing, 3 edge cases remain)
+4. ✅ **Content-Disposition** - Header parsing (6/7 tests passing, 1 edge case remains)
+5. ✅ **Spider mode** - Basic spider and fail detection working
+
+Remaining quick wins (can increase pass rate to ~25-30%):
+1. **HTTP 204 handling** - Don't create empty files for 204 No Content (1 test)
+2. **Timestamping edge cases** - Handle old files, size changes, missing headers (3 tests)
+3. **Content-Disposition numbering** - Add .1, .2, .3 suffix for duplicates (1 test)
+4. **CLI argument parsing** - Allow `--no-directories` multiple times (1 test)
+5. **Recursive link extraction** - Fix link extraction for -r -E -k (2 tests)
 
 See TODO.md for complete list of 19 prioritized tasks.
 

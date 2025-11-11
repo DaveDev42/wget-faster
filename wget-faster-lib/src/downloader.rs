@@ -391,6 +391,28 @@ impl Downloader {
                 .await?
         };
 
+        // If 204 No Content or no bytes downloaded, remove the empty file
+        // This matches wget behavior: don't create files for 204 responses
+        if total_bytes == 0 && resume_from == 0 {
+            // Drop the file handle before deleting
+            drop(file);
+
+            // Remove the empty file
+            if let Err(e) = tokio::fs::remove_file(&path).await {
+                // Log error but don't fail if file doesn't exist
+                if self.client.config().verbose {
+                    eprintln!("Warning: Failed to remove empty file: {}", e);
+                }
+            }
+
+            // Return empty result without a file
+            return Ok(DownloadResult {
+                data: DownloadedData::new_memory(Bytes::new()),
+                url: url.to_string(),
+                metadata,
+            });
+        }
+
         // Set file modification time from server if configured and available
         if self.client.config().use_server_timestamps {
             if let Some(ref last_modified_str) = metadata.last_modified {
