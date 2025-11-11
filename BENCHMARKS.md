@@ -111,14 +111,14 @@ Each benchmark:
 
 ## Performance Goals
 
-### v0.1.0 Goals
+### v0.0.1 Goals
 
 - Sequential downloads: < 2ms overhead for 1MB
 - Parallel downloads: 2-4x faster than sequential for 10MB+
 - Progress tracking: < 5% overhead
 - Optimal chunk count: 8-16 for most scenarios
 
-### Future Goals (v0.2.0+)
+### Future Goals (v0.1.0+)
 
 - HTTP/3 (QUIC) performance comparison
 - Real network benchmark suite
@@ -181,4 +181,4 @@ fn bench_new_feature(c: &mut Criterion) {
 ---
 
 **Last Updated**: 2025-11-11
-**Next Review**: After v0.2.0 release
+**Next Review**: After v0.1.0 release

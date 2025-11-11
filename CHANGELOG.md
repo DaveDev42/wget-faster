@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.1.1
+### Planned for v0.0.2
 - Real HTTP integration tests with mockito
 - Server response display (`-S, --server-response` option)
 - Improved wget-style output formatting
 - rustdoc comments for all public APIs
 - Fix all compiler warnings
 
-## [0.1.0] - 2025-11-11
+## [0.0.1] - 2025-11-11
 
 ### Added
 
@@ -254,7 +254,7 @@ wget-faster is an independent clean-room implementation inspired by GNU wget's i
 
 ## Version History
 
-- **v0.1.0** (2025-11-11) - Initial release with core features
+- **v0.0.1** (2025-11-11) - Initial release with core features
   - Async downloads, parallel downloads, recursive downloads
   - 150+ CLI options, cookie support, authentication
   - Basic wget compatibility for common use cases
@@ -263,10 +263,10 @@ wget-faster is an independent clean-room implementation inspired by GNU wget's i
 
 ## Upgrade Notes
 
-### From Source to v0.1.0
+### From Source to v0.0.1
 This is the first official release. If you were using git HEAD:
 - Binary name changed from `wget-faster` to `wgetf`
-- API is now stable for v0.1.x series
+- API is now stable for v0.0.x series
 - Configuration structure is finalized
 
 ---
@@ -280,5 +280,5 @@ This is the first official release. If you were using git HEAD:
 
 ---
 
-[Unreleased]: https://github.com/wget-faster/wget-faster/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/wget-faster/wget-faster/releases/tag/v0.1.0
+[Unreleased]: https://github.com/wget-faster/wget-faster/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/wget-faster/wget-faster/releases/tag/v0.0.1

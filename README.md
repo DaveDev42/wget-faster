@@ -317,9 +317,9 @@ wget-faster/
 
 ## Development Status
 
-### Current Version: 0.1.0
+### Current Version: 0.0.1
 
-wget-faster v0.1.0 is a working, high-performance HTTP/HTTPS downloader with core wget compatibility.
+wget-faster v0.0.1 is a working, high-performance HTTP/HTTPS downloader with core wget compatibility.
 
 ### ✅ Implemented Features
 - **Core Downloads**
@@ -383,20 +383,20 @@ wget-faster v0.1.0 is a working, high-performance HTTP/HTTPS downloader with cor
 
 See [CHANGELOG.md](CHANGELOG.md) for complete details and [TODO.md](TODO.md) for roadmap.
 
-### 📋 Planned for v0.1.1
+### 📋 Planned for v0.0.2
 - [ ] Comprehensive integration tests (target: 60%+ coverage)
 - [ ] Server response display (`-S` option)
 - [ ] Improved wget-style output formatting
 - [ ] Fix all compiler warnings
 - [ ] rustdoc for all public APIs
 
-### 📋 Planned for v0.2.0
+### 📋 Planned for v0.1.0
 - [ ] HTTP/3 (QUIC) support
 - [ ] Performance benchmarks vs GNU wget
 - [ ] Zero-copy optimizations
 - [ ] Memory profiling validation
 
-### 📋 Planned for v0.3.0+
+### 📋 Planned for v0.2.0+
 - [ ] Link conversion (`-k`)
 - [ ] FTP/FTPS support
 - [ ] wget test suite integration (60%+ pass rate)

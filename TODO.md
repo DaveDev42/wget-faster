@@ -1,6 +1,6 @@
 # TODO - wget-faster Development Roadmap
 
-**Current Version**: v0.1.0
+**Current Version**: v0.0.1
 **Last Updated**: 2025-11-11
 
 ---
@@ -11,14 +11,14 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ### Version Strategy
 
-- **v0.1.x** - Core features and stability (current)
-- **v0.2.x** - Performance optimizations and HTTP/3
-- **v0.3.x** - Advanced features and full wget compatibility
+- **v0.0.x** - Initial development and core features (current)
+- **v0.1.x** - Performance optimizations and HTTP/3
+- **v0.2.x** - Advanced features and full wget compatibility
 - **v1.0.0** - Production-ready release
 
 ---
 
-## v0.1.0 Status - Completed ✅
+## v0.0.1 Status - Completed ✅
 
 ### Core Download Features
 - [x] Async/await with tokio runtime
@@ -95,7 +95,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-## v0.1.1 - Testing & Quality (Completed ✅)
+## v0.0.2 - Testing & Quality (Completed ✅)
 
 **Goal**: Increase test coverage to 60%+ and fix all compiler warnings
 
@@ -185,7 +185,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-## v0.1.2 - wget Test Suite Integration
+## v0.0.3 - wget Test Suite Integration
 
 **Goal**: Achieve 60%+ pass rate on wget core test suite
 
@@ -226,7 +226,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-## v0.2.0 - Performance & HTTP/3
+## v0.1.0 - Performance & HTTP/3
 
 **Goal**: Significant performance improvements and HTTP/3 support
 
@@ -264,7 +264,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-## v0.3.0 - Advanced Features
+## v0.2.0 - Advanced Features
 
 **Goal**: Full wget feature parity for advanced use cases
 
@@ -390,7 +390,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-## Known Issues & Limitations (v0.1.1)
+## Known Issues & Limitations (v0.0.2)
 
 ### Implementation Gaps
 1. **Link conversion** - `-k` option parsed but not implemented
@@ -399,13 +399,13 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ### Test Coverage
 1. **Integration tests** - 86+ tests passing, good coverage of core features
-2. **wget test suite** - Not yet integrated (planned for v0.1.2)
+2. **wget test suite** - Not yet integrated (planned for v0.0.3)
 3. **CLI tests** - Need dedicated output/formatting tests
 
 ### Performance
 1. **Benchmarks** - Framework in place with criterion, need more scenarios
 2. **Memory profiling** - Not yet validated
-3. **HTTP/3** - Not yet implemented (planned for v0.2.0)
+3. **HTTP/3** - Not yet implemented (planned for v0.1.0)
 
 ### Compatibility
 1. **Output format** - Now wget-compatible by default, --pretty for modern style
@@ -452,7 +452,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ## Quick Reference
 
-### Current Priorities (v0.1.2)
+### Current Priorities (v0.0.3)
 1. Create wget-faster-test repository (GPL-3.0 separation)
 2. Implement wget test runner (Python adapter)
 3. Run core wget test categories
@@ -493,5 +493,5 @@ cargo run -- https://example.com/file.txt
 ---
 
 **Last reviewed**: 2025-11-11
-**v0.1.1 Status**: Completed ✅
-**Next review**: After v0.1.2 release
+**v0.0.2 Status**: Completed ✅
+**Next review**: After v0.0.3 release

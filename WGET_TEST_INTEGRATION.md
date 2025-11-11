@@ -1,7 +1,7 @@
 # wget Test Suite Integration Strategy
 
 **Purpose**: Achieve 60%+ pass rate on GNU wget test suite to validate compatibility
-**Version Target**: v0.1.2
+**Version Target**: v0.0.3
 **License Consideration**: Separate GPL-3.0 repository for test integration
 
 ---
@@ -339,7 +339,7 @@ Create `COMPATIBILITY.md` in `wget-faster-test`:
 ```markdown
 # wget-faster Compatibility Matrix
 
-## Test Results (v0.1.2)
+## Test Results (v0.0.3)
 
 | Category | Total | Passed | Failed | Pass Rate |
 |----------|-------|--------|--------|-----------|
@@ -368,16 +368,16 @@ Create `COMPATIBILITY.md` in `wget-faster-test`:
 
 2. **Default User-Agent**
    - wget: `Wget/1.21.3`
-   - wgetf: `wget-faster/0.1.0`
+   - wgetf: `wget-faster/0.0.1`
    - Reason: Different implementation
    - Impact: None (can be overridden with `-U`)
 
 ### Features Not Implemented
 
-1. **FTP/FTPS** - Planned for v0.3.0
+1. **FTP/FTPS** - Planned for v0.2.0
 2. **WARC Format** - Planned for future
-3. **Link Conversion (`-k`)** - Planned for v0.3.0
-4. **.netrc** - Planned for v0.3.0
+3. **Link Conversion (`-k`)** - Planned for v0.2.0
+4. **.netrc** - Planned for v0.2.0
 
 ## Failed Tests
 
@@ -389,11 +389,11 @@ None
 
 1. **Test-Auth-Digest-Multi** - Multiple digest auth challenges
    - Status: Bug in digest auth implementation
-   - Fix: Planned for v0.1.3
+   - Fix: Planned for v0.0.4
 
 2. **Test-HTTPS-Client-Cert-Chain** - Certificate chain validation
    - Status: Missing certificate chain handling
-   - Fix: Planned for v0.1.3
+   - Fix: Planned for v0.0.4
 
 ### P2 Failures (Nice to Fix)
 
@@ -441,7 +441,7 @@ python3 parse-results.py
 
 ## Success Criteria
 
-### v0.1.2 Release
+### v0.0.3 Release
 
 - ✅ Test repository created and documented
 - ✅ License separation clearly explained
@@ -479,7 +479,7 @@ export WGET_PATH=/path/to/new/wgetf
 python3 test-runner.py
 python3 parse-results.py
 git add test-results/
-git commit -m "Test results for wget-faster v0.1.2"
+git commit -m "Test results for wget-faster v0.0.3"
 ```
 
 ## FAQ
@@ -514,4 +514,4 @@ We document known incompatibilities and explain why. The goal is compatibility w
 ---
 
 **Last Updated**: 2025-11-11
-**Next Review**: After v0.1.2 release
+**Next Review**: After v0.0.3 release
