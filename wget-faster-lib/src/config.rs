@@ -64,6 +64,63 @@ pub struct DownloadConfig {
 
     /// Enable verbose logging
     pub verbose: bool,
+
+    /// HTTP method (GET, POST, PUT, etc.)
+    pub method: HttpMethod,
+
+    /// POST/PUT data
+    pub body_data: Option<Vec<u8>>,
+
+    /// Referer URL
+    pub referer: Option<String>,
+
+    /// Content-Type for POST/PUT requests
+    pub content_type: Option<String>,
+
+    /// Enable HTTP keep-alive
+    pub http_keep_alive: bool,
+
+    /// Wait time between requests (seconds)
+    pub wait_time: Option<Duration>,
+
+    /// Random wait range multiplier (0.5-1.5x wait_time)
+    pub random_wait: bool,
+
+    /// Wait time between retries (seconds)
+    pub wait_retry: Option<Duration>,
+
+    /// Download quota (bytes, None for unlimited)
+    pub quota: Option<u64>,
+
+    /// Enable timestamping (only download if remote is newer)
+    pub timestamping: bool,
+
+    /// Use If-Modified-Since header
+    pub if_modified_since: bool,
+
+    /// Set local file timestamp from server
+    pub use_server_timestamps: bool,
+
+    /// Honor Content-Disposition header for filename
+    pub content_disposition: bool,
+
+    /// Save HTTP headers to output
+    pub save_headers: bool,
+
+    /// Send auth without waiting for challenge (preemptive auth)
+    pub auth_no_challenge: bool,
+}
+
+/// HTTP method
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HttpMethod {
+    Get,
+    Head,
+    Post,
+    Put,
+    Delete,
+    Patch,
+    Options,
 }
 
 impl Default for DownloadConfig {
@@ -89,6 +146,48 @@ impl Default for DownloadConfig {
             ca_cert: None,
             speed_limit: None,
             verbose: false,
+            method: HttpMethod::Get,
+            body_data: None,
+            referer: None,
+            content_type: None,
+            http_keep_alive: true,
+            wait_time: None,
+            random_wait: false,
+            wait_retry: None,
+            quota: None,
+            timestamping: false,
+            if_modified_since: true,
+            use_server_timestamps: true,
+            content_disposition: false,
+            save_headers: false,
+            auth_no_challenge: false,
+        }
+    }
+}
+
+impl HttpMethod {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            HttpMethod::Get => "GET",
+            HttpMethod::Head => "HEAD",
+            HttpMethod::Post => "POST",
+            HttpMethod::Put => "PUT",
+            HttpMethod::Delete => "DELETE",
+            HttpMethod::Patch => "PATCH",
+            HttpMethod::Options => "OPTIONS",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_uppercase().as_str() {
+            "GET" => Some(HttpMethod::Get),
+            "HEAD" => Some(HttpMethod::Head),
+            "POST" => Some(HttpMethod::Post),
+            "PUT" => Some(HttpMethod::Put),
+            "DELETE" => Some(HttpMethod::Delete),
+            "PATCH" => Some(HttpMethod::Patch),
+            "OPTIONS" => Some(HttpMethod::Options),
+            _ => None,
         }
     }
 }

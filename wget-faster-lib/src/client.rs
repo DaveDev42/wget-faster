@@ -68,6 +68,19 @@ impl HttpClient {
             builder = builder;
         }
 
+        // Configure cookies
+        if config.enable_cookies {
+            builder = builder.cookie_store(true);
+
+            // Load cookies from file if specified
+            if let Some(ref cookie_file) = config.cookie_file {
+                if cookie_file.exists() {
+                    // Note: reqwest doesn't provide a way to load cookies from file directly
+                    // We'll handle this at a higher level
+                }
+            }
+        }
+
         // Configure certificates
         if let Some(ca_cert_path) = &config.ca_cert {
             let cert = std::fs::read(ca_cert_path)?;

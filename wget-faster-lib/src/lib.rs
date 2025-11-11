@@ -39,10 +39,16 @@ mod progress;
 mod output;
 mod parallel;
 mod downloader;
+mod cookies;
+mod adaptive;
+mod recursive;
 
 pub use error::{Error, Result};
-pub use config::{DownloadConfig, RetryConfig, ProxyConfig, AuthConfig, AuthType};
+pub use config::{DownloadConfig, RetryConfig, ProxyConfig, AuthConfig, AuthType, HttpMethod};
 pub use client::{HttpClient, ResourceMetadata};
 pub use downloader::{Downloader, DownloadResult};
 pub use progress::{ProgressInfo, ProgressCallback, format_bytes, format_bytes_per_sec, format_duration};
 pub use output::{Output, DownloadedData};
+pub use cookies::{Cookie, CookieJar};
+pub use adaptive::AdaptiveDownloader;
+pub use recursive::{RecursiveDownloader, RecursiveConfig};

@@ -35,6 +35,7 @@ tracing = { workspace = true }
 flate2 = { workspace = true }
 brotli = { workspace = true }
 chrono = { workspace = true }
+httpdate = { workspace = true }
 
 [dev-dependencies]
 mockito = { workspace = true }
