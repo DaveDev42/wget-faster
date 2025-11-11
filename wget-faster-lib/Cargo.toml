@@ -43,6 +43,11 @@ httpdate = { workspace = true }
 [dev-dependencies]
 mockito = { workspace = true }
 tracing-subscriber = { workspace = true }
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "download_benchmarks"
+harness = false
 
 [lints]
 workspace = true

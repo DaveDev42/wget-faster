@@ -443,3 +443,76 @@ async fn test_500_server_error() {
 
     mock.assert_async().await;
 }
+
+
+#[tokio::test]
+async fn test_server_response_display() {
+    let mut server = Server::new_async().await;
+
+    let mock = server
+        .mock("HEAD", "/file")
+        .with_status(200)
+        .with_header("content-type", "text/plain")
+        .with_header("content-length", "100")
+        .with_header("accept-ranges", "bytes")
+        .with_header("last-modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+        .create_async()
+        .await;
+
+    let mock_get = server
+        .mock("GET", "/file")
+        .with_status(200)
+        .with_header("content-type", "text/plain")
+        .with_body("test content for server response")
+        .create_async()
+        .await;
+
+    let config = DownloadConfig {
+        print_server_response: true,
+        ..Default::default()
+    };
+
+    let downloader = Downloader::new(config).unwrap();
+    let url = format!("{}/file", server.url());
+
+    // This will print headers to stderr
+    let result = downloader.download_to_memory(&url).await;
+
+    mock.assert_async().await;
+    mock_get.assert_async().await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_metadata_contains_headers() {
+    let mut server = Server::new_async().await;
+
+    let mock = server
+        .mock("HEAD", "/test")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_header("content-length", "42")
+        .with_header("x-custom-header", "custom-value")
+        .create_async()
+        .await;
+
+    let config = DownloadConfig::default();
+    let client = crate::HttpClient::new(config).unwrap();
+    let url = format!("{}/test", server.url());
+
+    let metadata = client.get_metadata(&url).await.unwrap();
+
+    // Verify headers are captured
+    assert_eq!(metadata.status_code, 200);
+    assert!(metadata.headers.contains_key("content-type"));
+    assert!(metadata.headers.contains_key("content-length"));
+    assert!(metadata.headers.contains_key("x-custom-header"));
+
+    // Test format_headers method
+    let formatted = metadata.format_headers();
+    assert!(formatted.contains("HTTP/1.1 200 OK"));
+    assert!(formatted.contains("content-type"));
+    assert!(formatted.contains("application/json"));
+
+    mock.assert_async().await;
+}

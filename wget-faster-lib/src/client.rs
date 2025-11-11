@@ -167,21 +167,86 @@ impl HttpClient {
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
 
+        let status_code = response.status().as_u16();
+        let headers = response.headers().clone();
+
         Ok(ResourceMetadata {
             supports_range,
             content_length,
             last_modified,
             etag,
             content_type,
+            status_code,
+            headers,
         })
     }
 }
 
+/// Metadata about a remote resource
+///
+/// Contains information extracted from HTTP response headers, including
+/// support for range requests, content information, and raw headers.
 #[derive(Debug, Clone)]
 pub struct ResourceMetadata {
+    /// Whether the server supports HTTP Range requests
     pub supports_range: bool,
+
+    /// Content length in bytes
     pub content_length: Option<u64>,
+
+    /// Last-Modified header value
     pub last_modified: Option<String>,
+
+    /// ETag header value
     pub etag: Option<String>,
+
+    /// Content-Type header value
     pub content_type: Option<String>,
+
+    /// HTTP status code
+    pub status_code: u16,
+
+    /// Raw response headers (for --server-response display)
+    pub headers: HeaderMap,
+}
+
+impl ResourceMetadata {
+    /// Format headers for display (wget --server-response style)
+    ///
+    /// Returns a string with all HTTP headers formatted as "Header-Name: value"
+    pub fn format_headers(&self) -> String {
+        let mut output = format!("HTTP/1.1 {} {}\n",
+            self.status_code,
+            status_text(self.status_code)
+        );
+
+        for (name, value) in &self.headers {
+            if let Ok(value_str) = value.to_str() {
+                output.push_str(&format!("  {}: {}\n", name, value_str));
+            }
+        }
+
+        output
+    }
+}
+
+/// Get status text for HTTP status code
+fn status_text(code: u16) -> &'static str {
+    match code {
+        200 => "OK",
+        201 => "Created",
+        204 => "No Content",
+        206 => "Partial Content",
+        301 => "Moved Permanently",
+        302 => "Found",
+        304 => "Not Modified",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        500 => "Internal Server Error",
+        502 => "Bad Gateway",
+        503 => "Service Unavailable",
+        _ => "Unknown",
+    }
 }

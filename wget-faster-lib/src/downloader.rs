@@ -179,11 +179,16 @@ impl Downloader {
         // Get metadata
         let metadata = self.client.get_metadata(url).await?;
 
+        // Print server response if requested
+        if self.client.config().print_server_response {
+            eprintln!("{}", metadata.format_headers());
+        }
+
         // Use parallel download if supported and beneficial
         if metadata.supports_range {
             if let Some(total_size) = metadata.content_length {
-                if total_size > 1024 * 1024 * 10 {
-                    // Use parallel for files > 10MB
+                if total_size > self.client.config().parallel_threshold {
+                    // Use parallel for files > threshold
                     return parallel::download_parallel(
                         &self.client,
                         url,
@@ -294,6 +299,11 @@ impl Downloader {
         // Get metadata first
         let metadata = self.client.get_metadata(url).await?;
 
+        // Print server response if requested
+        if self.client.config().print_server_response {
+            eprintln!("{}", metadata.format_headers());
+        }
+
         // Check timestamping - skip if local file is newer
         if self.client.config().timestamping && path.exists() {
             if let Some(ref remote_modified) = metadata.last_modified {
@@ -334,8 +344,8 @@ impl Downloader {
         // Use parallel download if supported and beneficial
         let total_bytes = if metadata.supports_range && resume_from == 0 {
             if let Some(total_size) = metadata.content_length {
-                if total_size > 1024 * 1024 * 10 {
-                    // Use parallel for files > 10MB
+                if total_size > self.client.config().parallel_threshold {
+                    // Use parallel for files > threshold
                     parallel::download_parallel_to_writer(
                         &self.client,
                         url,

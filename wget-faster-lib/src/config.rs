@@ -107,8 +107,14 @@ pub struct DownloadConfig {
     /// Save HTTP headers to output
     pub save_headers: bool,
 
+    /// Print server response headers to stderr (wget -S style)
+    pub print_server_response: bool,
+
     /// Send auth without waiting for challenge (preemptive auth)
     pub auth_no_challenge: bool,
+
+    /// Minimum file size threshold for parallel downloads (bytes)
+    pub parallel_threshold: u64,
 }
 
 /// HTTP request method
@@ -169,7 +175,9 @@ impl Default for DownloadConfig {
             use_server_timestamps: true,
             content_disposition: false,
             save_headers: false,
+            print_server_response: false,
             auth_no_challenge: false,
+            parallel_threshold: 10 * 1024 * 1024, // 10MB
         }
     }
 }
