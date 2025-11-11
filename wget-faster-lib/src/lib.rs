@@ -42,6 +42,7 @@ mod downloader;
 mod cookies;
 mod adaptive;
 mod recursive;
+mod netrc;
 
 pub use error::{Error, Result};
 pub use config::{DownloadConfig, RetryConfig, ProxyConfig, AuthConfig, AuthType, HttpMethod};
@@ -52,3 +53,4 @@ pub use output::{Output, DownloadedData};
 pub use cookies::{Cookie, CookieJar};
 pub use adaptive::AdaptiveDownloader;
 pub use recursive::{RecursiveDownloader, RecursiveConfig};
+pub use netrc::{Netrc, NetrcEntry};

@@ -500,6 +500,81 @@ impl Downloader {
 
         let status_code = response.status().as_u16();
 
+        // Handle authentication challenges (401/407)
+        // If we have credentials but didn't send them preemptively, retry with auth
+        if (status_code == 401 || status_code == 407) && !self.client.config().auth_no_challenge {
+            // Try configured auth first, then .netrc
+            let auth = if let Some(ref auth) = self.client.config().auth {
+                Some(auth.clone())
+            } else {
+                // Try .netrc file
+                match crate::netrc::Netrc::from_default_location() {
+                    Ok(Some(netrc)) => {
+                        // Extract hostname from URL
+                        if let Ok(parsed) = url::Url::parse(url) {
+                            if let Some(host) = parsed.host_str() {
+                                netrc.get(host)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            };
+
+            if let Some(auth) = auth {
+                // Retry with authentication
+                let retry_request = self.client.client().get(url)
+                    .basic_auth(&auth.username, Some(&auth.password));
+
+                let retry_response = retry_request.send().await?;
+                let retry_status = retry_response.status().as_u16();
+
+                // If still unauthorized, return error
+                if retry_status == 401 || retry_status == 407 {
+                    return Err(Error::InvalidStatus(retry_status));
+                }
+
+                // Success! Continue with retry_response
+                return self.process_sequential_response(retry_response, url, progress_callback).await;
+            } else {
+                // No credentials available
+                return Err(Error::InvalidStatus(status_code));
+            }
+        }
+
+        // 204 No Content is a success but has no body
+        if status_code == 204 {
+            return Ok(Bytes::new());
+        }
+
+        // Check for HTTP errors (4xx/5xx)
+        if status_code >= 400 {
+            // Only save error content if content_on_error is enabled
+            if !self.client.config().content_on_error {
+                return Err(Error::InvalidStatus(status_code));
+            }
+            // If content_on_error is enabled, continue downloading the error page
+        } else if !response.status().is_success() {
+            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
+            return Err(Error::InvalidStatus(status_code));
+        }
+
+        self.process_sequential_response(response, url, progress_callback).await
+    }
+
+    /// Helper to process response body for sequential downloads
+    async fn process_sequential_response(
+        &self,
+        response: reqwest::Response,
+        url: &str,
+        progress_callback: Option<ProgressCallback>,
+    ) -> Result<Bytes> {
+        let status_code = response.status().as_u16();
+
         // 204 No Content is a success but has no body
         if status_code == 204 {
             return Ok(Bytes::new());
@@ -576,6 +651,56 @@ impl Downloader {
 
         let status_code = response.status().as_u16();
 
+        // Handle authentication challenges (401/407)
+        // If we have credentials but didn't send them preemptively, retry with auth
+        if (status_code == 401 || status_code == 407) && !self.client.config().auth_no_challenge {
+            // Try configured auth first, then .netrc
+            let auth = if let Some(ref auth) = self.client.config().auth {
+                Some(auth.clone())
+            } else {
+                // Try .netrc file
+                match crate::netrc::Netrc::from_default_location() {
+                    Ok(Some(netrc)) => {
+                        // Extract hostname from URL
+                        if let Ok(parsed) = url::Url::parse(url) {
+                            if let Some(host) = parsed.host_str() {
+                                netrc.get(host)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            };
+
+            if let Some(auth) = auth {
+                // Retry with authentication (preserving range header if needed)
+                let mut retry_request = self.client.client().get(url)
+                    .basic_auth(&auth.username, Some(&auth.password));
+
+                if let Some(ref range) = range_header {
+                    retry_request = retry_request.header(reqwest::header::RANGE, range);
+                }
+
+                let retry_response = retry_request.send().await?;
+                let retry_status = retry_response.status().as_u16();
+
+                // If still unauthorized, return error
+                if retry_status == 401 || retry_status == 407 {
+                    return Err(Error::InvalidStatus(retry_status));
+                }
+
+                // Success! Continue with retry_response
+                return self.process_writer_response(retry_response, url, writer, progress_callback, resume_from).await;
+            } else {
+                // No credentials available
+                return Err(Error::InvalidStatus(status_code));
+            }
+        }
+
         // 204 No Content is a success but has no body - don't create file
         if status_code == 204 {
             return Ok(0);
@@ -584,6 +709,46 @@ impl Downloader {
         // 416 Range Not Satisfiable means the file is already complete
         if status_code == 416 {
             // File is already fully downloaded
+            return Ok(resume_from);
+        }
+
+        // Check for HTTP errors (4xx/5xx)
+        if status_code >= 400 {
+            // Only save error content if content_on_error is enabled
+            if !self.client.config().content_on_error {
+                return Err(Error::InvalidStatus(status_code));
+            }
+            // If content_on_error is enabled, continue downloading the error page
+        } else if !response.status().is_success() && status_code != 206 {
+            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
+            // 206 is acceptable for partial content (resume)
+            return Err(Error::InvalidStatus(status_code));
+        }
+
+        self.process_writer_response(response, url, writer, progress_callback, resume_from).await
+    }
+
+    /// Helper to process response body for sequential downloads to writer
+    async fn process_writer_response<W>(
+        &self,
+        response: reqwest::Response,
+        url: &str,
+        writer: &mut W,
+        progress_callback: Option<ProgressCallback>,
+        resume_from: u64,
+    ) -> Result<u64>
+    where
+        W: AsyncWriteExt + Unpin + Send,
+    {
+        let status_code = response.status().as_u16();
+
+        // 204 No Content is a success but has no body - don't create file
+        if status_code == 204 {
+            return Ok(0);
+        }
+
+        // 416 Range Not Satisfiable means the file is already complete
+        if status_code == 416 {
             return Ok(resume_from);
         }
 
