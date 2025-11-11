@@ -201,6 +201,8 @@ jobs:
     name: Publish to crates.io
     needs: [auto-tag, release]
     runs-on: ubuntu-latest
+    # Only publish to crates.io if PR has label 'publish-crates'
+    if: contains(github.event.pull_request.labels.*.name, 'publish-crates')
 
     steps:
       - uses: actions/checkout@v4
