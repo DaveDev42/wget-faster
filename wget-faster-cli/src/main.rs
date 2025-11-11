@@ -124,7 +124,7 @@ async fn download_url(
     // Create output formatter
     let mut output = WgetOutput::new(
         args.quiet,
-        args.verbose || args.debug,
+        args.verbose || args.debug > 0,
         args.show_progress || (!args.quiet && !args.no_verbose),
     );
 
@@ -464,7 +464,7 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     config.save_headers = args.save_headers;
 
     // Set verbose mode
-    config.verbose = args.verbose || args.debug;
+    config.verbose = args.verbose || args.debug > 0;
 
     Ok(config)
 }

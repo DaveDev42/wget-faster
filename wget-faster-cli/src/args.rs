@@ -36,8 +36,8 @@ pub struct Args {
     pub append_output: Option<PathBuf>,
 
     /// Print lots of debugging information
-    #[arg(short = 'd', long)]
-    pub debug: bool,
+    #[arg(short = 'd', long, action = clap::ArgAction::Count)]
+    pub debug: u8,
 
     /// Quiet (no output)
     #[arg(short = 'q', long)]
@@ -109,7 +109,7 @@ pub struct Args {
     pub no_netrc: bool,
 
     /// Resume getting a partially-downloaded file
-    #[arg(short = 'c', long)]
+    #[arg(short = 'c', long, alias = "continue")]
     pub continue_download: bool,
 
     /// Start downloading from zero-based position OFFSET
@@ -373,6 +373,10 @@ pub struct Args {
     /// Honor the Content-Disposition header
     #[arg(long)]
     pub content_disposition: bool,
+
+    /// Ignore the Content-Disposition header
+    #[arg(long)]
+    pub no_content_disposition: bool,
 
     /// Output the received content on server errors
     #[arg(long)]

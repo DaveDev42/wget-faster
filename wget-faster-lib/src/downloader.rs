@@ -459,8 +459,15 @@ impl Downloader {
         let request = self.build_request(url, None)?;
         let response = request.send().await?;
 
+        let status_code = response.status().as_u16();
+
+        // 204 No Content is a success but has no body
+        if status_code == 204 {
+            return Ok(Bytes::new());
+        }
+
         if !response.status().is_success() {
-            return Err(Error::InvalidStatus(response.status().as_u16()));
+            return Err(Error::InvalidStatus(status_code));
         }
 
         let total_size = response.content_length();
@@ -520,8 +527,16 @@ impl Downloader {
         let request = self.build_request(url, range_header.as_deref())?;
         let response = request.send().await?;
 
-        if !response.status().is_success() && response.status().as_u16() != 206 {
-            return Err(Error::InvalidStatus(response.status().as_u16()));
+        let status_code = response.status().as_u16();
+
+        // 416 Range Not Satisfiable means the file is already complete
+        if status_code == 416 {
+            // File is already fully downloaded
+            return Ok(resume_from);
+        }
+
+        if !response.status().is_success() && status_code != 206 {
+            return Err(Error::InvalidStatus(status_code));
         }
 
         let total_size = response.content_length().map(|s| s + resume_from);
