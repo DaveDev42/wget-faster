@@ -1,29 +1,85 @@
-use crate::{Error, Result};
+use crate::Result;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-/// A cookie with all its attributes
+/// An HTTP cookie with all its attributes
+///
+/// Represents a single HTTP cookie with domain, path, security settings,
+/// and optional expiration time.
+///
+/// # Examples
+///
+/// ```
+/// use wget_faster_lib::cookies::Cookie;
+///
+/// let cookie = Cookie {
+///     domain: "example.com".to_string(),
+///     include_subdomains: true,
+///     path: "/".to_string(),
+///     secure: false,
+///     expiration: None,  // Session cookie
+///     name: "session_id".to_string(),
+///     value: "abc123".to_string(),
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub struct Cookie {
+    /// Domain this cookie applies to (e.g., "example.com")
     pub domain: String,
+
+    /// Whether this cookie should be sent to subdomains
     pub include_subdomains: bool,
+
+    /// Path this cookie applies to (e.g., "/", "/api")
     pub path: String,
+
+    /// Whether this cookie should only be sent over HTTPS
     pub secure: bool,
-    pub expiration: Option<u64>, // Unix timestamp, None for session cookies
+
+    /// Expiration time as Unix timestamp, None for session cookies
+    pub expiration: Option<u64>,
+
+    /// Cookie name
     pub name: String,
+
+    /// Cookie value
     pub value: String,
 }
 
-/// Cookie jar that stores cookies
+/// Cookie jar for managing HTTP cookies
+///
+/// Stores and manages cookies according to domain and path rules.
+/// Supports loading/saving cookies in Netscape format (compatible with wget/curl).
+///
+/// # Examples
+///
+/// ```no_run
+/// use wget_faster_lib::cookies::{CookieJar, Cookie};
+/// use std::path::Path;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     // Load cookies from file
+///     let jar = CookieJar::load_from_file(Path::new("cookies.txt")).await?;
+///
+///     // Get Cookie header for a domain
+///     if let Some(header) = jar.to_cookie_header("example.com", "/", false) {
+///         println!("Cookie: {}", header);
+///     }
+///
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct CookieJar {
     cookies: HashMap<String, Vec<Cookie>>,
 }
 
 impl CookieJar {
+    /// Create a new empty cookie jar
     pub fn new() -> Self {
         Self {
             cookies: HashMap::new(),
@@ -65,7 +121,27 @@ impl CookieJar {
         result
     }
 
-    /// Load cookies from a Netscape format file
+    /// Load cookies from a Netscape format cookie file
+    ///
+    /// Reads cookies from a file in Netscape cookie format (compatible with wget/curl).
+    /// Automatically skips expired cookies and malformed lines.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the cookie file
+    ///
+    /// # Returns
+    ///
+    /// A new `CookieJar` containing the loaded cookies
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read
+    ///
+    /// # Netscape Cookie Format
+    ///
+    /// Each line contains tab-separated fields:
+    /// `domain` `flag` `path` `secure` `expiration` `name` `value`
     pub async fn load_from_file(path: &Path) -> Result<Self> {
         let file = File::open(path).await?;
         let reader = BufReader::new(file);
@@ -109,6 +185,16 @@ impl CookieJar {
     }
 
     /// Save cookies to a Netscape format file
+    ///
+    /// Writes all cookies to a file in Netscape cookie format (compatible with wget/curl).
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path where the cookie file will be saved
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be created or written
     pub async fn save_to_file(&self, path: &Path) -> Result<()> {
         let mut file = File::create(path).await?;
 
@@ -142,7 +228,40 @@ impl CookieJar {
         Ok(())
     }
 
-    /// Get all cookies as a Cookie header value
+    /// Convert cookies to a Cookie header value
+    ///
+    /// Builds a Cookie header value for a specific domain, path, and security context.
+    /// Only includes cookies that match the domain/path and aren't expired.
+    ///
+    /// # Arguments
+    ///
+    /// * `domain` - The domain of the request
+    /// * `path` - The path of the request
+    /// * `secure` - Whether the request uses HTTPS
+    ///
+    /// # Returns
+    ///
+    /// `Some(String)` with the Cookie header value, or `None` if no cookies match
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wget_faster_lib::cookies::{CookieJar, Cookie};
+    ///
+    /// let mut jar = CookieJar::new();
+    /// jar.add_cookie(Cookie {
+    ///     domain: "example.com".to_string(),
+    ///     include_subdomains: true,
+    ///     path: "/".to_string(),
+    ///     secure: false,
+    ///     expiration: None,
+    ///     name: "session".to_string(),
+    ///     value: "abc123".to_string(),
+    /// });
+    ///
+    /// let header = jar.to_cookie_header("example.com", "/api", false);
+    /// assert_eq!(header, Some("session=abc123".to_string()));
+    /// ```
     pub fn to_cookie_header(&self, domain: &str, path: &str, secure: bool) -> Option<String> {
         let cookies = self.get_cookies_for_domain(domain);
 
@@ -169,7 +288,30 @@ impl CookieJar {
         }
     }
 
-    /// Parse and add cookies from Set-Cookie headers
+    /// Parse and add cookies from Set-Cookie header
+    ///
+    /// Parses a Set-Cookie header value and adds the cookie to the jar.
+    /// Supports standard cookie attributes like Domain, Path, Secure, Max-Age.
+    ///
+    /// # Arguments
+    ///
+    /// * `domain` - Default domain if not specified in the cookie
+    /// * `set_cookie` - The Set-Cookie header value
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wget_faster_lib::cookies::CookieJar;
+    ///
+    /// let mut jar = CookieJar::new();
+    /// jar.add_from_set_cookie(
+    ///     "example.com",
+    ///     "session=xyz789; Path=/; Secure; Max-Age=3600"
+    /// );
+    ///
+    /// let header = jar.to_cookie_header("example.com", "/", true);
+    /// assert!(header.is_some());
+    /// ```
     pub fn add_from_set_cookie(&mut self, domain: &str, set_cookie: &str) {
         // Parse Set-Cookie header
         // Format: name=value; Domain=...; Path=...; Secure; HttpOnly; Expires=...; Max-Age=...

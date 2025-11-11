@@ -24,6 +24,7 @@ pub struct ProgressInfo {
 }
 
 impl ProgressInfo {
+    /// Create new progress tracker for a URL
     pub fn new(url: String) -> Self {
         Self {
             total_size: None,

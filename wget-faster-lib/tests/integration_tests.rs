@@ -1,32 +1,170 @@
-use wget_faster_lib::{Downloader, DownloadConfig, ProgressInfo, HttpMethod, AuthConfig, AuthType};
+use wget_faster_lib::{Downloader, DownloadConfig, ProgressInfo, HttpMethod, AuthConfig, AuthType, HttpClient};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use mockito::Server;
 
 #[tokio::test]
-async fn test_basic_download() {
+async fn test_basic_http_download() {
+    let mut server = Server::new_async().await;
+
+    let mock = server
+        .mock("GET", "/test.txt")
+        .with_status(200)
+        .with_header("content-type", "text/plain")
+        .with_body("Hello, World!")
+        .create_async()
+        .await;
+
     let config = DownloadConfig::default();
     let downloader = Downloader::new(config).unwrap();
 
-    // This would need a real test URL or mock server
-    // For now, we'll test the configuration
-    assert!(true);
+    let url = format!("{}/test.txt", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_ok());
+    let bytes = result.unwrap();
+    assert_eq!(bytes, "Hello, World!");
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_download_with_content_length() {
+    let mut server = Server::new_async().await;
+
+    let body = "Test content with known length";
+    let mock = server
+        .mock("GET", "/file.txt")
+        .with_status(200)
+        .with_header("content-type", "text/plain")
+        .with_header("content-length", &body.len().to_string())
+        .with_body(body)
+        .create_async()
+        .await;
+
+    let config = DownloadConfig::default();
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/file.txt", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_ok());
+    let bytes = result.unwrap();
+    assert_eq!(bytes, body);
+
+    mock.assert_async().await;
 }
 
 #[tokio::test]
 async fn test_progress_callback() {
+    let mut server = Server::new_async().await;
+
+    let body = "x".repeat(1000); // 1KB of data
+    let mock = server
+        .mock("GET", "/progress.txt")
+        .with_status(200)
+        .with_header("content-length", &body.len().to_string())
+        .with_body(&body)
+        .create_async()
+        .await;
+
     let config = DownloadConfig::default();
     let downloader = Downloader::new(config).unwrap();
 
     let progress_called = Arc::new(Mutex::new(false));
     let progress_called_clone = Arc::clone(&progress_called);
 
-    let _callback = Arc::new(move |_info: ProgressInfo| {
+    let callback = Arc::new(move |_info: ProgressInfo| {
         let mut called = progress_called_clone.lock().unwrap();
         *called = true;
     });
 
-    // Progress callback would be tested with actual download
-    assert!(true);
+    let url = format!("{}/progress.txt", server.url());
+    let result = downloader.download_to_memory_with_progress(&url, Some(callback)).await;
+
+    assert!(result.is_ok());
+    assert!(*progress_called.lock().unwrap(), "Progress callback should have been called");
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_redirect_following() {
+    let mut server = Server::new_async().await;
+
+    let redirect_mock = server
+        .mock("GET", "/redirect")
+        .with_status(302)
+        .with_header("location", &format!("{}/final", server.url()))
+        .create_async()
+        .await;
+
+    let final_mock = server
+        .mock("GET", "/final")
+        .with_status(200)
+        .with_body("Redirected content")
+        .create_async()
+        .await;
+
+    let config = DownloadConfig::default();
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/redirect", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_ok());
+    let bytes = result.unwrap();
+    assert_eq!(bytes, "Redirected content");
+
+    redirect_mock.assert_async().await;
+    final_mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_404_error() {
+    let mut server = Server::new_async().await;
+
+    let mock = server
+        .mock("GET", "/notfound")
+        .with_status(404)
+        .with_body("Not Found")
+        .create_async()
+        .await;
+
+    let config = DownloadConfig::default();
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/notfound", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_err());
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_custom_headers() {
+    let mut server = Server::new_async().await;
+
+    let mock = server
+        .mock("GET", "/custom-headers")
+        .match_header("X-Custom-Header", "test-value")
+        .with_status(200)
+        .with_body("OK")
+        .create_async()
+        .await;
+
+    let mut config = DownloadConfig::default();
+    config.headers.insert("X-Custom-Header".to_string(), "test-value".to_string());
+
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/custom-headers", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_ok());
+
+    mock.assert_async().await;
 }
 
 #[tokio::test]
@@ -168,4 +306,140 @@ fn test_auth_types() {
     assert_eq!(AuthType::Basic, AuthType::Basic);
     assert_eq!(AuthType::Digest, AuthType::Digest);
     assert_ne!(AuthType::Basic, AuthType::Digest);
+}
+
+#[tokio::test]
+async fn test_post_request() {
+    let mut server = Server::new_async().await;
+
+    let mock = server
+        .mock("POST", "/api/data")
+        .match_body("key=value&foo=bar")
+        .with_status(200)
+        .with_body("Success")
+        .create_async()
+        .await;
+
+    let mut config = DownloadConfig::default();
+    config.method = HttpMethod::Post;
+    config.body_data = Some(b"key=value&foo=bar".to_vec());
+
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/api/data", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), "Success");
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_download_to_file() {
+    let mut server = Server::new_async().await;
+
+    let body = "File content to download";
+    let mock = server
+        .mock("GET", "/downloadable.txt")
+        .with_status(200)
+        .with_header("content-length", &body.len().to_string())
+        .with_body(body)
+        .create_async()
+        .await;
+
+    let config = DownloadConfig::default();
+    let downloader = Downloader::new(config).unwrap();
+
+    // Create temp file
+    let temp_dir = tempfile::tempdir().unwrap();
+    let file_path = temp_dir.path().join("test_file.txt");
+
+    let url = format!("{}/downloadable.txt", server.url());
+    let result = downloader.download_to_file(&url, file_path.clone()).await;
+
+    assert!(result.is_ok());
+    assert!(file_path.exists());
+
+    // Verify file contents
+    let content = std::fs::read_to_string(&file_path).unwrap();
+    assert_eq!(content, body);
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_range_request_support() {
+    let mut server = Server::new_async().await;
+
+    // HEAD request to check capabilities
+    let head_mock = server
+        .mock("HEAD", "/large-file.bin")
+        .with_status(200)
+        .with_header("accept-ranges", "bytes")
+        .with_header("content-length", "1000")
+        .create_async()
+        .await;
+
+    let config = DownloadConfig::default();
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/large-file.bin", server.url());
+
+    // Check if server supports range
+    let client = HttpClient::new(DownloadConfig::default()).unwrap();
+    let supports_range = client.supports_range(&url).await;
+
+    assert!(supports_range.is_ok());
+    assert!(supports_range.unwrap());
+
+    head_mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_user_agent() {
+    let mut server = Server::new_async().await;
+
+    let custom_ua = "WgetFaster/0.1.0 Test";
+    let mock = server
+        .mock("GET", "/check-ua")
+        .match_header("user-agent", custom_ua)
+        .with_status(200)
+        .with_body("OK")
+        .create_async()
+        .await;
+
+    let mut config = DownloadConfig::default();
+    config.user_agent = custom_ua.to_string();
+
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/check-ua", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_ok());
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_500_server_error() {
+    let mut server = Server::new_async().await;
+
+    let mock = server
+        .mock("GET", "/server-error")
+        .with_status(500)
+        .with_body("Internal Server Error")
+        .create_async()
+        .await;
+
+    let config = DownloadConfig::default();
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/server-error", server.url());
+    let result = downloader.download_to_memory(&url).await;
+
+    assert!(result.is_err());
+
+    mock.assert_async().await;
 }

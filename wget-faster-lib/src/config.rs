@@ -111,15 +111,24 @@ pub struct DownloadConfig {
     pub auth_no_challenge: bool,
 }
 
-/// HTTP method
+/// HTTP request method
+///
+/// Supported HTTP methods for download requests. Defaults to GET.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HttpMethod {
+    /// HTTP GET - retrieve resource
     Get,
+    /// HTTP HEAD - retrieve headers only
     Head,
+    /// HTTP POST - submit data
     Post,
+    /// HTTP PUT - update resource
     Put,
+    /// HTTP DELETE - delete resource
     Delete,
+    /// HTTP PATCH - partial update
     Patch,
+    /// HTTP OPTIONS - query capabilities
     Options,
 }
 
@@ -166,6 +175,7 @@ impl Default for DownloadConfig {
 }
 
 impl HttpMethod {
+    /// Convert HTTP method to string representation
     pub fn as_str(&self) -> &'static str {
         match self {
             HttpMethod::Get => "GET",
@@ -178,6 +188,7 @@ impl HttpMethod {
         }
     }
 
+    /// Parse HTTP method from string (case-insensitive)
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
             "GET" => Some(HttpMethod::Get),
@@ -250,8 +261,11 @@ pub struct AuthConfig {
     pub auth_type: AuthType,
 }
 
+/// HTTP authentication type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthType {
+    /// HTTP Basic authentication (Base64-encoded credentials)
     Basic,
+    /// HTTP Digest authentication (challenge-response)
     Digest,
 }

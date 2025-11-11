@@ -1,6 +1,5 @@
 use crate::{Error, Result, HttpClient, ProgressInfo, ProgressCallback};
 use bytes::{Bytes, BytesMut};
-use futures_util::StreamExt;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;

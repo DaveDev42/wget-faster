@@ -9,13 +9,34 @@ use std::time::Instant;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-/// Main downloader struct
+/// Main downloader for HTTP/HTTPS downloads
+///
+/// The `Downloader` is the main entry point for performing downloads.
+/// It handles parallel downloads, resume functionality, retries, and more.
+///
+/// # Examples
+///
+/// ```no_run
+/// use wget_faster_lib::{Downloader, DownloadConfig};
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let downloader = Downloader::new(DownloadConfig::default())?;
+///     let bytes = downloader.download_to_memory("https://example.com/file.txt").await?;
+///     println!("Downloaded {} bytes", bytes.len());
+///     Ok(())
+/// }
+/// ```
 pub struct Downloader {
     client: HttpClient,
 }
 
 impl Downloader {
     /// Create a new downloader with the given configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP client cannot be initialized (e.g., invalid proxy configuration)
     pub fn new(config: DownloadConfig) -> Result<Self> {
         let client = HttpClient::new(config)?;
         Ok(Self { client })
@@ -70,12 +91,86 @@ impl Downloader {
         Ok(request)
     }
 
-    /// Download to memory
+    /// Download a URL to memory
+    ///
+    /// Downloads the entire file into memory and returns it as `Bytes`.
+    /// For files larger than 10MB that support Range requests, this will
+    /// automatically use parallel downloads for better performance.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL to download
+    ///
+    /// # Returns
+    ///
+    /// The downloaded data as `Bytes`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the download fails (network error, invalid status, etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use wget_faster_lib::{Downloader, DownloadConfig};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let downloader = Downloader::new(DownloadConfig::default())?;
+    ///     let bytes = downloader.download_to_memory("https://example.com/file.txt").await?;
+    ///     println!("Downloaded {} bytes", bytes.len());
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn download_to_memory(&self, url: &str) -> Result<Bytes> {
         self.download_to_memory_with_progress(url, None).await
     }
 
-    /// Download to memory with progress callback
+    /// Download a URL to memory with progress tracking
+    ///
+    /// Downloads the entire file into memory with progress callbacks.
+    /// The progress callback is called periodically with download statistics.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL to download
+    /// * `progress_callback` - Optional callback function for progress updates
+    ///
+    /// # Returns
+    ///
+    /// The downloaded data as `Bytes`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the download fails (network error, invalid status, etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use wget_faster_lib::{Downloader, DownloadConfig, ProgressInfo};
+    /// use std::sync::Arc;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let downloader = Downloader::new(DownloadConfig::default())?;
+    ///
+    ///     let progress = Arc::new(|info: ProgressInfo| {
+    ///         if let Some(pct) = info.percentage() {
+    ///             println!("{:.1}% - {} - ETA: {:?}",
+    ///                 pct,
+    ///                 info.format_speed(),
+    ///                 info.format_eta()
+    ///             );
+    ///         }
+    ///     });
+    ///
+    ///     let bytes = downloader
+    ///         .download_to_memory_with_progress("https://example.com/large.zip", Some(progress))
+    ///         .await?;
+    ///     println!("Downloaded {} bytes", bytes.len());
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn download_to_memory_with_progress(
         &self,
         url: &str,
@@ -104,12 +199,92 @@ impl Downloader {
         self.download_sequential(url, progress_callback).await
     }
 
-    /// Download to file
+    /// Download a URL to a file
+    ///
+    /// Downloads content to the specified file path. Supports resume functionality
+    /// if the file already exists and the server supports Range requests.
+    /// For large files, automatically uses parallel downloads when beneficial.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL to download
+    /// * `path` - The file path where content will be saved
+    ///
+    /// # Returns
+    ///
+    /// A `DownloadResult` containing download metadata and information
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the download fails or file I/O fails
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use wget_faster_lib::{Downloader, DownloadConfig};
+    /// use std::path::PathBuf;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let downloader = Downloader::new(DownloadConfig::default())?;
+    ///     let result = downloader
+    ///         .download_to_file("https://example.com/file.zip", PathBuf::from("file.zip"))
+    ///         .await?;
+    ///     println!("Downloaded to: {:?}", result.data.path());
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn download_to_file(&self, url: &str, path: PathBuf) -> Result<DownloadResult> {
         self.download_to_file_with_progress(url, path, None).await
     }
 
-    /// Download to file with progress callback
+    /// Download a URL to a file with progress tracking
+    ///
+    /// Downloads content to the specified file path with progress callbacks.
+    /// Supports resume functionality and parallel downloads.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL to download
+    /// * `path` - The file path where content will be saved
+    /// * `progress_callback` - Optional callback function for progress updates
+    ///
+    /// # Returns
+    ///
+    /// A `DownloadResult` containing download metadata and information
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the download fails or file I/O fails
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use wget_faster_lib::{Downloader, DownloadConfig, ProgressInfo};
+    /// use std::sync::Arc;
+    /// use std::path::PathBuf;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let downloader = Downloader::new(DownloadConfig::default())?;
+    ///
+    ///     let progress = Arc::new(|info: ProgressInfo| {
+    ///         if let Some(pct) = info.percentage() {
+    ///             println!("[{:.1}%] {} at {}", pct, info.format_downloaded(), info.format_speed());
+    ///         }
+    ///     });
+    ///
+    ///     let result = downloader
+    ///         .download_to_file_with_progress(
+    ///             "https://example.com/large.zip",
+    ///             PathBuf::from("large.zip"),
+    ///             Some(progress)
+    ///         )
+    ///         .await?;
+    ///     println!("Download complete: {:?}", result.data.path());
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn download_to_file_with_progress(
         &self,
         url: &str,
@@ -190,7 +365,52 @@ impl Downloader {
         })
     }
 
-    /// Download with custom output
+    /// Download with custom output destination
+    ///
+    /// Generic download method that supports multiple output types (memory, file, or custom writer).
+    /// This provides the most flexibility for different download scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL to download
+    /// * `output` - The output destination (Memory, File, or AsyncWrite)
+    /// * `progress_callback` - Optional callback function for progress updates
+    ///
+    /// # Returns
+    ///
+    /// A `DownloadResult` containing download metadata and information
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the download fails or output I/O fails
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use wget_faster_lib::{Downloader, DownloadConfig, Output};
+    /// use std::path::PathBuf;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let downloader = Downloader::new(DownloadConfig::default())?;
+    ///
+    ///     // Download to memory
+    ///     let result = downloader.download(
+    ///         "https://example.com/file.txt",
+    ///         Output::Memory,
+    ///         None
+    ///     ).await?;
+    ///
+    ///     // Download to file
+    ///     let result = downloader.download(
+    ///         "https://example.com/file.zip",
+    ///         Output::File(PathBuf::from("file.zip")),
+    ///         None
+    ///     ).await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn download(
         &self,
         url: &str,
@@ -307,14 +527,37 @@ impl Downloader {
 }
 
 /// Result of a download operation
+///
+/// Contains all information about a completed download, including the downloaded data,
+/// the original URL, and server metadata.
+///
+/// # Examples
+///
+/// ```no_run
+/// use wget_faster_lib::{Downloader, DownloadConfig};
+/// use std::path::PathBuf;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let downloader = Downloader::new(DownloadConfig::default())?;
+///     let result = downloader
+///         .download_to_file("https://example.com/file.zip", PathBuf::from("file.zip"))
+///         .await?;
+///
+///     println!("Downloaded from: {}", result.url);
+///     println!("Content type: {:?}", result.metadata.content_type);
+///     println!("File size: {:?}", result.metadata.content_length);
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug)]
 pub struct DownloadResult {
-    /// Downloaded data
+    /// Downloaded data (in memory or path to file)
     pub data: DownloadedData,
 
     /// URL that was downloaded
     pub url: String,
 
-    /// Resource metadata
+    /// Resource metadata from server (content type, length, etc.)
     pub metadata: crate::client::ResourceMetadata,
 }

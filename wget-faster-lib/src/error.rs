@@ -1,8 +1,13 @@
 use std::io;
 use thiserror::Error;
 
+/// Result type alias using the library's Error type
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Error types for download operations
+///
+/// All error types implement the `std::error::Error` trait and can be
+/// displayed with user-friendly error messages.
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("HTTP request failed: {0}")]

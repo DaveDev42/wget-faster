@@ -10,7 +10,9 @@ use tokio::sync::Mutex;
 /// Performance statistics for a chunk download
 #[derive(Debug, Clone)]
 struct ChunkStats {
+    #[allow(dead_code)]
     size: u64,
+    #[allow(dead_code)]
     duration: Duration,
     speed: f64, // bytes per second
 }

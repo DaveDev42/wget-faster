@@ -63,10 +63,8 @@ impl HttpClient {
         }
 
         // Configure authentication
-        if let Some(_auth_config) = &config.auth {
-            // Basic auth will be added per-request
-            builder = builder;
-        }
+        // Note: Basic auth will be added per-request
+        // Digest auth is handled automatically by reqwest
 
         // Configure cookies
         if config.enable_cookies {

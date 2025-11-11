@@ -10,7 +10,7 @@ Context document for AI assistants working with the wget-faster codebase.
 3. **Adaptive Chunking** - Dynamic sizing based on network conditions
 4. **Async I/O** - Non-blocking I/O with tokio
 
-**Status**: v0.3.0 - Core features complete, ~4,250 lines of Rust, 30+ tests
+**Status**: v0.1.0 - Core features complete, ~4,250 lines of Rust, 30+ tests
 
 ## Project Structure
 
@@ -116,7 +116,7 @@ pub enum Output {
 }
 ```
 
-## Implemented Features (v0.3.0)
+## Implemented Features (v0.1.0)
 
 ### Core Engine
 - ✅ Async/await with tokio
@@ -151,11 +151,12 @@ pub enum Output {
 - ✅ Input files (`-i`, `-F`)
 
 ### Not Yet Implemented
-- ❌ HTTP/3 (QUIC) - planned v0.4.0
-- ❌ Link conversion (`-k`)
-- ❌ FTP/FTPS
-- ❌ .netrc authentication
-- ❌ WARC format
+- ❌ HTTP/3 (QUIC) - planned v0.2.0
+- ❌ Link conversion (`-k`) - planned v0.3.0
+- ❌ Server response display (`-S`) - planned v0.1.1
+- ❌ FTP/FTPS - planned v0.3.0
+- ❌ .netrc authentication - planned v0.3.0
+- ❌ WARC format - planned v0.3.0
 
 ## Common Development Tasks
 
@@ -272,21 +273,35 @@ async fn main() -> anyhow::Result<()> {
 
 ## Roadmap
 
-**Current (v0.3.0):** Core features complete
+**Current (v0.1.0):** Core features complete
 - ✅ Parallel downloads, adaptive chunking, recursive downloads
-- ✅ 40+ wget options, 30+ tests, CI/CD
+- ✅ 150+ wget options, 30+ tests, CI/CD
+- ⚠️ Test coverage ~10%, needs expansion to 60%+
 
-**Next (v0.4.0):** Advanced performance
-- ❌ HTTP/3 (QUIC) support
-- ❌ Zero-copy chunk assembly (io_uring on Linux)
-- ❌ Real benchmarks vs GNU wget
-- ❌ Predictive prefetching for recursive downloads
+**Next (v0.1.1):** Testing & quality
+- Comprehensive integration tests with mockito
+- Server response display (`-S`)
+- Improved output formatting
+- Fix compiler warnings
+- rustdoc for all public APIs
 
-**Long-term (v1.0.0):** Production ready
-- Full wget compatibility (currently ~80%)
+**v0.2.0:** Performance & HTTP/3
+- HTTP/3 (QUIC) support
+- Zero-copy chunk assembly (io_uring on Linux)
+- Real benchmarks vs GNU wget
+- Memory profiling validation
+
+**v0.3.0:** Advanced features
+- Link conversion (`-k`)
+- FTP/FTPS support
+- wget test suite integration (60%+ pass rate)
+- Directory control options
+
+**v1.0.0:** Production ready
+- Full wget compatibility (95%+)
 - Comprehensive documentation
-- 60%+ test coverage
-- Man pages
+- Man pages and shell completions
+- Package distribution
 
 ## Architecture Decisions
 

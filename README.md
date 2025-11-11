@@ -317,48 +317,99 @@ wget-faster/
 
 ## Development Status
 
-### ✅ Completed (v0.1.0)
-- [x] Core library with async support (tokio-based)
-- [x] Parallel downloads via HTTP Range requests
-- [x] Adaptive chunk sizing - automatically adjusts based on network performance
-- [x] Progress tracking with real-time speed and ETA
-- [x] Resume support (`-c, --continue`)
-- [x] HTTP/HTTPS with authentication (Basic/Digest)
-- [x] SSL/TLS configuration (custom CA certs, client certs)
-- [x] Cookie support (in-memory and Netscape file format)
-- [x] POST requests (`--post-data`, `--post-file`)
-- [x] Custom HTTP methods and headers
-- [x] Referer support
-- [x] Proxy with authentication
-- [x] Timestamping (`-N`) - only download if remote is newer
-- [x] Input file handling (`-i, -F`) - read URLs from file or HTML
-- [x] Wait/retry options (`-w`, `--waitretry`, `--random-wait`)
-- [x] Download quota (`-Q`)
-- [x] Spider mode (`--spider`) - check if files exist without downloading
-- [x] Content-Disposition header support
-- [x] Recursive downloads with HTML parsing (`-r, --recursive`)
-- [x] Page requisites (`-p`) - download images, CSS, JS
-- [x] 150+ CLI options parsed (wget-compatible)
-- [x] Performance benchmarks framework
+### Current Version: 0.1.0
 
-### 🚧 In Progress
-- [ ] Link conversion (`-k, --convert-links`)
-- [ ] Complete wget test suite integration
-- [ ] Unit tests (target: 60%+ coverage)
-- [ ] HTTP/3 (QUIC) support for additional performance gains
+wget-faster v0.1.0 is a working, high-performance HTTP/HTTPS downloader with core wget compatibility.
 
-### 📋 Planned
+### ✅ Implemented Features
+- **Core Downloads**
+  - Async/await architecture with tokio
+  - HTTP/HTTPS with HTTP/2 support
+  - Streaming downloads (constant ~10MB memory)
+  - Resume support (`-c, --continue`)
+  - Redirect following (configurable max)
+
+- **Performance**
+  - Parallel downloads via HTTP Range requests (4-32 connections)
+  - Adaptive chunk sizing (256KB-10MB, automatic optimization)
+  - Speed variance analysis and slow chunk re-splitting
+  - Connection pooling
+
+- **HTTP Features**
+  - All major HTTP methods (GET, POST, PUT, DELETE, etc.)
+  - Authentication (Basic, Digest)
+  - Cookies (Netscape format, `--load-cookies`, `--save-cookies`)
+  - Custom headers (`--header`, `-U`, `--referer`)
+  - POST data (`--post-data`, `--post-file`)
+
+- **Advanced Features**
+  - Recursive downloads (`-r`) with HTML parsing
+  - Page requisites (`-p`) - CSS, JS, images
+  - Timestamping (`-N`) - download only if newer
+  - Spider mode (`--spider`)
+  - Input files (`-i`, `-F`)
+  - Download quota (`-Q`)
+  - Wait controls (`-w`, `--waitretry`, `--random-wait`)
+
+- **SSL/TLS**
+  - Certificate verification (rustls-tls)
+  - Custom CA certificates
+  - Client certificate authentication
+  - `--no-check-certificate` option
+
+- **CLI**
+  - 150+ wget-compatible options parsed
+  - Progress tracking with speed and ETA
+  - Multiple output modes
+
+### ⚠️ Known Limitations
+- **Not Implemented**
+  - `-S, --server-response` (parsed but not implemented)
+  - `-k, --convert-links` (parsed but not implemented)
+  - Directory control options (`-nd`, `-x`, `-nH`, `--cut-dirs`)
+  - FTP/FTPS protocols
+  - HTTP/3 (QUIC) - planned for v0.2.0
+  - `.wgetrc` configuration file
+  - WARC format output
+
+- **Testing**
+  - Current test coverage: ~10% (unit tests only)
+  - wget test suite not yet integrated
+  - Need more integration tests
+
+- **Output**
+  - Progress bar format differs slightly from wget
+  - Some status messages have different wording
+
+See [CHANGELOG.md](CHANGELOG.md) for complete details and [TODO.md](TODO.md) for roadmap.
+
+### 📋 Planned for v0.1.1
+- [ ] Comprehensive integration tests (target: 60%+ coverage)
+- [ ] Server response display (`-S` option)
+- [ ] Improved wget-style output formatting
+- [ ] Fix all compiler warnings
+- [ ] rustdoc for all public APIs
+
+### 📋 Planned for v0.2.0
+- [ ] HTTP/3 (QUIC) support
+- [ ] Performance benchmarks vs GNU wget
+- [ ] Zero-copy optimizations
+- [ ] Memory profiling validation
+
+### 📋 Planned for v0.3.0+
+- [ ] Link conversion (`-k`)
 - [ ] FTP/FTPS support
-- [ ] WARC format support
-- [ ] Metalink support
+- [ ] wget test suite integration (60%+ pass rate)
+- [ ] WARC format
+- [ ] .netrc support
 - [ ] robots.txt compliance
-- [ ] .netrc file support
 
 ## Documentation
 
+- [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
+- [TODO.md](TODO.md) - Development roadmap and future plans
 - [CLAUDE.md](CLAUDE.md) - Implementation details for AI/LLM context
 - [SPEC.md](SPEC.md) - Technical specifications and architecture
-- [TODO.md](TODO.md) - Pending tasks and future improvements
 
 ## License
 
