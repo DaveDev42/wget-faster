@@ -1,331 +1,468 @@
-# TODO - Pending Tasks and Future Improvements
+# TODO - v0.0.1 MVP Tasks
 
-## High Priority
+**Goal**: Create a working, wget-compatible HTTP/HTTPS downloader that can replace GNU wget for 80% of common use cases.
 
-### CLI Implementation
+**Timeline**: v0.0.1 MVP → v0.0.2 Performance → v0.0.3 Advanced → v0.0.4 Extended → v0.0.5 HTTP/3 → Future minor version
 
-- [ ] **Wire up all parsed CLI options to library calls**
-  - Currently 150+ options are parsed but not all are connected to the library
-  - Connect each option to appropriate `DownloadConfig` field
-  - File: `wget-faster-cli/src/main.rs`
+---
 
-- [ ] **Implement POST request handling**
-  - `--post-data` option is parsed but not executed
-  - `--post-file` option is parsed but not executed
-  - Add POST support to library if needed
-  - Files: `wget-faster-lib/src/downloader.rs`, `wget-faster-cli/src/main.rs`
+## v0.0.1 MVP - Critical Path
 
-- [ ] **Complete cookie file I/O**
-  - Cookie structure exists in library
-  - Need to implement Netscape cookie file format parser
-  - `--load-cookies` and `--save-cookies` options
+**Target**: Feature-complete wget replacement for basic downloads
+**Test Goal**: Pass 60%+ of wget core test suite
+**Scope**: HTTP/HTTPS only (no FTP, no recursive, no WARC)
+
+### Phase 1: Core Functionality Verification (Week 1)
+
+**Objective**: Verify existing features work correctly with wget-compatible behavior
+
+#### 1.1 Basic Downloads
+- [ ] **Test basic HTTP GET downloads**
+  - Verify file download works
+  - Test with various file sizes (1KB, 1MB, 100MB)
+  - Ensure output matches wget behavior
+  - Files: `wget-faster-lib/tests/integration_tests.rs`
+
+- [ ] **Test HTTPS downloads**
+  - Verify TLS 1.2/1.3 support
+  - Test certificate verification
+  - Test `--no-check-certificate` flag
   - Files: `wget-faster-lib/src/client.rs`
 
-- [ ] **Implement input file handling**
-  - `-i, --input-file` option for reading URLs from a file
-  - Support for HTML file parsing with `-F, --force-html`
-  - File: `wget-faster-cli/src/main.rs`
+- [ ] **Test output to file (`-O`)**
+  - Verify `-O filename` works
+  - Test `-O -` (stdout)
+  - Test overwrite behavior
+  - Files: `wget-faster-cli/src/main.rs`
 
-### Testing
+#### 1.2 Resume & Retry
+- [ ] **Test resume functionality (`-c`)**
+  - Partial download + resume works
+  - Range header sent correctly
+  - File size verification
+  - Files: `wget-faster-lib/src/downloader.rs`
 
-- [ ] **Set up wget-faster-test repository**
-  - Create separate GPL-3.0 licensed repository
-  - Add wget as git submodule
-  - Create test runner scripts
-  - Document in README.md
-  - See: TEST_REPO_SETUP.md (to be moved)
+- [ ] **Test retry logic (`-t`)**
+  - Retry count respected
+  - Exponential backoff working
+  - Network error retry
+  - 5xx error retry
+  - Files: `wget-faster-lib/src/downloader.rs`
 
-- [ ] **Run wget test suite against wget-faster**
-  - Execute ~100 Python tests from wget
-  - Document test results
-  - Analyze failures
-  - Create compatibility matrix
+#### 1.3 Authentication & Headers
+- [ ] **Test HTTP Basic auth**
+  - `--http-user` and `--http-password` work
+  - Authorization header sent
+  - 401 handling
+  - Files: `wget-faster-lib/src/client.rs`
 
-- [ ] **Add comprehensive unit tests**
+- [ ] **Test HTTP Digest auth**
+  - Digest challenge-response works
+  - Files: `wget-faster-lib/src/client.rs`
+
+- [ ] **Test custom headers**
+  - `--header` option works
+  - Multiple headers supported
+  - User-Agent customization (`-U`)
+  - Referer header (`--referer`)
+  - Files: `wget-faster-lib/src/client.rs`
+
+#### 1.4 Cookies
+- [ ] **Implement cookie file loading**
+  - Read Netscape cookie format
+  - Parse domain, path, secure, expiry
+  - Apply cookies to requests
+  - `--load-cookies` option
+  - Files: `wget-faster-lib/src/cookies.rs`
+
+- [ ] **Implement cookie file saving**
+  - Write Netscape cookie format
+  - Save Set-Cookie responses
+  - `--save-cookies` option
+  - Files: `wget-faster-lib/src/cookies.rs`
+
+- [ ] **Test cookie behavior**
+  - Domain matching
+  - Path matching
+  - Secure flag
+  - Expiry handling
+  - Files: `wget-faster-lib/tests/cookie_tests.rs`
+
+### Phase 2: Output & UI (Week 2)
+
+#### 2.1 wget-Style Output Format
+- [ ] **Implement connecting message**
+  - "Connecting to example.com:443... connected."
+  - Show resolved IP if verbose
+  - Files: `wget-faster-cli/src/output.rs`
+
+- [ ] **Implement HTTP response display**
+  - "HTTP request sent, awaiting response... 200 OK"
+  - Show status code and reason
+  - Files: `wget-faster-cli/src/output.rs`
+
+- [ ] **Implement saving message**
+  - "Saving to: 'filename'"
+  - "Length: 12345 (12K) [text/html]"
+  - Files: `wget-faster-cli/src/output.rs`
+
+- [ ] **Implement completion message**
+  - "Downloaded: 1 files, 12K in 0.5s (24 KB/s)"
+  - Files: `wget-faster-cli/src/output.rs`
+
+#### 2.2 Progress Display
+- [ ] **Implement wget-style progress bar**
+  - Format: `12% [==>         ] 1,234 1.23MB/s eta 5s`
+  - Update frequency control
+  - Files: `wget-faster-cli/src/output.rs`
+
+- [ ] **Test progress modes**
+  - Default progress bar
+  - Quiet mode (`-q`) - no output
+  - Verbose mode (`-v`) - detailed output
+  - No-verbose (`-nv`) - minimal output
+  - Files: `wget-faster-cli/src/main.rs`
+
+#### 2.3 Server Response Display
+- [ ] **Implement `-S, --server-response`**
+  - Print all HTTP headers
+  - Format like wget
+  - Files: `wget-faster-cli/src/output.rs`
+
+### Phase 3: POST Requests & HTTP Methods (Week 2)
+
+#### 3.1 POST Requests
+- [ ] **Wire up `--post-data`**
+  - Parse POST data from CLI
+  - Set Content-Type header
+  - Send POST request
+  - Files: `wget-faster-cli/src/main.rs`, `wget-faster-lib/src/config.rs`
+
+- [ ] **Wire up `--post-file`**
+  - Read data from file
+  - Send as POST body
+  - Files: `wget-faster-cli/src/main.rs`
+
+- [ ] **Test POST requests**
+  - POST with data
+  - POST with file
+  - Content-Type handling
+  - Files: `wget-faster-lib/tests/integration_tests.rs`
+
+### Phase 4: Multiple URLs & Timestamping (Week 3)
+
+#### 4.1 Multiple URL Support
+- [ ] **Implement multiple URL downloads**
+  - Accept multiple URLs from CLI
+  - Download sequentially
+  - Track failures
+  - Continue on error (default wget behavior)
+  - Files: `wget-faster-cli/src/main.rs`
+
+- [ ] **Implement input file (`-i`)**
+  - Read URLs from file
+  - One URL per line
+  - Ignore comments (#)
+  - Files: `wget-faster-cli/src/main.rs`
+
+- [ ] **Test multiple downloads**
+  - Multiple CLI arguments
+  - Input file
+  - Error handling
+  - Files: `wget-faster-cli/tests/`
+
+#### 4.2 Timestamping
+- [ ] **Test timestamping (`-N`)**
+  - If-Modified-Since header
+  - Local file timestamp comparison
+  - Skip if up-to-date
+  - Files: `wget-faster-lib/src/downloader.rs`
+
+- [ ] **Set downloaded file timestamp**
+  - Use Last-Modified header
+  - Set mtime on local file
+  - Files: `wget-faster-lib/src/downloader.rs`
+
+### Phase 5: Timeouts & Speed Limiting (Week 3)
+
+#### 5.1 Timeout Configuration
+- [ ] **Test timeout options**
+  - `-T, --timeout` sets all timeouts
+  - `--connect-timeout` separate
+  - `--read-timeout` separate
+  - Files: `wget-faster-lib/src/config.rs`
+
+- [ ] **Verify timeout behavior**
+  - Connection timeout works
+  - Read timeout works
+  - Timeout triggers retry
+  - Files: `wget-faster-lib/tests/integration_tests.rs`
+
+#### 5.2 Speed Limiting
+- [ ] **Test speed limiting**
+  - `--limit-rate` option
+  - Parse human-readable rates (1k, 1m)
+  - Actual speed stays within limit
+  - Files: `wget-faster-lib/src/client.rs`
+
+### Phase 6: Testing & Validation (Week 4)
+
+#### 6.1 Unit Tests
+- [ ] **Write comprehensive unit tests**
   - Test each module independently
-  - Edge cases and error conditions
-  - Target: 80%+ code coverage
+  - Edge cases
+  - Error conditions
+  - Target: 60%+ code coverage
   - Files: `wget-faster-lib/tests/`
 
-### Documentation
+#### 6.2 Integration Tests
+- [ ] **Create wget compatibility tests**
+  - Test against real servers
+  - Compare output with wget
+  - Test common use cases
+  - Files: `wget-faster-cli/tests/`
 
-- [ ] **Add rustdoc comments to all public APIs**
-  - Document all public functions, structs, enums
-  - Add usage examples in doc comments
-  - Generate and review `cargo doc` output
-  - Files: All `wget-faster-lib/src/*.rs`
+#### 6.3 wget Test Suite
+- [ ] **Set up wget-faster-test repository**
+  - Create separate GPL-3.0 repo
+  - Add wget as submodule
+  - Configure test runner
+  - Document setup
 
-- [ ] **Create usage examples**
-  - Basic download examples
-  - Advanced configuration examples
-  - Progress tracking examples
-  - Error handling examples
-  - Consider: `examples/` directory
+- [ ] **Run wget test suite**
+  - Execute core HTTP tests
+  - Document pass/fail
+  - Analyze failures
+  - Fix critical failures
+  - **Goal**: 60%+ pass rate
 
-## Medium Priority
+#### 6.4 Manual Testing
+- [ ] **Test real-world scenarios**
+  - Download from common sites (GitHub, CDNs)
+  - Large file downloads
+  - Interrupted downloads + resume
+  - Authentication scenarios
+  - Cookie scenarios
 
-### Features
+### Phase 7: CLI Polish & Documentation (Week 4)
 
-- [ ] **Implement recursive downloads**
-  - HTML parsing with url extraction
-  - Link conversion (`-k, --convert-links`)
-  - Page requisites (`-p, --page-requisites`)
-  - Accept/reject patterns (`-A`, `-R`)
-  - Domain filtering (`-D`, `--exclude-domains`)
-  - Max depth control (`-l, --level`)
-  - New module: `wget-faster-lib/src/recursive.rs`
+#### 7.1 CLI Improvements
+- [ ] **Implement missing CLI options**
+  - Review all parsed options in `args.rs`
+  - Wire up any missing options
+  - Remove unimplemented options
+  - Files: `wget-faster-cli/src/args.rs`, `main.rs`
 
-- [ ] **Add FTP support**
-  - FTP client implementation
-  - FTPS (FTP over SSL/TLS)
-  - FTP authentication
-  - Passive/active mode
-  - Directory listing
-  - Consider using existing crates (e.g., `suppaftp`)
+- [ ] **Implement quiet mode properly**
+  - `-q, --quiet` suppresses all output
+  - Errors still shown
+  - Files: `wget-faster-cli/src/output.rs`
 
-- [ ] **Implement timestamping**
-  - `-N, --timestamping` option
-  - Compare local and remote file timestamps
-  - Download only if remote is newer
-  - Set local file timestamp to match remote
+- [ ] **Implement verbose mode properly**
+  - `-v, --verbose` shows detailed info
+  - Headers, redirects, etc.
+  - Files: `wget-faster-cli/src/output.rs`
 
-- [ ] **Add quota support**
-  - `-Q, --quota` option
-  - Track cumulative download size
-  - Stop when quota exceeded
-  - Per-session quota tracking
+#### 7.2 Error Messages
+- [ ] **Improve error messages**
+  - Match wget error format
+  - Clear, actionable messages
+  - Proper exit codes
+  - Files: `wget-faster-cli/src/main.rs`
 
-- [ ] **Implement wait/waitretry options**
-  - `-w, --wait` between downloads
-  - `--waitretry` increasing wait on retry
-  - Random wait with `--random-wait`
+#### 7.3 Documentation
+- [ ] **Update README.md**
+  - v0.0.1 feature list
+  - Installation instructions
+  - Basic usage examples
+  - Known limitations
 
-### Performance
+- [ ] **Update CLAUDE.md**
+  - Reflect v0.0.1 implementation
+  - Document any architecture changes
+  - Add troubleshooting guide
 
-- [ ] **Create performance benchmarks**
-  - Benchmark against GNU wget
-  - Test with various file sizes
-  - Test with different network conditions
-  - Parallel vs sequential comparison
-  - Create: `benches/` directory
+- [ ] **Create CHANGELOG.md**
+  - Document v0.0.1 features
+  - Known issues
+  - Comparison with wget
 
-- [ ] **Optimize parallel downloads**
-  - Dynamic chunk size adjustment
-  - Adaptive connection count based on speed
-  - Better handling of slow chunks
-  - Connection pooling
+---
 
-- [ ] **Optimize memory usage**
-  - Profile memory usage
-  - Reduce allocations in hot paths
-  - Optimize buffer sizes
-  - Streaming optimizations
+## v0.0.1 MVP - Feature Checklist Summary
 
-- [ ] **Add progress bar optimizations**
-  - Reduce progress callback frequency
-  - Batch progress updates
-  - Minimize terminal I/O
+### Must Have (Blockers)
+- [ ] Basic HTTP/HTTPS downloads working
+- [ ] Resume (`-c`) working
+- [ ] Output to file (`-O`) working
+- [ ] Progress bar with speed/ETA
+- [ ] Retry with backoff
+- [ ] Authentication (Basic/Digest)
+- [ ] Cookie load/save
+- [ ] wget-style output format
+- [ ] Quiet/verbose modes
+- [ ] Pass 60%+ of wget core tests
 
-## Low Priority
+### Should Have (Important)
+- [ ] Multiple URL downloads
+- [ ] Input file (`-i`)
+- [ ] POST requests (`--post-data`, `--post-file`)
+- [ ] Timestamping (`-N`)
+- [ ] Server response (`-S`)
+- [ ] Speed limiting (`--limit-rate`)
 
-### Advanced Features
+### Nice to Have (Optional)
+- [ ] Spider mode (`--spider`)
+- [ ] No clobber (`-nc`)
+- [ ] Directory prefix (`-P`)
+- [ ] Parallel downloads (disabled by default)
 
-- [ ] **WARC support**
-  - Web ARChive format
-  - `--warc-file` option
-  - WARC header generation
-  - WARC record writing
-  - Consider using existing crates
+---
 
-- [ ] **Metalink support**
-  - Parse Metalink XML files
-  - Multiple mirror downloads
-  - Checksum verification
-  - Priority and preference handling
+## Post-v0.0.1 (Future Patch Versions)
 
-- [ ] **Proxy authentication**
-  - Proxy username/password
-  - NTLM proxy authentication
-  - HTTP/HTTPS proxy support
-  - SOCKS proxy support
+### v0.0.2 - Performance
+- [ ] Enable parallel downloads by default
+- [ ] Adaptive chunk sizing
+- [ ] HTTP/2 optimization
+- [ ] Performance benchmarks vs GNU wget
+- [ ] Memory usage optimization
+- [ ] Zero-copy chunk assembly
 
-- [ ] **robots.txt compliance**
-  - Fetch and parse robots.txt
-  - Respect crawl-delay
-  - Respect disallow rules
-  - User-agent specific rules
+### v0.0.3 - Advanced Features
+- [ ] Recursive downloads (`-r`)
+- [ ] Page requisites (`-p`)
+- [ ] Link conversion (`-k`)
+- [ ] Accept/reject patterns (`-A`, `-R`)
+- [ ] Domain filtering (`-D`)
+- [ ] Directory structure (`-x`, `--cut-dirs`)
 
-- [ ] **IPv6 support**
-  - Prefer IPv4 or IPv6
-  - `--prefer-family` option
-  - IPv6 address handling
+### v0.0.4 - Extended Protocols
+- [ ] FTP/FTPS support
+- [ ] IPv6 preferences
+- [ ] Proxy improvements (SOCKS, NTLM)
+- [ ] .netrc support
+- [ ] robots.txt compliance
 
-- [ ] **Background execution**
-  - `-b, --background` option
-  - Daemon mode
-  - Log output to file
-  - PID file management
+### v0.0.5 - HTTP/3
+- [ ] QUIC support with quinn/h3
+- [ ] Alt-Svc detection
+- [ ] HTTP/3 benchmarks
+- [ ] Fallback to HTTP/2
 
-### Quality of Life
+### Future Minor Version - Production Ready
+- [ ] Full wget compatibility (95%+)
+- [ ] Man pages
+- [ ] Shell completions (bash, zsh, fish)
+- [ ] WARC format support
+- [ ] .wgetrc configuration file
+- [ ] Background execution (`-b`)
+- [ ] Metalink support
+- [ ] Package distribution (Homebrew, apt, AUR)
+- [ ] Docker image
 
-- [ ] **.netrc support**
-  - Parse `~/.netrc` file
-  - Automatic authentication
-  - Machine-specific credentials
+---
 
-- [ ] **Configuration file support**
-  - `.wgetrc` file parsing
-  - User and system-wide configs
-  - `-e, --execute` command support
+## Development Guidelines
 
-- [ ] **Output templates**
-  - Configurable output format
-  - JSON output mode
-  - Machine-readable output
-
-- [ ] **Improved error messages**
-  - More descriptive error messages
-  - Suggestions for common errors
-  - Colored output (optional)
-
-- [ ] **Shell completion**
-  - Bash completion
-  - Zsh completion
-  - Fish completion
-  - Generate with clap
-
-## Infrastructure
-
-### CI/CD
-
-- [ ] **Set up GitHub Actions**
-  - Build on Linux, macOS, Windows
-  - Run tests on all platforms
-  - Clippy and rustfmt checks
-  - Code coverage reporting
-
-- [ ] **Automated releases**
-  - Semantic versioning
-  - Automated changelog generation
-  - GitHub releases
-  - Binary artifact uploads
-
-- [ ] **Cross-compilation**
-  - Linux (x86_64, ARM)
-  - macOS (Intel, Apple Silicon)
-  - Windows (x86_64)
-  - Static binaries for Linux
-
-### Distribution
-
-- [ ] **Package for distributions**
-  - Cargo crate publishing
-  - Homebrew formula
-  - Debian/Ubuntu packages
-  - Arch Linux AUR
-  - Windows installer
-
-- [ ] **Docker image**
-  - Official Docker image
-  - Multi-arch support
-  - Minimal Alpine-based image
-
-## Research and Planning
-
-- [ ] **Investigate streaming improvements**
-  - HTTP/2 and HTTP/3 support
-  - Connection multiplexing
-  - Server push support
-
-- [ ] **Research adaptive algorithms**
-  - Adaptive chunk sizing
-  - Adaptive connection count
-  - Network condition detection
-  - Congestion control
-
-- [ ] **Explore compression options**
-  - Zstandard support
-  - Brotli optimization
-  - On-the-fly decompression
-
-## Completed
-
-- [x] Core library with async support
-- [x] Parallel downloads via Range requests
-- [x] Progress tracking with callbacks
-- [x] Resume support (`-c`)
-- [x] HTTP/HTTPS client with reqwest
-- [x] Authentication (Basic/Digest)
-- [x] SSL/TLS configuration
-- [x] Cookie support (in-memory)
-- [x] Custom headers
-- [x] Proxy support
-- [x] Redirect following
-- [x] Content compression (gzip, deflate, brotli)
-- [x] Speed limiting
-- [x] Configurable timeouts
-- [x] Retry logic with exponential backoff
-- [x] CLI argument parsing (150+ options)
-- [x] wget-style output formatting
-- [x] Error handling and types
-- [x] Basic documentation (README, CLAUDE, SPEC, TODO)
-
-## Notes
-
-### Priorities Explanation
-
-**High Priority**: Critical for basic wget compatibility and usability
-**Medium Priority**: Important features that enhance functionality
-**Low Priority**: Nice-to-have features and advanced use cases
-
-### Contributing
-
-When picking up a task:
-1. Update the checkbox when starting
-2. Create a branch for the feature
-3. Write tests for new functionality
-4. Update documentation
-5. Submit a pull request
-
-### Testing Strategy
-
-For each new feature:
-1. Add unit tests in `wget-faster-lib/tests/`
-2. Add integration tests in `wget-faster-cli/tests/`
-3. Test against wget test suite in separate repository
-4. Manual testing with various scenarios
+### Testing Requirements
+- Every new feature must have tests
+- Unit tests for library code
+- Integration tests for CLI
+- Manual testing for UX features
 
 ### Documentation Requirements
+- Update README.md for user-facing changes
+- Update CLAUDE.md for implementation details
+- Update SPEC.md for specifications
+- rustdoc comments for all public APIs
 
-For each new feature:
-1. Add rustdoc comments to public APIs
-2. Update CLAUDE.md with implementation details
-3. Update SPEC.md with technical specifications
-4. Add usage examples to README.md
-5. Update this TODO.md
+### Code Quality
+- `cargo clippy --all-targets` passes
+- `cargo fmt` enforced
+- No `unwrap()` in library code
+- Proper error handling with `?`
 
-## Version Planning
+### Compatibility
+- Match wget output format exactly
+- Use same default behaviors
+- Compatible exit codes
+- Compatible option names
 
-### v0.1.0 (Current)
-- Core library functionality
-- Basic CLI implementation
-- Essential wget options
+---
 
-### v0.2.0 (Next)
-- Complete CLI option coverage
-- Cookie file I/O
-- POST request support
-- wget test suite integration
-- Comprehensive unit tests
+## Known Issues & Limitations (v0.0.1)
 
-### v0.3.0
-- Recursive downloads
-- FTP support
-- Timestamping
-- Performance benchmarks
+### Out of Scope
+- No recursive downloads (coming in v0.0.3)
+- No FTP support (coming in v0.0.4)
+- No HTTP/3 (coming in v0.0.5)
+- No .wgetrc config (coming in future minor version)
 
-### v1.0.0
-- Full wget compatibility
-- Stable API
-- Comprehensive documentation
-- Production-ready quality
+### Differences from wget
+- Parallel downloads optional (disabled by default for compatibility)
+- Some advanced SSL options may differ
+- Error messages may have slight wording differences
+- Progress bar update frequency may differ
+
+### Performance Notes
+- v0.0.1 focuses on compatibility over speed
+- Parallel downloads available but not default
+- Performance optimization is v0.0.2 goal
+
+---
+
+## Completed (Current Implementation)
+
+### Core Library
+- [x] Async I/O with tokio
+- [x] HTTP/HTTPS client (reqwest)
+- [x] Basic parallel downloads
+- [x] Progress tracking
+- [x] Resume support (partial)
+- [x] Retry logic (partial)
+- [x] Authentication structures
+- [x] Cookie structures
+- [x] Error types
+
+### CLI
+- [x] Argument parsing (150+ options)
+- [x] Basic CLI structure
+- [x] Some output formatting
+
+### Documentation
+- [x] README.md
+- [x] CLAUDE.md
+- [x] SPEC.md (updated for v0.0.1)
+- [x] TODO.md (this file)
+
+---
+
+## Quick Reference
+
+### Priority Levels
+- **Critical**: Must have for v0.0.1 release
+- **Important**: Should have, but can defer if needed
+- **Optional**: Nice to have, can defer to v0.1.0
+
+### File Locations
+- Library code: `wget-faster-lib/src/`
+- CLI code: `wget-faster-cli/src/`
+- Tests: `wget-faster-lib/tests/`, `wget-faster-cli/tests/`
+- Docs: `README.md`, `CLAUDE.md`, `SPEC.md`, `TODO.md`
+
+### Testing
+- Unit tests: `cargo test --lib`
+- Integration tests: `cargo test --test integration_tests`
+- All tests: `cargo test --all`
+- Manual test: `cargo run -- https://example.com`
+
+### Development Workflow
+1. Pick a task from this TODO
+2. Create feature branch
+3. Write tests first (TDD)
+4. Implement feature
+5. Run `cargo clippy` and `cargo fmt`
+6. Update documentation
+7. Mark task as complete
+8. Create pull request

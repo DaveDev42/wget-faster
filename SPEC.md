@@ -1,4 +1,52 @@
-# Technical Specifications
+# Technical Specifications - wget-faster
+
+## Project Vision & Versioning
+
+### v0.0.1 MVP Goal
+**Complete wget compatibility for basic HTTP/HTTPS downloads**
+
+The MVP focuses on achieving feature parity with GNU wget 1.25.0 for the most commonly used options (~20 core features). This version must be a **working, production-ready downloader** that can replace wget for standard use cases.
+
+**Scope**: HTTP/HTTPS only (no FTP, no WARC, no advanced features)
+**Target**: Pass 60%+ of wget's core test suite
+**Performance**: Basic parallel downloads (no HTTP/3, no adaptive chunking)
+
+### Version Roadmap
+
+**v0.0.1** - Working MVP (wget-compatible basic downloader)
+- Core HTTP/HTTPS downloads
+- Resume (`-c`), authentication, cookies, redirects
+- Basic parallel downloads (optional, disabled by default for compatibility)
+- wget-style CLI output
+- **Goal**: Drop-in replacement for 80% of wget use cases
+
+**v0.0.2** - Performance enhancements
+- Enable parallel downloads by default
+- Adaptive chunking
+- HTTP/2 optimization
+- Performance benchmarks vs GNU wget
+
+**v0.0.3** - Advanced features
+- Recursive downloads (`-r`)
+- Page requisites (`-p`)
+- Link conversion (`-k`)
+
+**v0.0.4** - Extended protocols
+- FTP/FTPS support
+- IPv6
+- Proxy improvements
+
+**v0.0.5** - HTTP/3 support
+- QUIC support with quinn/h3
+- Alt-Svc detection
+- HTTP/3 benchmarks
+- Fallback to HTTP/2
+
+**Future minor version (when ready)** - Production ready
+- Full wget compatibility (95%+)
+- Comprehensive documentation
+- Man pages
+- Package distribution
 
 ## Architecture
 
@@ -447,6 +495,90 @@ max: retry_delay * 2^attempt (capped at 60s)
 - Environment variables (future)
 - .netrc file (future)
 - Never logged in debug output
+
+## v0.0.1 MVP Feature Checklist
+
+### Critical (Must Have)
+- [ ] Basic HTTP/HTTPS downloads
+- [ ] Output to file (`-O, --output-document`)
+- [ ] Resume downloads (`-c, --continue`)
+- [ ] Timeout configuration (`-T, --timeout`)
+- [ ] Retry with exponential backoff (`-t, --tries`)
+- [ ] User-Agent header (`-U, --user-agent`)
+- [ ] Custom headers (`--header`)
+- [ ] HTTP authentication (`--http-user`, `--http-password`)
+- [ ] Cookie support (`--load-cookies`, `--save-cookies`)
+- [ ] Redirect following (default behavior)
+- [ ] Progress bar with speed/ETA
+- [ ] Quiet mode (`-q`)
+- [ ] Verbose mode (`-v`)
+- [ ] SSL certificate verification (`--no-check-certificate`)
+- [ ] wget-style output format
+
+### Important (Should Have)
+- [ ] Multiple URL downloads
+- [ ] Download timestamping (`-N`)
+- [ ] Server response headers (`-S`)
+- [ ] Referer header (`--referer`)
+- [ ] POST requests (`--post-data`, `--post-file`)
+- [ ] Speed limiting (`--limit-rate`)
+
+### Optional (Nice to Have)
+- [ ] Spider mode (`--spider`)
+- [ ] Input file (`-i`)
+- [ ] No clobber (`-nc`)
+- [ ] Directory prefix (`-P`)
+- [ ] Parallel downloads (disabled by default, enabled with `--parallel`)
+
+### Out of Scope (Later Versions)
+- ❌ Recursive downloads (`-r`) - v0.0.3
+- ❌ FTP/FTPS - v0.0.4
+- ❌ IPv6 preferences - v0.0.4
+- ❌ WARC format - Future minor version
+- ❌ Background execution (`-b`) - Future minor version
+- ❌ .wgetrc configuration - Future minor version
+- ❌ Adaptive chunking - v0.0.2
+- ❌ HTTP/3 - v0.0.5
+
+## wget Compatibility Matrix (v0.0.1 Target)
+
+| Category | Feature | Priority | Status |
+|----------|---------|----------|--------|
+| **Core Downloads** | Basic HTTP GET | Critical | ✅ |
+| | HTTPS with TLS 1.2/1.3 | Critical | ✅ |
+| | Output to file | Critical | ✅ |
+| | Resume (`-c`) | Critical | ✅ |
+| **Authentication** | Basic auth | Critical | ✅ |
+| | Digest auth | Critical | ✅ |
+| **Cookies** | Load cookies | Critical | ⚠️ |
+| | Save cookies | Critical | ⚠️ |
+| **Headers** | Custom headers | Critical | ✅ |
+| | User-Agent | Critical | ✅ |
+| | Referer | Important | ✅ |
+| **HTTP Methods** | POST data | Important | ✅ |
+| | POST file | Important | ✅ |
+| **Redirects** | Follow redirects | Critical | ✅ |
+| | Max redirects | Critical | ✅ |
+| **Retries** | Retry attempts | Critical | ✅ |
+| | Exponential backoff | Critical | ✅ |
+| **Timeouts** | Connection timeout | Critical | ✅ |
+| | Read timeout | Critical | ✅ |
+| **Progress** | Progress bar | Critical | ✅ |
+| | Speed display | Critical | ✅ |
+| | ETA | Critical | ✅ |
+| **Output** | Quiet mode | Critical | ⚠️ |
+| | Verbose mode | Important | ⚠️ |
+| | Server response | Important | ⚠️ |
+| **SSL/TLS** | Certificate verify | Critical | ✅ |
+| | Custom CA certs | Important | ✅ |
+| | Client certs | Optional | ✅ |
+| **Performance** | Speed limit | Important | ✅ |
+| | Parallel chunks | Optional | ✅ |
+| **Timestamping** | If-Modified-Since | Important | ✅ |
+| **Multiple URLs** | From arguments | Important | ⚠️ |
+| | From file (`-i`) | Optional | ⚠️ |
+
+**Legend**: ✅ Implemented | ⚠️ Partial/Needs testing | ❌ Not implemented
 
 ## License and Compliance
 
