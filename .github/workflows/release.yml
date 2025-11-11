@@ -1,65 +1,107 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
-  create-release:
-    name: Create Release
+  auto-tag:
+    # Only run if PR was merged (not just closed)
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      version: ${{ steps.get_version.outputs.version }}
+      tag: ${{ steps.extract_version.outputs.tag }}
+      version: ${{ steps.extract_version.outputs.version }}
+
     steps:
-      - name: Get version from tag
-        id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+          fetch-depth: 0
 
-  build-release:
-    name: Build Release
-    needs: create-release
+      - name: Extract version from branch name
+        id: extract_version
+        run: |
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          # Extract version from branch name like "release/v1.2.3"
+          VERSION=$(echo "$BRANCH_NAME" | sed 's/release\/v//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Verify version in Cargo.toml
+        run: |
+          CARGO_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          EXPECTED_VERSION="${{ steps.extract_version.outputs.version }}"
+
+          if [ "$CARGO_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "Error: Version mismatch!"
+            echo "Cargo.toml version: $CARGO_VERSION"
+            echo "Expected version: $EXPECTED_VERSION"
+            exit 1
+          fi
+
+          echo "Version verified: $CARGO_VERSION"
+
+      - name: Create and push tag (upsert)
+        run: |
+          TAG="${{ steps.extract_version.outputs.tag }}"
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Delete existing tag if it exists (both local and remote)
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "⚠️  Tag $TAG already exists locally, deleting..."
+            git tag -d "$TAG"
+          fi
+
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
+            echo "⚠️  Tag $TAG already exists on remote, deleting..."
+            git push origin --delete "$TAG" || true
+          fi
+
+          # Create new tag
+          git tag -a "$TAG" -m "Release $TAG"
+
+          # Push tag
+          git push origin "$TAG"
+
+          echo "✓ Created and pushed tag: $TAG"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: auto-tag
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: wget-faster
-            asset_name: wget-faster-linux-amd64
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            artifact_name: wget-faster
-            asset_name: wget-faster-linux-arm64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: wget-faster
-            asset_name: wget-faster-macos-amd64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: wget-faster
-            asset_name: wget-faster-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: wget-faster.exe
-            asset_name: wget-faster-windows-amd64.exe
+            binary_ext: .exe
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_ext: ''
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary_ext: ''
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary_ext: ''
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary_ext: ''
 
-    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,64 +116,144 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Build
+      - name: Build release
         run: cargo build --release --target ${{ matrix.target }} --bin wget-faster
 
-      - name: Strip binary (Linux and macOS)
+      - name: Strip binary (Unix)
         if: matrix.os != 'windows-latest'
-        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        run: strip target/${{ matrix.target }}/release/wget-faster${{ matrix.binary_ext }}
 
-      - name: Create tarball (Linux and macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Create archive
+        shell: bash
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
-          mv ${{ matrix.asset_name }}.tar.gz ../../../
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a ../../../wget-faster-${{ matrix.target }}.zip wget-faster.exe
+          else
+            tar czf ../../../wget-faster-${{ matrix.target }}.tar.gz wget-faster
+          fi
 
-      - name: Create zip (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wget-faster-${{ matrix.target }}
+          path: |
+            wget-faster-${{ matrix.target }}.zip
+            wget-faster-${{ matrix.target }}.tar.gz
+
+  release:
+    name: Create Release
+    needs: [auto-tag, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Delete existing release if exists
         run: |
-          cd target/${{ matrix.target }}/release
-          7z a ${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
-          move ${{ matrix.asset_name }}.zip ../../../
-
-      - name: Upload Release Asset (Linux and macOS)
-        if: matrix.os != 'windows-latest'
-        uses: actions/upload-release-asset@v1
+          TAG="${{ needs.auto-tag.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "⚠️  Release $TAG already exists, deleting..."
+            gh release delete "$TAG" --yes --cleanup-tag || true
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./${{ matrix.asset_name }}.tar.gz
-          asset_name: ${{ matrix.asset_name }}.tar.gz
-          asset_content_type: application/gzip
 
-      - name: Upload Release Asset (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-release-asset@v1
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.auto-tag.outputs.tag }}
+          files: artifacts/**/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./${{ matrix.asset_name }}.zip
-          asset_name: ${{ matrix.asset_name }}.zip
-          asset_content_type: application/zip
+          script: |
+            const tag = '${{ needs.auto-tag.outputs.tag }}';
+            const comment = `🎉 Release \`${tag}\` has been published!
+
+            ✅ Binaries built for Windows, Linux (x64 & ARM64), macOS (Intel & ARM)
+            ✅ GitHub Release created: https://github.com/${{ github.repository }}/releases/tag/${tag}
+
+            Publishing to crates.io is in progress...`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: comment
+            });
 
   publish-crates:
     name: Publish to crates.io
-    needs: build-release
+    needs: [auto-tag, release]
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Publish wget-faster-lib
-        run: cargo publish --package wget-faster-lib --token ${{ secrets.CARGO_TOKEN }}
+      - name: Verify version matches tag
+        run: |
+          CARGO_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          TAG_VERSION="${{ needs.auto-tag.outputs.version }}"
+
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
+            exit 1
+          fi
+
+          echo "Version verified: $CARGO_VERSION"
+
+      - name: Publish wget-faster-lib to crates.io
+        run: cargo publish --package wget-faster-lib --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Wait for crates.io to update
-        run: sleep 30
+        run: sleep 60
 
-      - name: Publish wget-faster-cli
-        run: cargo publish --package wget-faster-cli --token ${{ secrets.CARGO_TOKEN }}
+      - name: Publish wget-faster-cli to crates.io
+        run: cargo publish --package wget-faster-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Comment final status on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ needs.auto-tag.outputs.tag }}';
+            const comment = `✅ **Release ${tag} Complete!**
+
+            📦 Published to crates.io:
+            - \`wget-faster-lib\`: https://crates.io/crates/wget-faster-lib
+            - \`wget-faster-cli\`: https://crates.io/crates/wget-faster-cli
+
+            🔧 Install with:
+            \`\`\`bash
+            cargo install wget-faster-cli
+            \`\`\`
+
+            📥 Download binaries from: https://github.com/${{ github.repository }}/releases/tag/${tag}`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: comment
+            });
