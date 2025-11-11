@@ -8,6 +8,8 @@ repository.workspace = true
 description = "Drop-in replacement for GNU wget with high-performance parallel downloads"
 keywords = ["wget", "http", "download", "cli", "async"]
 categories = ["command-line-utilities", "network-programming"]
+readme = "../README.md"
+homepage = "https://github.com/wget-faster/wget-faster"
 
 [[bin]]
 name = "wget-faster"

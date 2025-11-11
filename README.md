@@ -32,9 +32,33 @@ A high-performance, drop-in replacement for GNU wget written in Rust with async 
 
 ### Installation
 
+#### From crates.io (Recommended)
+
 ```bash
-cargo build --release
+# Install the CLI tool
+cargo install wget-faster-cli
+
+# Or add the library to your project
+cargo add wget-faster-lib
 ```
+
+#### From source
+
+```bash
+# Clone the repository
+git clone https://github.com/wget-faster/wget-faster.git
+cd wget-faster
+
+# Build release binary
+cargo build --release
+
+# Install to ~/.cargo/bin
+cargo install --path wget-faster-cli
+```
+
+#### Pre-built binaries
+
+Download pre-built binaries from [GitHub Releases](https://github.com/wget-faster/wget-faster/releases)
 
 ### Basic Usage
 
