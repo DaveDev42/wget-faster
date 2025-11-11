@@ -238,14 +238,18 @@ pub async fn download(&self, url: &str) -> Result<Bytes> {
 **Running wget compatibility tests:**
 
 ```bash
-# Navigate to the test repository (sibling directory)
+# Standard test workflow (RECOMMENDED)
 cd ../wget-faster-test
+rm -rf reports  # Clean previous test reports (recommended)
+./run_tests.sh --wget-faster $(which wgetf) -v
 
-# Build wget-faster first
+# Alternative: Manual steps
+# 1. Build wget-faster first
 cd ../wget-faster
 cargo build --release
+cargo install --path wget-faster-cli  # Installs 'wgetf' binary
 
-# Run all tests
+# 2. Run all tests
 cd ../wget-faster-test
 ./run_tests.sh
 
@@ -253,8 +257,8 @@ cd ../wget-faster-test
 ./run_tests.sh --perl-only      # Only Perl tests
 ./run_tests.sh --python-only    # Only Python tests (if available)
 
-# Specify wget-faster binary path
-./run_tests.sh --wget-faster /path/to/wgetf
+# Specify custom binary path
+./run_tests.sh --wget-faster /path/to/wgetf -v
 ```
 
 **Viewing test results:**
@@ -271,15 +275,20 @@ ls -t test_results_*.json | head -1 | xargs cat
 cat reports/report_$(ls -t reports/ | grep report | head -1)
 ```
 
-**Current test status (v0.0.1):**
-- **Pass rate:** ~18% (16/87 Perl tests)
-- **Passing tests:** Basic HTTP downloads, cookies, resume functionality, Content-Disposition
+**Current test status (v0.0.3 - 2025-11-11):**
+- **Pass rate:** 17.8% (30/169 total tests)
+  - Perl: 23.0% (20/87 tests)
+  - Python: 12.2% (10/82 tests)
+- **Passing tests:** Basic HTTP downloads, cookies, resume functionality, Content-Disposition, recursive downloads
 - **Common failures:**
-  - FTP tests (not implemented)
-  - IRI/IDN tests (internationalization not implemented)
-  - HTTPS advanced features (client certs, CRL)
-  - CLI argument parsing issues (`-n` option, `--debug` duplication)
-  - Relative file path handling
+  - Exit code handling (returns 0 instead of 8 for HTTP errors)
+  - Spider mode exit codes (should return 8 for broken links)
+  - FTP tests (not implemented - 18 tests)
+  - IRI/IDN tests (internationalization not implemented - 11 tests)
+  - Advanced HTTPS/TLS features (client certs, CRL - 8 tests)
+  - Timestamping (-N) issues (file timestamps not set correctly - 6 tests)
+  - CLI argument parsing (`-n` option can't be specified multiple times)
+  - Relative file path handling for `--post-file` and `-i`
 
 **Test report format:**
 - Summary table (passed/total/pass rate by suite)
@@ -309,19 +318,23 @@ wget-faster-test/
 4. **"unexpected argument":** Option not implemented or parsed incorrectly
 5. **"builder error for url (ftp://...)":** FTP not supported (HTTP-only client)
 
-**Improving test pass rate:**
+**Improving test pass rate (v0.0.3 priorities):**
 
-Priority fixes to increase pass rate quickly:
-1. Implement `-n` / `--no-directories` option
-2. Allow `--debug` to be specified multiple times
-3. Fix relative file path handling for `-i` and `--post-file`
-4. Improve HTTP error status code handling (400, 401, 404)
-5. Fix Content-Disposition with timestamping (`-N`)
+Critical fixes (can increase pass rate to ~40%):
+1. **Exit code handling** - Return wget-compatible exit codes (3 for file I/O, 6 for auth, 8 for HTTP errors)
+2. **Spider mode exit codes** - Return 8 when spider finds broken links (4xx/5xx)
+3. **CLI argument parsing** - Allow `--no-directories` to be specified multiple times
+4. **Timestamping (-N)** - Set file modification time to server's Last-Modified header
+5. **HTTP status code handling** - Don't save files for 204 No Content or 4xx/5xx errors
+6. **Relative path handling** - Fix `--post-file` and `-i` path resolution
+7. **Content-Disposition** - Use filename from Content-Disposition header
+
+See TODO.md for complete list of 19 prioritized tasks.
 
 Long-term improvements (v0.2.0+):
-- FTP/FTPS support (17 tests)
-- IRI/IDN support (14 tests)
-- HTTPS advanced features (8 tests)
+- FTP/FTPS support (18 tests)
+- IRI/IDN support (11 tests)
+- Advanced HTTPS/TLS features (8 tests)
 
 ## Quick Reference: Finding Implementations
 
