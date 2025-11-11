@@ -41,7 +41,7 @@ pub struct Args {
     pub append_output: Option<PathBuf>,
 
     /// Print lots of debugging information
-    #[arg(short = 'd', long, action = clap::ArgAction::Count)]
+    #[arg(short = 'd', long, action = clap::ArgAction::Count, overrides_with = "debug")]
     pub debug: u8,
 
     /// Quiet (no output)
@@ -255,7 +255,7 @@ pub struct Args {
 
     // ===== Directory Options =====
     /// Don't create directories
-    #[arg(short = 'n', long)]
+    #[arg(short = 'n', long, action = clap::ArgAction::SetTrue, overrides_with = "no_directories")]
     pub no_directories: bool,
 
     /// Force creation of directories

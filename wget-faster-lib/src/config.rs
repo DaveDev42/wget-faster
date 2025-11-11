@@ -113,6 +113,9 @@ pub struct DownloadConfig {
     /// Send auth without waiting for challenge (preemptive auth)
     pub auth_no_challenge: bool,
 
+    /// Save error page content even on HTTP errors (4xx/5xx)
+    pub content_on_error: bool,
+
     /// Minimum file size threshold for parallel downloads (bytes)
     pub parallel_threshold: u64,
 
@@ -180,6 +183,7 @@ impl Default for DownloadConfig {
             save_headers: false,
             print_server_response: false,
             auth_no_challenge: false,
+            content_on_error: false,
             parallel_threshold: 10 * 1024 * 1024, // 10MB
             pretty_output: false, // wget-compatible by default
         }

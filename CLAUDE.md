@@ -276,19 +276,23 @@ cat reports/report_$(ls -t reports/ | grep report | head -1)
 ```
 
 **Current test status (v0.0.3 - 2025-11-11):**
-- **Pass rate:** 17.8% (30/169 total tests)
-  - Perl: 23.0% (20/87 tests)
-  - Python: 12.2% (10/82 tests)
-- **Passing tests:** Basic HTTP downloads, cookies, resume functionality, Content-Disposition, recursive downloads
+- **Pass rate:** 20.1% (34/169 total tests) ⬆️ **+2.3%**
+  - Perl: 27.6% (24/87 tests) ⬆️ **+4.6%** (+4 tests)
+  - Python: 12.2% (10/82 tests) (unchanged)
+- **Passing tests:** Basic HTTP downloads, cookies, resume functionality, Content-Disposition, recursive downloads, spider mode basic tests, timestamping basic tests
+- **Recent improvements (v0.0.3):**
+  - ✅ Exit code handling (wget-compatible exit codes: 3 for file I/O, 6 for auth, 8 for HTTP errors)
+  - ✅ Spider mode exit codes (returns 8 for broken links)
+  - ✅ CLI argument parsing (allow `--no-directories` multiple times)
+  - ✅ HTTP status code handling (don't save 204/4xx/5xx without `--content-on-error`)
+  - ✅ Relative file path handling (already working for `--post-file` and `-i`)
+  - ✅ Timestamping (-N) file mtime setting (sets file modification time to Last-Modified header)
 - **Common failures:**
-  - Exit code handling (returns 0 instead of 8 for HTTP errors)
-  - Spider mode exit codes (should return 8 for broken links)
+  - Authentication challenge response (401 requires retry with credentials - many tests)
+  - Content-Disposition filename extraction (header parsing not fully implemented - 3 tests)
   - FTP tests (not implemented - 18 tests)
   - IRI/IDN tests (internationalization not implemented - 11 tests)
   - Advanced HTTPS/TLS features (client certs, CRL - 8 tests)
-  - Timestamping (-N) issues (file timestamps not set correctly - 6 tests)
-  - CLI argument parsing (`-n` option can't be specified multiple times)
-  - Relative file path handling for `--post-file` and `-i`
 
 **Test report format:**
 - Summary table (passed/total/pass rate by suite)

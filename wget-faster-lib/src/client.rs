@@ -167,6 +167,12 @@ impl HttpClient {
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
 
+        let content_disposition = response
+            .headers()
+            .get(reqwest::header::CONTENT_DISPOSITION)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
         let status_code = response.status().as_u16();
         let headers = response.headers().clone();
 
@@ -176,6 +182,7 @@ impl HttpClient {
             last_modified,
             etag,
             content_type,
+            content_disposition,
             status_code,
             headers,
         })
@@ -202,6 +209,9 @@ pub struct ResourceMetadata {
 
     /// Content-Type header value
     pub content_type: Option<String>,
+
+    /// Content-Disposition header value
+    pub content_disposition: Option<String>,
 
     /// HTTP status code
     pub status_code: u16,

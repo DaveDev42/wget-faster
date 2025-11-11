@@ -43,6 +43,14 @@ impl Downloader {
         Ok(Self { client })
     }
 
+    /// Get a reference to the HTTP client
+    ///
+    /// Provides access to the underlying HTTP client for advanced operations
+    /// like getting metadata or checking server capabilities.
+    pub fn get_client(&self) -> &HttpClient {
+        &self.client
+    }
+
     /// Build a request with the configured method, headers, and body
     fn build_request(&self, url: &str, range: Option<&str>) -> Result<reqwest::RequestBuilder> {
         let config = self.client.config();
@@ -383,6 +391,23 @@ impl Downloader {
                 .await?
         };
 
+        // Set file modification time from server if configured and available
+        if self.client.config().use_server_timestamps {
+            if let Some(ref last_modified_str) = metadata.last_modified {
+                if let Ok(remote_time) = httpdate::parse_http_date(last_modified_str) {
+                    // Convert SystemTime to FileTime for setting the modification time
+                    let file_time = filetime::FileTime::from_system_time(remote_time);
+                    // Set the file modification time (atime is set to current time, mtime to server time)
+                    if let Err(e) = filetime::set_file_mtime(&path, file_time) {
+                        // Log error but don't fail the download
+                        if self.client.config().verbose {
+                            eprintln!("Warning: Failed to set file modification time: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(DownloadResult {
             data: DownloadedData::new_file(path, total_bytes, resume_from > 0),
             url: url.to_string(),
@@ -480,7 +505,15 @@ impl Downloader {
             return Ok(Bytes::new());
         }
 
-        if !response.status().is_success() {
+        // Check for HTTP errors (4xx/5xx)
+        if status_code >= 400 {
+            // Only save error content if content_on_error is enabled
+            if !self.client.config().content_on_error {
+                return Err(Error::InvalidStatus(status_code));
+            }
+            // If content_on_error is enabled, continue downloading the error page
+        } else if !response.status().is_success() {
+            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
             return Err(Error::InvalidStatus(status_code));
         }
 
@@ -543,13 +576,27 @@ impl Downloader {
 
         let status_code = response.status().as_u16();
 
+        // 204 No Content is a success but has no body - don't create file
+        if status_code == 204 {
+            return Ok(0);
+        }
+
         // 416 Range Not Satisfiable means the file is already complete
         if status_code == 416 {
             // File is already fully downloaded
             return Ok(resume_from);
         }
 
-        if !response.status().is_success() && status_code != 206 {
+        // Check for HTTP errors (4xx/5xx)
+        if status_code >= 400 {
+            // Only save error content if content_on_error is enabled
+            if !self.client.config().content_on_error {
+                return Err(Error::InvalidStatus(status_code));
+            }
+            // If content_on_error is enabled, continue downloading the error page
+        } else if !response.status().is_success() && status_code != 206 {
+            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
+            // 206 is acceptable for partial content (resume)
             return Err(Error::InvalidStatus(status_code));
         }
 

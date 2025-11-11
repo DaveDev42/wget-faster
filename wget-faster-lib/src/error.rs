@@ -63,6 +63,50 @@ impl From<anyhow::Error> for Error {
 }
 
 impl Error {
+    /// Get wget-compatible exit code for this error
+    ///
+    /// Exit codes:
+    /// - 0: Success
+    /// - 1: Generic error
+    /// - 2: Parse error
+    /// - 3: File I/O error
+    /// - 4: Network failure
+    /// - 5: SSL verification failure
+    /// - 6: Authentication failure
+    /// - 7: Protocol error
+    /// - 8: Server error response (4xx/5xx)
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            // File I/O errors -> 3
+            Error::IoError(_) | Error::TempFileError(_) | Error::WriteError(_) => 3,
+
+            // Network failures -> 4
+            Error::Timeout => 4,
+            Error::HttpError(e) if e.is_timeout() || e.is_connect() => 4,
+
+            // SSL verification failure -> 5
+            Error::HttpError(e) if e.to_string().contains("certificate")
+                                || e.to_string().contains("tls")
+                                || e.to_string().contains("ssl") => 5,
+
+            // Authentication failure -> 6
+            Error::InvalidStatus(401) | Error::InvalidStatus(407) => 6,
+
+            // Server error responses (4xx/5xx) -> 8
+            Error::InvalidStatus(code) if *code >= 400 => 8,
+
+            // Protocol errors -> 7
+            Error::RangeNotSupported | Error::ContentLengthUnavailable => 7,
+
+            // Parse errors -> 2
+            Error::InvalidUrl(_) | Error::InvalidHeader(_) | Error::InvalidHeaderName(_) => 2,
+            Error::ConfigError(_) => 2,
+
+            // Generic error -> 1
+            _ => 1,
+        }
+    }
+
     /// Format error in wget-style output
     ///
     /// Example: "wget: failed: Connection refused."

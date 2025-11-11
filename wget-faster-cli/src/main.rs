@@ -108,18 +108,14 @@ async fn main() {
                 total_downloaded += bytes;
             }
             Err(e) => {
-                // Check if this is an HTTP error status (400-599)
-                let error_msg = e.to_string();
-                let is_http_error = error_msg.contains("Invalid status:") ||
-                                   error_msg.contains("status: ");
+                eprintln!("wgetf: {}", e);
 
-                if is_http_error {
-                    // HTTP errors are reported but should use exit code 8 (Server error)
-                    eprintln!("wgetf: {}", e);
-                    exit_code = 8;
+                // Get exit code from error - check if it's a library error first
+                if let Some(lib_err) = e.downcast_ref::<wget_faster_lib::Error>() {
+                    // Use wget-compatible exit code from library error
+                    exit_code = lib_err.exit_code();
                 } else {
-                    // Other errors use exit code 1
-                    eprintln!("wgetf: {}", e);
+                    // For other errors, use generic exit code 1
                     exit_code = 1;
                 }
             }
@@ -137,8 +133,15 @@ async fn download_url(
     // Parse URL
     let parsed_url = Url::parse(url)?;
 
+    // Get metadata first if content_disposition is enabled
+    let metadata = if args.content_disposition {
+        Some(downloader.get_client().get_metadata(url).await?)
+    } else {
+        None
+    };
+
     // Determine output file name
-    let output_path = determine_output_path(&parsed_url, args)?;
+    let output_path = determine_output_path(&parsed_url, args, metadata.as_ref())?;
 
     // Create output formatter
     let mut output = WgetOutput::new(
@@ -166,18 +169,28 @@ async fn download_url(
                 return Ok(0);
             }
             Err(e) => {
-                // In spider mode, HTTP errors are not fatal - just report them
-                let status_code = if let Some(status_err) = e.to_string().find("status: ") {
-                    e.to_string()[status_err + 8..].parse::<u16>().unwrap_or(0)
+                // In spider mode, HTTP errors should return exit code 8
+                // Extract status code from error
+                let status_code = if let Some(pos) = e.to_string().find("Invalid status: ") {
+                    e.to_string()[pos + 16..].split_whitespace().next()
+                        .and_then(|s| s.parse::<u16>().ok())
+                        .unwrap_or(0)
                 } else {
                     0
                 };
 
-                if status_code > 0 {
+                if status_code >= 400 {
+                    // HTTP 4xx/5xx errors
                     output.print_spider_result(url, status_code, false);
-                    return Ok(0);  // Spider mode: report but don't fail
+                    // Return an error with exit code 8
+                    return Err(Box::new(wget_faster_lib::Error::InvalidStatus(status_code)));
+                } else if status_code > 0 {
+                    // Other status codes (1xx, 2xx, 3xx)
+                    output.print_spider_result(url, status_code, true);
+                    return Ok(0);
                 }
 
+                // Non-HTTP errors
                 output.print_error(&format!("spider check failed: {}", e));
                 return Err(e.into());
             }
@@ -266,7 +279,11 @@ async fn download_url(
     }
 }
 
-fn determine_output_path(url: &Url, args: &Args) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
+fn determine_output_path(
+    url: &Url,
+    args: &Args,
+    metadata: Option<&wget_faster_lib::ResourceMetadata>,
+) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
     // If -O is specified
     if let Some(ref output_doc) = args.output_document {
         // Special case: -O - means stdout
@@ -276,12 +293,27 @@ fn determine_output_path(url: &Url, args: &Args) -> Result<Option<PathBuf>, Box<
         return Ok(Some(output_doc.clone()));
     }
 
-    // Extract filename from URL
-    let filename = url
-        .path_segments()
-        .and_then(|segments| segments.last())
-        .filter(|name| !name.is_empty())
-        .unwrap_or("index.html");
+    // Try to extract filename from Content-Disposition if enabled
+    let filename = if args.content_disposition {
+        metadata
+            .and_then(|m| m.content_disposition.as_ref())
+            .and_then(|cd| extract_filename_from_content_disposition(cd))
+            .or_else(|| {
+                // Fall back to URL if Content-Disposition not available
+                url.path_segments()
+                    .and_then(|segments| segments.last())
+                    .filter(|name| !name.is_empty())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| "index.html".to_string())
+    } else {
+        // Extract filename from URL
+        url.path_segments()
+            .and_then(|segments| segments.last())
+            .filter(|name| !name.is_empty())
+            .unwrap_or("index.html")
+            .to_string()
+    };
 
     let mut path = PathBuf::new();
 
@@ -500,6 +532,9 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
 
     // Set save headers
     config.save_headers = args.save_headers;
+
+    // Set content on error
+    config.content_on_error = args.content_on_error;
 
     // Set verbose mode
     config.verbose = args.verbose || args.debug > 0;
