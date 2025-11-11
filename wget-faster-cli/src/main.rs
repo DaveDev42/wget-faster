@@ -17,7 +17,7 @@ async fn main() {
 
     // Validate arguments
     if let Err(e) = args.validate() {
-        eprintln!("wget-faster: {}", e);
+        eprintln!("wgetf: {}", e);
         std::process::exit(1);
     }
 
@@ -29,7 +29,7 @@ async fn main() {
         match read_urls_from_file(input_file, args.force_html, args.base.as_deref()).await {
             Ok(file_urls) => urls.extend(file_urls),
             Err(e) => {
-                eprintln!("wget-faster: failed to read input file: {}", e);
+                eprintln!("wgetf: failed to read input file: {}", e);
                 std::process::exit(1);
             }
         }
@@ -37,10 +37,10 @@ async fn main() {
 
     // Check if no URLs provided
     if urls.is_empty() {
-        eprintln!("wget-faster: missing URL");
-        eprintln!("Usage: wget-faster [OPTION]... [URL]...");
+        eprintln!("wgetf: missing URL");
+        eprintln!("Usage: wgetf [OPTION]... [URL]...");
         eprintln!();
-        eprintln!("Try `wget-faster --help' for more options.");
+        eprintln!("Try `wgetf --help' for more options.");
         std::process::exit(1);
     }
 
@@ -48,7 +48,7 @@ async fn main() {
     let config = match build_config(&args) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("wget-faster: {}", e);
+            eprintln!("wgetf: {}", e);
             std::process::exit(1);
         }
     };
@@ -62,7 +62,7 @@ async fn main() {
     let downloader = match Downloader::new(config) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("wget-faster: failed to create downloader: {}", e);
+            eprintln!("wgetf: failed to create downloader: {}", e);
             std::process::exit(1);
         }
     };
@@ -75,7 +75,7 @@ async fn main() {
         // Check quota before download
         if let Some(q) = quota {
             if total_downloaded >= q {
-                eprintln!("wget-faster: quota of {} bytes exceeded", q);
+                eprintln!("wgetf: quota of {} bytes exceeded", q);
                 break;
             }
         }
@@ -101,7 +101,7 @@ async fn main() {
                 total_downloaded += bytes;
             }
             Err(e) => {
-                eprintln!("wget-faster: {}", e);
+                eprintln!("wgetf: {}", e);
                 exit_code = 1;
             }
         }

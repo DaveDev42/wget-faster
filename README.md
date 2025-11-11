@@ -32,17 +32,56 @@ A high-performance, drop-in replacement for GNU wget written in Rust with async 
 
 ### Installation
 
-#### From crates.io (Recommended)
+There are three ways to install wget-faster:
+
+#### 1. From crates.io (Recommended)
+
+If you have Rust installed, this is the easiest method:
 
 ```bash
-# Install the CLI tool
+# Install the wgetf CLI tool
 cargo install wget-faster-cli
 
-# Or add the library to your project
+# Verify installation
+wgetf --version
+```
+
+The binary will be installed to `~/.cargo/bin/wgetf` (make sure `~/.cargo/bin` is in your PATH).
+
+To use wget-faster as a library in your Rust project:
+
+```bash
+# Add to your project
 cargo add wget-faster-lib
 ```
 
-#### From source
+#### 2. From GitHub Releases (Pre-built binaries)
+
+Download pre-built binaries for your platform from [GitHub Releases](https://github.com/wget-faster/wget-faster/releases):
+
+**Linux/macOS:**
+```bash
+# Download the latest release (replace VERSION and PLATFORM)
+curl -LO https://github.com/wget-faster/wget-faster/releases/latest/download/wgetf-VERSION-PLATFORM.tar.gz
+
+# Extract
+tar xzf wgetf-*.tar.gz
+
+# Move to PATH
+sudo mv wgetf /usr/local/bin/
+
+# Verify installation
+wgetf --version
+```
+
+**Windows:**
+- Download `wgetf-VERSION-windows.zip` from releases
+- Extract the `.exe` file
+- Add the directory to your PATH or move `wgetf.exe` to a directory in your PATH
+
+#### 3. Build from Source
+
+For the latest development version or custom builds:
 
 ```bash
 # Clone the repository
@@ -52,55 +91,65 @@ cd wget-faster
 # Build release binary
 cargo build --release
 
-# Install to ~/.cargo/bin
+# The binary is now at ./target/release/wgetf
+# Test it:
+./target/release/wgetf --version
+
+# Install to ~/.cargo/bin (optional)
 cargo install --path wget-faster-cli
+
+# Or manually copy to a directory in your PATH:
+sudo cp ./target/release/wgetf /usr/local/bin/
 ```
 
-#### Pre-built binaries
-
-Download pre-built binaries from [GitHub Releases](https://github.com/wget-faster/wget-faster/releases)
+**Requirements:**
+- Rust 1.70 or later (install from [rustup.rs](https://rustup.rs))
+- OpenSSL development libraries (Linux only):
+  - Ubuntu/Debian: `sudo apt install pkg-config libssl-dev`
+  - Fedora/RHEL: `sudo dnf install pkg-config openssl-devel`
+  - macOS: Already included
 
 ### Basic Usage
 
 ```bash
 # Simple download
-wget-faster https://example.com/file.zip
+wgetf https://example.com/file.zip
 
 # Download to specific file
-wget-faster -O output.zip https://example.com/file.zip
+wgetf -O output.zip https://example.com/file.zip
 
 # Resume interrupted download
-wget-faster -c https://example.com/large-file.iso
+wgetf -c https://example.com/large-file.iso
 
 # With authentication
-wget-faster --http-user=username --http-password=password https://example.com/protected/file.zip
+wgetf --http-user=username --http-password=password https://example.com/protected/file.zip
 
 # Limit download speed to 1 MB/s
-wget-faster --limit-rate=1m https://example.com/large-file.iso
+wgetf --limit-rate=1m https://example.com/large-file.iso
 
 # Recursive download (mirror a website)
-wget-faster -r -l 3 -p -k https://example.com/
+wgetf -r -l 3 -p -k https://example.com/
 
 # Download only if remote is newer (timestamping)
-wget-faster -N https://example.com/file.zip
+wgetf -N https://example.com/file.zip
 
 # POST request with data
-wget-faster --post-data="user=admin&pass=secret" https://example.com/api
+wgetf --post-data="user=admin&pass=secret" https://example.com/api
 
 # Download multiple URLs from a file
-wget-faster -i urls.txt
+wgetf -i urls.txt
 
 # Spider mode (check without downloading)
-wget-faster --spider https://example.com/file.zip
+wgetf --spider https://example.com/file.zip
 
 # With custom headers
-wget-faster --header="Authorization: Bearer token123" https://api.example.com/data
+wgetf --header="Authorization: Bearer token123" https://api.example.com/data
 
 # Download with quota limit (stop after 100MB)
-wget-faster -Q 100m -i urls.txt
+wgetf -Q 100m -i urls.txt
 
 # Random wait between downloads (0.5-1.5 seconds)
-wget-faster -w 1 --random-wait -i urls.txt
+wgetf -w 1 --random-wait -i urls.txt
 ```
 
 ### Library Usage

@@ -588,4 +588,4 @@ max: retry_delay * 2^attempt (capped at 60s)
 
 **Test Suite Separation**: wget test suite integration is maintained in a separate GPL-3.0 licensed repository to ensure complete license isolation.
 
-**Binary Testing**: wget tests run against the compiled wget-faster binary, similar to how browsers are tested with W3C test suites. No code linking or derivation occurs.
+**Binary Testing**: wget tests run against the compiled wgetf binary, similar to how browsers are tested with W3C test suites. No code linking or derivation occurs.

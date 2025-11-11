@@ -12,7 +12,7 @@ readme = "../README.md"
 homepage = "https://github.com/wget-faster/wget-faster"
 
 [[bin]]
-name = "wget-faster"
+name = "wgetf"
 path = "src/main.rs"
 
 [dependencies]

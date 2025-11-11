@@ -2,7 +2,7 @@ use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "wget-faster")]
+#[command(name = "wgetf")]
 #[command(version, about = "GNU Wget compatible downloader with high-performance parallel downloads", long_about = None)]
 pub struct Args {
     /// URLs to download
