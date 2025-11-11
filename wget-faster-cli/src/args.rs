@@ -3,7 +3,12 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(name = "wgetf")]
-#[command(version, about = "GNU Wget compatible downloader with high-performance parallel downloads", long_about = None)]
+#[command(
+    version,
+    about = "GNU Wget compatible downloader with high-performance parallel downloads",
+    long_about = None,
+    disable_version_flag = true
+)]
 pub struct Args {
     /// URLs to download
     #[arg(value_name = "URL")]
@@ -11,7 +16,7 @@ pub struct Args {
 
     // ===== Startup Options =====
     /// Display version information
-    #[arg(short = 'V', long)]
+    #[arg(short = 'V', long = "version")]
     pub version: bool,
 
     /// Display help
@@ -250,7 +255,7 @@ pub struct Args {
 
     // ===== Directory Options =====
     /// Don't create directories
-    #[arg(long)]
+    #[arg(short = 'n', long)]
     pub no_directories: bool,
 
     /// Force creation of directories

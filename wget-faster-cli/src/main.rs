@@ -15,6 +15,12 @@ use percent_encoding;
 async fn main() {
     let args = Args::parse();
 
+    // Handle version flag first (before URL validation)
+    if args.version {
+        print_version();
+        std::process::exit(0);
+    }
+
     // Validate arguments
     if let Err(e) = args.validate() {
         eprintln!("wgetf: {}", e);
@@ -26,7 +32,8 @@ async fn main() {
 
     // Read URLs from input file if specified
     if let Some(ref input_file) = args.input_file {
-        match read_urls_from_file(input_file, args.force_html, args.base.as_deref()).await {
+        let resolved_input_file = resolve_file_path(input_file);
+        match read_urls_from_file(&resolved_input_file, args.force_html, args.base.as_deref()).await {
             Ok(file_urls) => urls.extend(file_urls),
             Err(e) => {
                 eprintln!("wgetf: failed to read input file: {}", e);
@@ -101,8 +108,20 @@ async fn main() {
                 total_downloaded += bytes;
             }
             Err(e) => {
-                eprintln!("wgetf: {}", e);
-                exit_code = 1;
+                // Check if this is an HTTP error status (400-599)
+                let error_msg = e.to_string();
+                let is_http_error = error_msg.contains("Invalid status:") ||
+                                   error_msg.contains("status: ");
+
+                if is_http_error {
+                    // HTTP errors are reported but should use exit code 8 (Server error)
+                    eprintln!("wgetf: {}", e);
+                    exit_code = 8;
+                } else {
+                    // Other errors use exit code 1
+                    eprintln!("wgetf: {}", e);
+                    exit_code = 1;
+                }
             }
         }
     }
@@ -147,6 +166,18 @@ async fn download_url(
                 return Ok(0);
             }
             Err(e) => {
+                // In spider mode, HTTP errors are not fatal - just report them
+                let status_code = if let Some(status_err) = e.to_string().find("status: ") {
+                    e.to_string()[status_err + 8..].parse::<u16>().unwrap_or(0)
+                } else {
+                    0
+                };
+
+                if status_code > 0 {
+                    output.print_spider_result(url, status_code, false);
+                    return Ok(0);  // Spider mode: report but don't fail
+                }
+
                 output.print_error(&format!("spider check failed: {}", e));
                 return Err(e.into());
             }
@@ -254,8 +285,13 @@ fn determine_output_path(url: &Url, args: &Args) -> Result<Option<PathBuf>, Box<
 
     let mut path = PathBuf::new();
 
-    // Add directory prefix if specified
-    if let Some(ref prefix) = args.directory_prefix {
+    // Add directory prefix if specified (unless -n/--no-directories is set)
+    if !args.no_directories {
+        if let Some(ref prefix) = args.directory_prefix {
+            path.push(prefix);
+        }
+    } else if let Some(ref prefix) = args.directory_prefix {
+        // With -n, still use directory_prefix if specified explicitly
         path.push(prefix);
     }
 
@@ -394,8 +430,9 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
         config.body_data = Some(post_data.as_bytes().to_vec());
     } else if let Some(ref post_file) = args.post_file {
         config.method = wget_faster_lib::HttpMethod::Post;
-        let data = std::fs::read(post_file)
-            .map_err(|e| format!("Failed to read POST file '{}': {}", post_file.display(), e))?;
+        let resolved_post_file = resolve_file_path(post_file);
+        let data = std::fs::read(&resolved_post_file)
+            .map_err(|e| format!("Failed to read POST file '{}': {}", resolved_post_file.display(), e))?;
         config.body_data = Some(data);
     }
 
@@ -403,8 +440,9 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     if let Some(ref body_data) = args.body_data {
         config.body_data = Some(body_data.as_bytes().to_vec());
     } else if let Some(ref body_file) = args.body_file {
-        let data = std::fs::read(body_file)
-            .map_err(|e| format!("Failed to read body file '{}': {}", body_file.display(), e))?;
+        let resolved_body_file = resolve_file_path(body_file);
+        let data = std::fs::read(&resolved_body_file)
+            .map_err(|e| format!("Failed to read body file '{}': {}", resolved_body_file.display(), e))?;
         config.body_data = Some(data);
     }
 
@@ -618,4 +656,40 @@ fn resolve_url(base: &str, relative: &str) -> Result<String, Box<dyn std::error:
     let base_url = Url::parse(base)?;
     let resolved = base_url.join(relative)?;
     Ok(resolved.to_string())
+}
+
+fn resolve_file_path(path: &PathBuf) -> PathBuf {
+    // If path is absolute, return as-is
+    if path.is_absolute() {
+        return path.clone();
+    }
+
+    // Otherwise, resolve relative to current working directory
+    match std::env::current_dir() {
+        Ok(cwd) => cwd.join(path),
+        Err(_) => path.clone(), // Fallback to original path if CWD unavailable
+    }
+}
+
+fn print_version() {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+    println!("GNU Wget {} built on {}.", VERSION, std::env::consts::OS);
+    println!();
+    println!("+digest +https +ipv6 -iri +large-file +nls +ssl/rustls");
+    println!();
+    println!("Features:");
+    println!("    +http2         HTTP/2 support via reqwest");
+    println!("    +parallel      Parallel chunk downloads");
+    println!("    +adaptive      Adaptive performance tuning");
+    println!("    +cookies       Cookie support (Netscape format)");
+    println!("    +compression   gzip, deflate, brotli");
+    println!("    +recursive     Recursive downloads with HTML parsing");
+    println!("    +timestamping  If-Modified-Since support");
+    println!("    +resume        Resume partial downloads");
+    println!();
+    println!("Copyright (C) 2024 wget-faster contributors");
+    println!("License BSD-3-Clause: BSD 3-Clause License");
+    println!("This is free software: you are free to change and redistribute it.");
+    println!("There is NO WARRANTY, to the extent permitted by law.");
 }

@@ -185,6 +185,13 @@ impl Downloader {
             eprintln!("{}", metadata.format_headers());
         }
 
+        // Check status code - for HEAD requests, 4xx and 5xx are informational, not fatal
+        // We'll let the actual GET request handle the error
+        if metadata.status_code >= 400 && metadata.status_code < 600 {
+            // For HEAD, we continue to GET which will handle the error properly
+            // This allows wget-compatible behavior where some servers respond differently to HEAD vs GET
+        }
+
         // Use parallel download if supported and beneficial
         if metadata.supports_range {
             if let Some(total_size) = metadata.content_length {
@@ -303,6 +310,13 @@ impl Downloader {
         // Print server response if requested
         if self.client.config().print_server_response {
             eprintln!("{}", metadata.format_headers());
+        }
+
+        // Check status code - for HEAD requests, 4xx and 5xx are informational, not fatal
+        // We'll let the actual GET request handle the error
+        if metadata.status_code >= 400 && metadata.status_code < 600 {
+            // For HEAD, we continue to GET which will handle the error properly
+            // This allows wget-compatible behavior where some servers respond differently to HEAD vs GET
         }
 
         // Check timestamping - skip if local file is newer
