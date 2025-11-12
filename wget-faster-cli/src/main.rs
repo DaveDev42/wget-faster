@@ -496,8 +496,14 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     } else if let Some(ref post_file) = args.post_file {
         config.method = wget_faster_lib::HttpMethod::Post;
         let resolved_post_file = resolve_file_path(post_file);
-        let data = std::fs::read(&resolved_post_file)
-            .map_err(|e| format!("Failed to read POST file '{}': {}", resolved_post_file.display(), e))?;
+        let data = match std::fs::read(&resolved_post_file) {
+            Ok(d) => d,
+            Err(e) => {
+                // File I/O error - exit with code 3
+                eprintln!("wgetf: Failed to read POST file '{}': {}", resolved_post_file.display(), e);
+                std::process::exit(3);
+            }
+        };
         config.body_data = Some(data);
     }
 
@@ -506,8 +512,14 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
         config.body_data = Some(body_data.as_bytes().to_vec());
     } else if let Some(ref body_file) = args.body_file {
         let resolved_body_file = resolve_file_path(body_file);
-        let data = std::fs::read(&resolved_body_file)
-            .map_err(|e| format!("Failed to read body file '{}': {}", resolved_body_file.display(), e))?;
+        let data = match std::fs::read(&resolved_body_file) {
+            Ok(d) => d,
+            Err(e) => {
+                // File I/O error - exit with code 3
+                eprintln!("wgetf: Failed to read body file '{}': {}", resolved_body_file.display(), e);
+                std::process::exit(3);
+            }
+        };
         config.body_data = Some(data);
     }
 

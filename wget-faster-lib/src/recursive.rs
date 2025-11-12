@@ -71,6 +71,7 @@ pub struct RecursiveDownloader {
     config: RecursiveConfig,
     visited: HashSet<String>,
     queue: VecDeque<(String, usize)>, // (URL, depth)
+    base_url: Option<String>, // Base URL for no_parent check
 }
 
 impl RecursiveDownloader {
@@ -80,6 +81,7 @@ impl RecursiveDownloader {
             config: recursive_config,
             visited: HashSet::new(),
             queue: VecDeque::new(),
+            base_url: None,
         })
     }
 
@@ -90,6 +92,9 @@ impl RecursiveDownloader {
         output_dir: &Path,
     ) -> Result<Vec<PathBuf>> {
         let mut downloaded_files = Vec::new();
+
+        // Set base URL for no_parent check
+        self.base_url = Some(start_url.to_string());
 
         // Add starting URL to queue
         self.queue.push_back((start_url.to_string(), 0));
@@ -178,6 +183,26 @@ impl RecursiveDownloader {
 
         if self.config.exclude_directories.iter().any(|d| path.contains(d)) {
             return Ok(false);
+        }
+
+        // Check no_parent option
+        if self.config.no_parent {
+            if let Some(ref base_url_str) = self.base_url {
+                let base_parsed = Url::parse(base_url_str)
+                    .map_err(|e| Error::ConfigError(format!("Invalid base URL: {}", e)))?;
+
+                // Check if URL ascends to parent directory
+                // Both URLs must be on the same host
+                if parsed_url.host() == base_parsed.host() {
+                    let base_path = base_parsed.path();
+                    let current_path = parsed_url.path();
+
+                    // If current path doesn't start with base path, it's ascending to parent
+                    if !current_path.starts_with(base_path) {
+                        return Ok(false);
+                    }
+                }
+            }
         }
 
         Ok(true)

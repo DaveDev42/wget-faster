@@ -255,7 +255,7 @@ pub struct Args {
 
     // ===== Directory Options =====
     /// Don't create directories
-    #[arg(short = 'n', long)]
+    #[arg(short = 'n', long, action = clap::ArgAction::SetTrue)]
     pub no_directories: bool,
 
     /// Force creation of directories
@@ -263,7 +263,7 @@ pub struct Args {
     pub force_directories: bool,
 
     /// Don't create host directories
-    #[arg(long)]
+    #[arg(long, action = clap::ArgAction::SetTrue)]
     pub no_host_directories: bool,
 
     /// Use protocol name in directories
