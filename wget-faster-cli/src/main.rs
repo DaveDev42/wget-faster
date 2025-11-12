@@ -328,11 +328,44 @@ fn determine_output_path(
     }
 
     // Add filename
-    path.push(filename);
+    path.push(&filename);
 
     // Handle no-clobber
     if args.no_clobber && path.exists() {
         return Err(format!("File '{}' already exists.", path.display()).into());
+    }
+
+    // Handle duplicate filenames by adding .1, .2, .3 suffix
+    // This matches wget behavior for Content-Disposition filenames
+    if path.exists() && !args.no_clobber {
+        let mut counter = 1;
+        loop {
+            let mut new_path = PathBuf::new();
+
+            // Add directory prefix
+            if !args.no_directories {
+                if let Some(ref prefix) = args.directory_prefix {
+                    new_path.push(prefix);
+                }
+            } else if let Some(ref prefix) = args.directory_prefix {
+                new_path.push(prefix);
+            }
+
+            // Add filename with counter suffix
+            new_path.push(format!("{}.{}", filename, counter));
+
+            if !new_path.exists() {
+                path = new_path;
+                break;
+            }
+
+            counter += 1;
+
+            // Safety check: prevent infinite loop
+            if counter > 9999 {
+                return Err("Too many duplicate files".into());
+            }
+        }
     }
 
     Ok(Some(path))

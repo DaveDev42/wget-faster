@@ -329,20 +329,53 @@ impl Downloader {
 
         // Check timestamping - skip if local file is newer
         if self.client.config().timestamping && path.exists() {
-            if let Some(ref remote_modified) = metadata.last_modified {
-                let local_time = tokio::fs::metadata(&path).await?.modified()?;
+            let local_metadata = tokio::fs::metadata(&path).await?;
+            let local_size = local_metadata.len();
+            let local_time = local_metadata.modified()?;
 
+            if let Some(ref remote_modified) = metadata.last_modified {
                 // Parse remote Last-Modified header (RFC 2822 or RFC 3339 format)
                 if let Ok(remote_time) = httpdate::parse_http_date(remote_modified) {
-                    if local_time >= remote_time {
-                        // Local file is newer or same age, skip download
+                    // Check if local file is older than remote (need to download)
+                    if local_time < remote_time {
+                        // Local file is older, continue to download
+                    } else if local_time > remote_time {
+                        // Local file is newer, skip download
                         return Ok(DownloadResult {
-                            data: DownloadedData::new_file(path, 0, false),
+                            data: DownloadedData::new_file(path.clone(), local_size, false),
                             url: url.to_string(),
                             metadata,
                         });
+                    } else {
+                        // Same timestamp - check file size
+                        if let Some(remote_size) = metadata.content_length {
+                            if local_size == remote_size {
+                                // Same timestamp and size, skip download
+                                return Ok(DownloadResult {
+                                    data: DownloadedData::new_file(path.clone(), local_size, false),
+                                    url: url.to_string(),
+                                    metadata,
+                                });
+                            }
+                            // Same timestamp but different size - re-download
+                        } else {
+                            // No remote size info, skip download (same timestamp)
+                            return Ok(DownloadResult {
+                                data: DownloadedData::new_file(path.clone(), local_size, false),
+                                url: url.to_string(),
+                                metadata,
+                            });
+                        }
                     }
                 }
+            } else {
+                // No Last-Modified header from server
+                // wget behavior: assume file is up-to-date if it exists
+                return Ok(DownloadResult {
+                    data: DownloadedData::new_file(path.clone(), local_size, false),
+                    url: url.to_string(),
+                    metadata,
+                });
             }
         }
 
