@@ -2,7 +2,7 @@
 
 use crate::{Error, Result, Downloader, DownloadConfig, LinkConverter};
 use scraper::{Html, Selector};
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque, HashMap};
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -89,6 +89,131 @@ impl Default for RecursiveConfig {
     }
 }
 
+/// Simple robots.txt parser
+#[derive(Debug, Clone)]
+struct RobotsTxt {
+    /// Rules grouped by user-agent
+    rules: HashMap<String, Vec<RobotRule>>,
+}
+
+#[derive(Debug, Clone)]
+struct RobotRule {
+    /// Path pattern to match against
+    path: String,
+    /// Whether this is an Allow (true) or Disallow (false) rule
+    allow: bool,
+}
+
+impl RobotsTxt {
+    /// Parse robots.txt content
+    fn parse(content: &str) -> Self {
+        let mut rules: HashMap<String, Vec<RobotRule>> = HashMap::new();
+        let mut current_agents: Vec<String> = Vec::new();
+
+        for line in content.lines() {
+            // Remove comments and trim
+            let line = if let Some(pos) = line.find('#') {
+                &line[..pos]
+            } else {
+                line
+            };
+            let line = line.trim();
+
+            if line.is_empty() {
+                continue;
+            }
+
+            // Parse line as "field: value"
+            if let Some((field, value)) = line.split_once(':') {
+                let field = field.trim().to_lowercase();
+                let value = value.trim();
+
+                match field.as_str() {
+                    "user-agent" => {
+                        // New user-agent section
+                        let agent = value.to_lowercase();
+                        if !current_agents.contains(&agent) {
+                            current_agents.push(agent);
+                        }
+                    }
+                    "disallow" => {
+                        // Add Disallow rule to all current agents
+                        for agent in &current_agents {
+                            rules
+                                .entry(agent.clone())
+                                .or_default()
+                                .push(RobotRule {
+                                    path: value.to_string(),
+                                    allow: false,
+                                });
+                        }
+                    }
+                    "allow" => {
+                        // Add Allow rule to all current agents
+                        for agent in &current_agents {
+                            rules
+                                .entry(agent.clone())
+                                .or_default()
+                                .push(RobotRule {
+                                    path: value.to_string(),
+                                    allow: true,
+                                });
+                        }
+                    }
+                    _ => {
+                        // Ignore other fields (Crawl-delay, Sitemap, etc.)
+                    }
+                }
+            }
+        }
+
+        Self { rules }
+    }
+
+    /// Check if a URL path is allowed for a given user-agent
+    fn is_allowed(&self, path: &str, user_agent: &str) -> bool {
+        // Try to find rules for specific user agent first, then fall back to "*"
+        let agent_rules = self
+            .rules
+            .get(&user_agent.to_lowercase())
+            .or_else(|| self.rules.get("*"));
+
+        if let Some(rules) = agent_rules {
+            // Process rules in order - most specific match wins
+            // In robots.txt, more specific paths take precedence
+            let mut best_match_len = 0;
+            let mut best_match_allow = true; // Default to allow if no matches
+
+            for rule in rules {
+                if rule.path.is_empty() {
+                    // Empty Disallow means allow everything
+                    if !rule.allow {
+                        continue;
+                    }
+                }
+
+                // Check if path starts with the rule path
+                if path.starts_with(&rule.path) {
+                    let match_len = rule.path.len();
+                    // Longer matches are more specific
+                    if match_len > best_match_len {
+                        best_match_len = match_len;
+                        best_match_allow = rule.allow;
+                    }
+                }
+            }
+
+            // If we found any match, use it; otherwise default to allow
+            if best_match_len > 0 {
+                return best_match_allow;
+            }
+        }
+
+        // Default: allow if no rules match
+        true
+    }
+}
+
 /// Recursive downloader
 pub struct RecursiveDownloader {
     downloader: Downloader,
@@ -99,6 +224,7 @@ pub struct RecursiveDownloader {
     broken_links: Vec<(String, u16)>, // (URL, status_code) for tracking broken links
     link_converter: Option<LinkConverter>, // Link converter for -k flag
     rejected_urls: Vec<(String, String)>, // (URL, reason) for tracking rejected URLs
+    robots_cache: HashMap<String, Option<RobotsTxt>>, // Cache of robots.txt per host (None if not found/failed)
 }
 
 impl RecursiveDownloader {
@@ -112,6 +238,7 @@ impl RecursiveDownloader {
             broken_links: Vec::new(),
             link_converter: None,
             rejected_urls: Vec::new(),
+            robots_cache: HashMap::new(),
         })
     }
 
@@ -156,7 +283,7 @@ impl RecursiveDownloader {
             // Skip if URL doesn't match filters
             // Note: Pass depth to should_download so it can handle --https-only correctly
             // (starting URL is allowed even if HTTP, but extracted links are filtered)
-            match self.should_download(&url, depth) {
+            match self.should_download(&url, depth, output_dir).await {
                 Ok(true) => {
                     // URL passed all filters
                 }
@@ -222,8 +349,56 @@ impl RecursiveDownloader {
         Ok(downloaded_files)
     }
 
+    /// Fetch and parse robots.txt for a given host
+    async fn fetch_robots_txt(&mut self, host: &str, scheme: &str, port: Option<u16>, output_dir: &Path) -> Option<RobotsTxt> {
+        // Check cache first
+        let cache_key = format!("{}://{}{}", scheme, host,
+            port.map(|p| format!(":{}", p)).unwrap_or_default());
+
+        if let Some(cached) = self.robots_cache.get(&cache_key) {
+            return cached.clone();
+        }
+
+        // Build robots.txt URL
+        let robots_url = if let Some(p) = port {
+            format!("{}://{}:{}/robots.txt", scheme, host, p)
+        } else {
+            format!("{}://{}/robots.txt", scheme, host)
+        };
+
+        // Try to fetch robots.txt
+        let robots_txt = match self.downloader.download_to_memory(&robots_url).await {
+            Ok(bytes) => {
+                // Parse the content
+                let content = String::from_utf8_lossy(&bytes);
+
+                // Save robots.txt to disk (unless in spider mode)
+                if !self.config.spider {
+                    if let Ok(local_path) = self.url_to_local_path(&robots_url, output_dir) {
+                        // Create parent directories
+                        if let Some(parent) = local_path.parent() {
+                            let _ = tokio::fs::create_dir_all(parent).await;
+                        }
+                        // Write the file
+                        let _ = tokio::fs::write(&local_path, bytes.as_ref()).await;
+                    }
+                }
+
+                Some(RobotsTxt::parse(&content))
+            }
+            Err(_) => {
+                // robots.txt not found or error - allow everything
+                None
+            }
+        };
+
+        // Cache the result
+        self.robots_cache.insert(cache_key, robots_txt.clone());
+        robots_txt
+    }
+
     /// Check if URL should be downloaded
-    fn should_download(&mut self, url: &str, depth: usize) -> Result<bool> {
+    async fn should_download(&mut self, url: &str, depth: usize, output_dir: &Path) -> Result<bool> {
         let parsed_url = Url::parse(url)
             .map_err(|e| Error::ConfigError(format!("Invalid URL: {}", e)))?;
 
@@ -240,6 +415,23 @@ impl RecursiveDownloader {
         let domain = parsed_url
             .host_str()
             .ok_or_else(|| Error::ConfigError("URL has no host".to_string()))?;
+
+        // Check robots.txt (only for depth > 0, i.e., extracted links, not the starting URL)
+        if depth > 0 {
+            let scheme = parsed_url.scheme();
+            let port = parsed_url.port();
+
+            // Fetch robots.txt for this host
+            if let Some(robots) = self.fetch_robots_txt(domain, scheme, port, output_dir).await {
+                let path = parsed_url.path();
+                let user_agent = &self.downloader.get_client().config().user_agent;
+
+                if !robots.is_allowed(path, user_agent) {
+                    self.log_rejected_url(url, "Rejected by robots.txt rules");
+                    return Ok(false);
+                }
+            }
+        }
 
         // Check domain filters
         if !self.config.accepted_domains.is_empty() {

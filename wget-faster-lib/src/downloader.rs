@@ -52,7 +52,7 @@ impl Downloader {
     }
 
     /// Build a request with the configured method, headers, and body
-    fn build_request(&self, url: &str, range: Option<&str>) -> Result<reqwest::RequestBuilder> {
+    fn build_request(&self, url: &str, range: Option<&str>, if_modified_since: Option<std::time::SystemTime>) -> Result<reqwest::RequestBuilder> {
         let config = self.client.config();
 
         let mut request = match config.method {
@@ -88,6 +88,12 @@ impl Downloader {
         // Add Range header if provided
         if let Some(range_value) = range {
             request = request.header(reqwest::header::RANGE, range_value);
+        }
+
+        // Add If-Modified-Since header if provided (for timestamping/conditional GET)
+        if let Some(time) = if_modified_since {
+            let http_date = httpdate::fmt_http_date(time);
+            request = request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
         }
 
         // Add authentication if configured and auth_no_challenge is set
@@ -314,16 +320,16 @@ impl Downloader {
     ) -> Result<DownloadResult> {
         // Get metadata first
         // If timestamping is enabled and file exists, use If-Modified-Since header
-        let metadata = if self.client.config().timestamping && path.exists() {
+        let (metadata, if_modified_since) = if self.client.config().timestamping && path.exists() {
             // Get local file modification time
             let local_metadata = tokio::fs::metadata(&path).await?;
             let local_time = local_metadata.modified()?;
 
             // Fetch metadata with If-Modified-Since header
-            self.client.get_metadata_conditional(url, Some(local_time)).await?
+            (self.client.get_metadata_conditional(url, Some(local_time)).await?, Some(local_time))
         } else {
             // Normal metadata fetch without If-Modified-Since
-            self.client.get_metadata(url).await?
+            (self.client.get_metadata(url).await?, None)
         };
 
         // Print server response if requested
@@ -486,15 +492,15 @@ impl Downloader {
                     .await?;
                     total_size
                 } else {
-                    self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from)
+                    self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from, if_modified_since)
                         .await?
                 }
             } else {
-                self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from)
+                self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from, if_modified_since)
                     .await?
             }
         } else {
-            self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from)
+            self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from, if_modified_since)
                 .await?
         };
 
@@ -624,7 +630,7 @@ impl Downloader {
         url: &str,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Bytes> {
-        let request = self.build_request(url, None)?;
+        let request = self.build_request(url, None, None)?;
         let response = request.send().await?;
 
         let status_code = response.status().as_u16();
@@ -765,6 +771,7 @@ impl Downloader {
         writer: &mut W,
         progress_callback: Option<ProgressCallback>,
         resume_from: u64,
+        if_modified_since: Option<std::time::SystemTime>,
     ) -> Result<u64>
     where
         W: AsyncWriteExt + Unpin + Send,
@@ -775,7 +782,7 @@ impl Downloader {
             None
         };
 
-        let request = self.build_request(url, range_header.as_deref())?;
+        let request = self.build_request(url, range_header.as_deref(), if_modified_since)?;
         let response = request.send().await?;
 
         let status_code = response.status().as_u16();
