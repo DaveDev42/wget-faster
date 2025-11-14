@@ -1,7 +1,7 @@
 # TODO - wget-faster Development Roadmap
 
-**Current Version**: v0.0.6 (completed)
-**Next Version**: v0.0.7
+**Current Version**: v0.0.7 (completed)
+**Next Version**: v0.0.8
 **Last Updated**: 2025-11-14
 
 ---
@@ -713,8 +713,76 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
   2. Custom CookieJar (handles Netscape file I/O only, not used in requests)
 **Root Cause**: Cookies loaded from `--load-cookies` file are never passed to HTTP client
 **Recommended Solution**: Hybrid approach (load cookies from file, inject via Cookie header)
-**Status**: **Deferred to v0.0.7** - Detailed implementation plan created but not critical for current goals
+**Status**: **Deferred to v0.0.8** - Detailed implementation plan created but not critical for current goals
 **Test Impact**: Cookie expiry tests will not pass until implementation completed
+
+---
+
+**⚠️ v0.0.7 TEST VERIFICATION - DISAPPOINTING RESULTS**
+
+**Python Test Execution (2025-11-14 18:58:42):**
+- **Total**: 82 Python tests
+- **Passed**: 17/82 (20.7%)
+- **Failed**: 65/82 (79.3%)
+- **Expected**: 32-34/82 (39-41%) based on v0.0.5/v0.0.6 fixes
+- **Actual gap**: -15 to -17 tests below expectation
+- **Net improvement from v0.0.4**: +1 test (+1.2%)
+
+**Test Results File**: `PYTHON_TEST_RESULTS_v0.0.7.md`
+
+**Failure Categories:**
+- missing_feature: 32 tests (49.2%) - Metalink not implemented
+- test_framework_error: 19 tests (29.2%) - Implementation bugs
+- skipped: 10 tests (15.4%) - Advanced TLS/HTTPS features
+- timeout: 3 tests (4.6%) - Auth tests timing out
+- import_error: 1 test (1.5%)
+
+**Impact of v0.0.5/v0.0.6 Fixes:**
+
+### Priority 28: Auth Preemptive (v0.0.6) - PARTIAL SUCCESS
+- Expected: +5 tests
+- Actual: +2 tests (auth-no-challenge.py, auth-no-challenge-url.py)
+- **Still failing**: 7/12 auth tests (3 timeout, 4 test_framework_error)
+
+### Priority 29: Recursive CLI (v0.0.6) - FAILED
+- Expected: +2-3 tests
+- Actual: 0 tests
+- **Test--rejected-log.py**: FAILING - "Expected file robots.txt not found"
+- **Issue**: robots.txt support not implemented
+
+### Priority 26: Conditional GET (v0.0.5) - FAILED
+- Expected: +1 test
+- Actual: 0 tests
+- **Test-condget.py**: FAILING - GET request missing If-Modified-Since header
+- **Issue**: Header only sent on HEAD, not on subsequent GET
+
+### Priority 23: HTTP 504 Exit Code (v0.0.5) - PARTIAL
+- Expected: +1 test
+- Actual: 0 tests
+- **Test-504.py**: FAILING - Exit code 4 correct, but retry logic broken
+- **Issue**: 504 errors not being retried with `--tries=2` flag
+
+**Critical Bugs Discovered:**
+
+1. **Bug: Conditional GET broken for downloads**
+   - If-Modified-Since sent on HEAD but not on GET
+   - File: downloader.rs
+   - Impact: Test-condget.py failing
+
+2. **Bug: robots.txt not fetched in recursive mode**
+   - Recursive downloader doesn't check /robots.txt
+   - File: recursive.rs
+   - Impact: Test--rejected-log.py failing
+
+3. **Bug: 504 errors not retried**
+   - Server errors (5xx) should retry with `--tries` flag
+   - File: downloader.rs
+   - Impact: Test-504.py failing
+
+4. **Bug: Auth timeouts in Python tests**
+   - 3 auth tests timing out (>60s)
+   - Tests: auth-basic.py, auth-basic-netrc.py, auth-with-content-disposition.py
+   - Root cause: Unknown - needs investigation
 
 ---
 
@@ -733,7 +801,8 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 - ✅ v0.0.4: Fixed #13-16, #21 → Link conversion, output logging, proxy auth, Python analysis - **COMPLETED!** 🎉
 - ✅ v0.0.5: Fixed #22-27 → Python test improvements (conditional GET, exit codes, recursive) - **COMPLETED!** 🎉
 - ✅ v0.0.6: Fixed #28-30 → Blocker fixes (auth preemptive, recursive CLI, cookie investigation) - **COMPLETED!** 🎉
-- v0.0.7: Run Python tests and fix new issues → **35-40%** Python pass rate
+- ⚠️ v0.0.7: Python test verification → **20.7%** pass rate (17/82 tests) - **Below expectations, bugs found** ⚠️
+- v0.0.8: Fix critical bugs (Conditional GET, robots.txt, 504 retry, auth timeouts) → **27-29%** Python pass rate
 - v0.1.x: Performance + HTTP/3 (maintain test coverage)
 - v0.2.0: Implement #18-#20 (FTP, IRI/IDN, TLS) → **60%+** pass rate (100+ tests)
 - v1.0.0: Full compatibility → **85%+** pass rate (144+ tests)
@@ -940,28 +1009,30 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ## Quick Reference
 
-### Current Priorities (v0.0.7) - Updated 2025-11-14
+### Current Priorities (v0.0.8) - Updated 2025-11-14
 
-**✅ v0.0.6 COMPLETE - BLOCKERS FIXED!**
+**⚠️ v0.0.7 COMPLETE - TEST VERIFICATION REVEALED BUGS**
 
-All 3 critical blockers from v0.0.5 have been resolved:
-- ✅ Auth preemptive behavior fixed (main.rs)
-- ✅ Recursive CLI mapping complete (recursive.rs + main.rs)
-- ⚠️ Cookie expiry investigated (deferred with implementation plan)
+Python test verification completed with disappointing results:
+- Actual: 17/82 tests passing (20.7%)
+- Expected: 32-34/82 tests (39-41%)
+- Gap: -15 to -17 tests below expectation
 
-**Next Priorities for v0.0.7:**
+**Critical Bugs Discovered:**
+1. Conditional GET broken for GET requests (only works on HEAD)
+2. robots.txt not fetched in recursive mode
+3. 504 errors not retried with `--tries` flag
+4. Auth timeouts in 3 Python tests (needs investigation)
 
-**Testing & Verification:**
-1. Run Python test suite to verify v0.0.5 + v0.0.6 improvements
-2. Analyze test results (expected: 32-34/82 passing = 39-41%)
-3. Identify new failures and patterns
-4. Implement quick fixes for new issues
+**Next Priorities for v0.0.8:**
 
-**Optional (if time permits):**
-5. Implement cookie expiry hybrid approach (Priority 30 deferred work)
-6. Fix any critical bugs discovered during testing
+**High Priority Bugs (Quick Wins - Est. +5-7 tests):**
+1. Fix Conditional GET for GET requests (downloader.rs) - 1-2 hours → +1 test
+2. Fix 504 retry logic (downloader.rs) - 1-2 hours → +1 test
+3. Implement basic robots.txt support (recursive.rs) - 3-4 hours → +1 test
+4. Investigate auth timeouts - 2-3 hours → +3 tests if fixed
 
-**Target for v0.0.7:** Verify improvements, document test results → **35-40%** Python pass rate
+**Target for v0.0.8:** Fix high-priority bugs → **27-29%** Python pass rate (22-24/82 tests)
 
 ### Test Commands
 ```bash
@@ -1005,10 +1076,11 @@ cargo run -- https://example.com/file.txt
 ---
 
 **Last reviewed**: 2025-11-14
-**Current Status**: v0.0.6 COMPLETE! Blockers fixed! 🎉
+**Current Status**: v0.0.7 COMPLETE! Test verification revealed critical bugs ⚠️
 **v0.0.3 Achievement**: 42/87 Perl tests (48.3%), +27.6% improvement
 **v0.0.4 Achievement**: Link conversion, output logging, proxy auth, Python analysis (3 documents)
 **v0.0.5 Achievement**: Conditional GET, exit code fixes, recursive enhancements, auth retry (~394 lines added)
 **v0.0.6 Achievement**: Auth preemptive fixed, recursive CLI mapping, cookie expiry investigation (~220 lines added)
-**Next version**: v0.0.7 - Run Python tests and verify improvements
-**Next review**: After Python test execution and analysis
+**v0.0.7 Result**: Python tests: 17/82 passing (20.7%), 4 critical bugs discovered
+**Next version**: v0.0.8 - Fix critical bugs (Conditional GET, robots.txt, 504 retry, auth timeouts)
+**Next review**: After bug fixes and re-running Python tests
