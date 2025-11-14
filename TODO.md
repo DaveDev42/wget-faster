@@ -25,10 +25,10 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 **Goal**: Achieve 60%+ pass rate on wget core test suite
 
-**Current Status (2025-11-12 - Latest test run):**
-- Total: **36/169 tests passing (21.3%)** ⬆️ +6 tests (+3.5% from v0.0.2)
-- Perl: **25/87 tests passing (28.7%)** ⬆️ +5 tests (+5.7%)
-- Python: **11/82 tests passing (13.4%)** ⬆️ +1 test (+1.2%)
+**Current Status (2025-11-13 - Latest test run):**
+- Total: **35/169 tests passing (20.7%)** (test_results_20251113_041159.json)
+- Perl: **24/87 tests passing (27.6%)**
+- Python: **11/82 tests passing (13.4%)**
 
 **Recent improvements (v0.0.3):**
 - ✅ HTTP 401/407 authentication retry with credentials
@@ -96,6 +96,30 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
    - Different test framework may have different expectations
 
 ### 🔥 Critical Fixes (Quick Wins for 30%+ Pass Rate)
+
+#### 0. File Naming Bug (.1 suffix) ❌ **CRITICAL - HIGHEST PRIORITY**
+**Impact:** 6 tests failing (highest impact single bug)
+- [ ] Fix file naming to reuse existing filename instead of adding .1 suffix
+- [ ] Affects both timestamping (-N) and resume (-c) functionality
+- [ ] When file exists, should overwrite/reuse, not create `somefile.txt.1`
+
+**Current issue:** Creating `.txt.1` instead of reusing/overwriting existing filename
+
+**Affected tests:**
+- `Test-N-current.px` (timestamping with current file)
+- `Test-N-no-info.px` (timestamping without Last-Modified header)
+- `Test-N-old.px` (timestamping with old file)
+- `Test-N-smaller.px` (timestamping with smaller file size)
+- `Test-c-full.px` (resume with fully downloaded file)
+- `Test-c-partial.px` (resume with partially downloaded file)
+
+**Error pattern:** `Test failed: unexpected downloaded files [somefile.txt.1]`
+
+**Files:** `wget-faster-lib/src/downloader.rs` (file naming logic)
+
+**Estimated impact:** +6 tests → 24.2% pass rate
+
+---
 
 #### 1. Exit Code Handling ✅ **COMPLETED**
 **Impact:** Already implemented correctly
@@ -186,17 +210,23 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 ---
 
 #### 5. HTTP Status Code Handling ❌ **HIGH PRIORITY**
-**Impact:** 2+ tests failing
+**Impact:** 3+ tests failing
 - [ ] Don't save files for HTTP 204 No Content responses
 - [ ] Don't save error pages for HTTP 4xx/5xx errors (unless `--content-on-error`)
 - [ ] Handle 304 Not Modified (for timestamping)
+- [ ] Handle HTTP 416 Range Not Satisfiable (file already complete)
+- [ ] Handle HTTP 504 Gateway Timeout (retry with backoff)
 - [ ] Implement `--content-on-error` flag
 
 **Affected tests:**
 - `Test-204.px` (saves file for 204, should not create any file)
 - `Test-nonexisting-quiet.px` (saves error page for 404)
+- `Test-416.py` (HTTP 416 Range Not Satisfiable)
+- `Test-504.py` (HTTP 504 Gateway Timeout)
 
 **Files:** `wget-faster-lib/src/downloader.rs`, `wget-faster-lib/src/client.rs`
+
+**Estimated impact:** +3 tests → 22.5% pass rate
 
 ---
 
@@ -216,15 +246,18 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 7. Content-Disposition Filename Handling ✅ **MOSTLY COMPLETED** → ⚠️ **1 edge case**
-**Impact:** 1 test still failing (down from 3)
+#### 7. Content-Disposition Filename Handling ⚠️ **MEDIUM PRIORITY**
+**Impact:** 3 tests failing
 - [x] Extract filename from Content-Disposition header ✅
 - [x] Save file with Content-Disposition filename instead of URL filename ✅
 - [x] Handle Content-Disposition with timestamping (-N) ✅
 - [x] Handle `--no-content-disposition` flag properly ✅
+- [ ] Support `-e contentdisposition=on` flag (currently only works by default)
 - [ ] Handle duplicate filenames (add .1, .2, .3 suffix) - Test-HTTP-Content-Disposition-1.px
 
-**Status:** Content-Disposition working! Passing:
+**Status:** Content-Disposition working by default! But needs `-e` flag support.
+
+**Passing tests:**
 - ✅ Test-HTTP-Content-Disposition-2.px
 - ✅ Test-N-HTTP-Content-Disposition.px
 - ✅ Test-O-HTTP-Content-Disposition.px
@@ -232,10 +265,13 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 - ✅ Test--no-content-disposition-trivial.px
 - ✅ Test-Content-disposition.py (Python)
 
-**Remaining failure:**
+**Failing tests:**
+- `Test-HTTP-Content-Disposition.px` - Needs `-e contentdisposition=on` support
 - `Test-HTTP-Content-Disposition-1.px` - Expects filename.html.2 when file exists
 
-**Files:** `wget-faster-lib/src/downloader.rs`
+**Files:** `wget-faster-cli/src/args.rs`, `wget-faster-lib/src/downloader.rs`
+
+**Estimated impact:** +2 tests → 22.5% pass rate
 
 ---
 
@@ -286,7 +322,40 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ### 🚧 Medium Priority Fixes
 
-#### 11. Link Conversion (-k) ❌
+#### 11. Recursive Spider (--spider -r) ❌ **MEDIUM PRIORITY**
+**Impact:** 4 tests failing
+- [ ] Enable recursive crawling when both `--spider` and `-r` flags are specified
+- [ ] Spider mode works for single URLs, needs to respect recursive flag
+- [ ] Handle Content-Disposition headers in spider mode with recursion
+
+**Affected tests:**
+- `Test--spider-r.px`
+- `Test--spider-r--no-content-disposition.px`
+- `Test--spider-r--no-content-disposition-trivial.px`
+- `Test--spider-r-HTTP-Content-Disposition.px`
+
+**Files:** `wget-faster-lib/src/recursive.rs`
+
+**Estimated impact:** +4 tests → 23.1% pass rate
+
+---
+
+#### 12. Preemptive Authentication ❌ **MEDIUM PRIORITY**
+**Impact:** 1+ tests failing
+- [ ] Send Authorization header on first request when `--user` provided
+- [ ] Currently waits for 401, then retries with credentials
+- [ ] Should send preemptively to avoid extra round-trip
+
+**Affected tests:**
+- `Test-auth-basic.py` (expects Authorization header on first request)
+
+**Files:** `wget-faster-lib/src/client.rs`
+
+**Estimated impact:** +1 test → 21.3% pass rate
+
+---
+
+#### 13. Link Conversion (-k) ❌
 **Impact:** 2 tests failing
 - [ ] Implement `--convert-links` (-k) to rewrite URLs in downloaded HTML/CSS
 - [ ] Handle `-E -k` (adjust extensions + convert links)
@@ -300,7 +369,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 12. Output Handling (--output-file, --append-output) ❌
+#### 14. Output Handling (--output-file, --append-output) ❌
 **Impact:** 1 test failing
 - [ ] Implement proper stdout/stderr separation
 - [ ] Support `-o` (--output-file) for logging
@@ -313,7 +382,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 13. Proxy Authentication ❌
+#### 15. Proxy Authentication ❌
 **Impact:** 2+ tests failing
 - [ ] Implement proxy authentication (Basic, Digest)
 - [ ] Support `--proxy-user`, `--proxy-password`
@@ -328,7 +397,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 14. Cookie Error Handling ❌
+#### 16. Cookie Error Handling ❌
 **Impact:** 1 test failing
 - [ ] Return correct exit code (6) for authentication failures with cookies
 - [ ] Handle 401 Unauthorized with cookies more gracefully
@@ -340,7 +409,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 15. Quiet Mode Improvements ❌
+#### 17. Quiet Mode Improvements ❌
 **Impact:** 1+ tests failing
 - [ ] Implement `--quiet` mode completely
 - [ ] Suppress all output in quiet mode (even to stdout)
@@ -355,7 +424,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ### 🔮 Long-term Features (v0.2.0+)
 
-#### 16. FTP/FTPS Support ❌
+#### 18. FTP/FTPS Support ❌
 **Impact:** 18 tests failing (20.7% of Perl tests)
 **Effort:** High (major feature)
 
@@ -394,7 +463,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 17. IRI/IDN Support (Internationalization) ❌
+#### 19. IRI/IDN Support (Internationalization) ❌
 **Impact:** 11 tests failing (12.6% of Perl tests)
 **Effort:** High
 
@@ -425,7 +494,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 18. Advanced HTTPS/TLS Features ❌
+#### 20. Advanced HTTPS/TLS Features ❌
 **Impact:** 8 tests failing (9.2% of Perl/Python tests)
 **Effort:** Medium-High
 
@@ -454,7 +523,7 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
-#### 19. Python Test Suite Analysis ❌
+#### 21. Python Test Suite Analysis ❌
 **Impact:** 72 Python tests failing (87.8% failure rate)
 **Effort:** Medium (investigation + fixes)
 
@@ -481,36 +550,59 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ### Compatibility Fixes Summary
 
-**Quick wins (can increase pass rate to ~40%):**
-1. Exit code handling (#1)
-2. Spider mode exit codes (#2)
-3. CLI argument parsing (#3)
-4. Timestamping (-N) (#4)
-5. HTTP status code handling (#5)
-6. Relative path handling (#6)
-7. Content-Disposition (#7)
+**Top Priority (can increase pass rate to ~30% - Target for v0.0.3):**
+0. File naming bug (.1 suffix) (#0) - **HIGHEST PRIORITY** - +6 tests
+1. ✅ Exit code handling (#1) - Already completed
+2. ✅ Spider mode exit codes (#2) - Already completed
+3. CLI argument parsing (#3) - +1 test
+4. ⚠️ Timestamping (-N) (#4) - 3 edge cases remain
+5. HTTP status code handling (#5) - +3 tests
+6. Relative path handling (#6) - +2 tests
+7. Content-Disposition (#7) - +2 tests
 
-**Estimated impact:** +20-25 tests passing
+**Current:** 35/169 = 20.7%
+**After top priorities:** 50/169 = **29.6%** (+15 tests)
 
-**Medium-term (can increase pass rate to ~60%):**
-8. Filename restrictions (#8)
-9. --start-pos option (#9)
-10. No parent directory (#10)
-11. Link conversion (#11)
-12. Proxy authentication (#13)
-13. Python test analysis (#19)
+---
 
-**Estimated impact:** +30-35 tests passing
+**Quick wins (can increase pass rate to ~35%):**
+8. Filename restrictions (#8) - +2 tests
+11. Recursive spider (#11) - +4 tests
+12. Preemptive auth (#12) - +1 test
 
-**Long-term (can increase pass rate to ~85%):**
-14. FTP/FTPS support (#16) - +18 tests
-15. IRI/IDN support (#17) - +11 tests
-16. Advanced HTTPS/TLS (#18) - +8 tests
+**Estimated impact:** +7 tests → 57/169 = 33.7%
+
+---
+
+**Medium-term (can increase pass rate to ~45%):**
+9. --start-pos option (#9) - +2 tests
+10. No parent directory (#10) - +1 test
+13. Link conversion (#13) - +2 tests
+14. Output handling (#14) - +1 test
+15. Proxy authentication (#15) - +2 tests
+16. Cookie error handling (#16) - +1 test
+17. Quiet mode (#17) - +1 test
+
+**Estimated impact:** +10 tests → 67/169 = 39.6%
+
+---
+
+**Long-term (can increase pass rate to ~85% - v0.2.0+):**
+18. FTP/FTPS support (#18) - +18 tests
+19. IRI/IDN support (#19) - +11 tests
+20. Advanced HTTPS/TLS (#20) - +8 tests
+21. Python test analysis (#21) - Investigation needed
+
+**Estimated impact:** +37 tests → 104/169 = 61.5%
+
+---
 
 **Timeline:**
-- v0.0.3: Fix items #1-#7 → 40%+ pass rate (68+ tests)
-- v0.0.4: Fix items #8-#13 → 60%+ pass rate (102+ tests)
-- v0.2.0: Implement items #14-#16 → 85%+ pass rate (144+ tests)
+- v0.0.3: Fix #0, #3-#7 → **30%** pass rate (50+ tests)
+- v0.0.4: Fix #8-#17 → **40%** pass rate (67+ tests)
+- v0.1.x: Performance + HTTP/3 (maintain 40%)
+- v0.2.0: Implement #18-#21 → **60%+** pass rate (100+ tests)
+- v1.0.0: Full compatibility → **85%+** pass rate (144+ tests)
 
 ---
 
@@ -714,14 +806,23 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ## Quick Reference
 
-### Current Priorities (v0.0.3)
-1. Exit code handling (#1) - **CRITICAL**
-2. Spider mode exit codes (#2) - **CRITICAL**
-3. CLI argument parsing (#3) - **CRITICAL**
-4. Timestamping (-N) (#4) - **HIGH**
-5. HTTP status code handling (#5) - **HIGH**
-6. Relative path handling (#6) - **HIGH**
-7. Content-Disposition (#7) - **MEDIUM**
+### Current Priorities (v0.0.3) - Updated 2025-11-13
+
+**Highest Priority (Fix First):**
+0. File naming bug (.1 suffix) (#0) - **CRITICAL** - +6 tests → 24.2%
+
+**Already Completed:**
+1. ✅ Exit code handling (#1) - **COMPLETED**
+2. ✅ Spider mode exit codes (#2) - **COMPLETED**
+
+**Next Priorities:**
+3. CLI argument parsing (#3) - **CRITICAL** - +1 test
+4. Timestamping (-N) edge cases (#4) - **HIGH** - 3 edge cases remain
+5. HTTP status code handling (#5) - **HIGH** - +3 tests → 22.5%
+6. Relative path handling (#6) - **HIGH** - +2 tests
+7. Content-Disposition (#7) - **MEDIUM** - +2 tests → 22.5%
+
+**Target for v0.0.3:** 30% pass rate (50/169 tests)
 
 ### Test Commands
 ```bash
@@ -764,7 +865,7 @@ cargo run -- https://example.com/file.txt
 
 ---
 
-**Last reviewed**: 2025-11-12
-**Current Status**: v0.0.3 in progress (36/169 tests passing, 21.3%) ⬆️ +3.5%
-**Recent work**: ✅ Timestamping (-N) + Content-Disposition working (+6 tests total)
-**Next review**: After remaining v0.0.3 fixes (target: 30-35% pass rate)
+**Last reviewed**: 2025-11-13
+**Current Status**: v0.0.3 in progress (35/169 tests passing, 20.7%)
+**Highest Priority**: Fix file naming bug (.1 suffix) - affects 6 tests
+**Next review**: After fixing #0 and #3-#7 (target: 30% pass rate)
