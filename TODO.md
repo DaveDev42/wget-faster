@@ -1,7 +1,7 @@
 # TODO - wget-faster Development Roadmap
 
-**Current Version**: v0.0.7 (completed)
-**Next Version**: v0.0.8
+**Current Version**: v0.0.8 (WIP - partial fixes)
+**Next Version**: v0.0.9
 **Last Updated**: 2025-11-14
 
 ---
@@ -786,6 +786,85 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
+**⚠️ v0.0.8 BUG FIXES - PARTIAL SUCCESS (WIP)**
+
+**Python Test Execution (2025-11-14 19:43:28):**
+- **Total**: 82 Python tests
+- **Passed**: 17/82 (20.7%)
+- **Failed**: 65/82 (79.3%)
+- **Expected**: +1-3 tests improvement from bug fixes
+- **Actual**: 0 improvement - Tests still failing
+- **Net improvement from v0.0.7**: 0 tests
+
+**Test Results File**: `test_results_20251114_194328.json`
+
+**Implemented Fixes (Not Yet Working):**
+
+### Fix 1: Conditional GET for GET requests ⚠️ PARTIAL
+- **Change**: Modified downloader.rs to send If-Modified-Since on GET requests
+- **Implementation**: Added if_modified_since parameter to build_request(), download_sequential_to_writer()
+- **Lines Modified**: downloader.rs:55, 93-97, 323-333, 495-505, 768-786
+- **Test Result**: Test-condget.py still FAILING
+  - **Old error**: GET request missing If-Modified-Since header (400 Bad Request)
+  - **New error**: "Not all files were crawled correctly"
+  - **Progress**: GET now returns 200 OK instead of 400 (improvement!)
+  - **Remaining Issue**: Test expects no GET request after 304 HEAD response
+- **Status**: Implementation correct, but test expects different behavior (skip GET on 304)
+
+### Fix 2: robots.txt support ⚠️ PARTIAL
+- **Change**: Added complete robots.txt parser and integration to recursive.rs
+- **Implementation**:
+  - Added RobotsTxt struct with parse() and is_allowed() methods (~130 lines)
+  - Added robots_cache HashMap to RecursiveDownloader
+  - Implemented fetch_robots_txt() method
+  - Integrated with should_download() to check rules before downloading
+- **Lines Added**: recursive.rs:92-215, 227, 328-343, 352-398 (~200 lines)
+- **Test Result**: Test--rejected-log.py still FAILING
+  - **Error**: "Expected file robots.txt not found"
+  - **Issue**: robots.txt fetched and parsed correctly, but rejected-log format mismatch
+  - **Expected Format**: CSV with headers (REASON, U_URL, U_SCHEME, U_HOST, etc.)
+  - **Actual Format**: Simple text "URL: Rejected by robots.txt rules"
+- **Status**: Core functionality working, but logging format doesn't match test expectations
+
+### Fix 3: 504 retry logic ❌ NOT IMPLEMENTED
+- **Status**: Deferred - no changes made
+- **Reason**: Time constraints, focused on Conditional GET and robots.txt
+- **Test Impact**: Test-504.py still failing
+
+### Fix 4: Auth timeouts ❌ NOT INVESTIGATED
+- **Status**: Not addressed in v0.0.8
+- **Reason**: Requires deep investigation (2-3 hours estimated)
+- **Root Cause**: Likely auth persistence issue for multi-file downloads
+- **Test Impact**: 3 auth tests still timing out
+
+**Git Commit**: Created WIP commit for v0.0.8 (partial fixes)
+
+**Analysis - Why No Test Improvement?**
+
+1. **Conditional GET**: Implementation technically correct (If-Modified-Since now sent), but test expects wget to skip GET entirely after receiving 304 on HEAD
+   - **Our behavior**: HEAD with IMS → 304 → GET with IMS → 200 OK or 304
+   - **Expected behavior**: HEAD with IMS → 304 → Skip GET entirely
+   - **Fix needed**: Add logic to skip download entirely when HEAD returns 304
+
+2. **robots.txt**: Core functionality works (fetches, parses, checks rules), but rejected-log format wrong
+   - **Our format**: Simple text lines
+   - **Expected format**: CSV with detailed columns (REASON, U_URL, U_SCHEME, U_HOST, U_PORT, U_PATH)
+   - **Fix needed**: Implement proper CSV formatter for rejected URLs
+
+3. **504 retry**: Not implemented yet
+   - **Fix needed**: Add retry logic for 5xx status codes in downloader.rs
+
+**Next Steps for v0.0.9:**
+
+**High Priority:**
+1. Fix Conditional GET to skip GET after 304 HEAD (1 hour) → +1 test
+2. Fix robots.txt rejected-log CSV format (1-2 hours) → +1 test
+3. Implement 504 retry logic (1-2 hours) → +1 test
+
+**Target**: 20/82 Python tests (24.4%) by v0.0.9
+
+---
+
 **Long-term (can increase pass rate to ~85% - v0.2.0+):**
 18. FTP/FTPS support (#18) - +18 tests
 19. IRI/IDN support (#19) - +11 tests
@@ -802,7 +881,8 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 - ✅ v0.0.5: Fixed #22-27 → Python test improvements (conditional GET, exit codes, recursive) - **COMPLETED!** 🎉
 - ✅ v0.0.6: Fixed #28-30 → Blocker fixes (auth preemptive, recursive CLI, cookie investigation) - **COMPLETED!** 🎉
 - ⚠️ v0.0.7: Python test verification → **20.7%** pass rate (17/82 tests) - **Below expectations, bugs found** ⚠️
-- v0.0.8: Fix critical bugs (Conditional GET, robots.txt, 504 retry, auth timeouts) → **27-29%** Python pass rate
+- ⚠️ v0.0.8: Attempted bug fixes (Conditional GET, robots.txt) → **20.7%** pass rate (17/82 tests) - **No improvement (WIP)** ⚠️
+- 🔧 v0.0.9: Fix remaining issues (skip GET on 304, CSV format, 504 retry) → **24.4%** Python pass rate target
 - v0.1.x: Performance + HTTP/3 (maintain test coverage)
 - v0.2.0: Implement #18-#20 (FTP, IRI/IDN, TLS) → **60%+** pass rate (100+ tests)
 - v1.0.0: Full compatibility → **85%+** pass rate (144+ tests)
@@ -1009,30 +1089,39 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ## Quick Reference
 
-### Current Priorities (v0.0.8) - Updated 2025-11-14
+### Current Priorities (v0.0.9) - Updated 2025-11-14
 
-**⚠️ v0.0.7 COMPLETE - TEST VERIFICATION REVEALED BUGS**
+**⚠️ v0.0.8 PARTIAL - IMPLEMENTATIONS NOT WORKING AS EXPECTED**
 
-Python test verification completed with disappointing results:
+v0.0.8 bug fixes attempted but test results unchanged:
 - Actual: 17/82 tests passing (20.7%)
-- Expected: 32-34/82 tests (39-41%)
-- Gap: -15 to -17 tests below expectation
+- Expected: 18-20/82 tests (22-24%)
+- Gap: Still at v0.0.7 baseline
 
-**Critical Bugs Discovered:**
-1. Conditional GET broken for GET requests (only works on HEAD)
-2. robots.txt not fetched in recursive mode
-3. 504 errors not retried with `--tries` flag
-4. Auth timeouts in 3 Python tests (needs investigation)
+**Bugs Fixed But Tests Still Failing:**
+1. Conditional GET - If-Modified-Since now sent on GET, but test expects skip GET on 304 HEAD
+2. robots.txt - Parser implemented, but rejected-log format doesn't match CSV expectations
+3. 504 retry - Not implemented (deferred)
+4. Auth timeouts - Not investigated (complex, requires auth persistence work)
 
-**Next Priorities for v0.0.8:**
+**Next Priorities for v0.0.9:**
 
-**High Priority Bugs (Quick Wins - Est. +5-7 tests):**
-1. Fix Conditional GET for GET requests (downloader.rs) - 1-2 hours → +1 test
-2. Fix 504 retry logic (downloader.rs) - 1-2 hours → +1 test
-3. Implement basic robots.txt support (recursive.rs) - 3-4 hours → +1 test
-4. Investigate auth timeouts - 2-3 hours → +3 tests if fixed
+**High Priority Refinements (Quick Wins - Est. +3 tests):**
+1. Fix Conditional GET to skip GET after 304 HEAD (downloader.rs) - 1 hour → +1 test
+   - Add early return when HEAD returns 304
+   - Current: HEAD 304 → GET (wrong)
+   - Expected: HEAD 304 → Skip download (correct)
 
-**Target for v0.0.8:** Fix high-priority bugs → **27-29%** Python pass rate (22-24/82 tests)
+2. Fix robots.txt rejected-log CSV format (recursive.rs) - 1-2 hours → +1 test
+   - Implement proper CSV formatter: REASON,U_URL,U_SCHEME,U_HOST,U_PORT,U_PATH
+   - Current: "URL: Rejected by robots.txt rules" (wrong)
+   - Expected: CSV with detailed columns (correct)
+
+3. Implement 504 retry logic (downloader.rs) - 1-2 hours → +1 test
+   - Add retry loop for 5xx status codes
+   - Respect `--tries` flag configuration
+
+**Target for v0.0.9:** Fix test behavior mismatches → **24.4%** Python pass rate (20/82 tests)
 
 ### Test Commands
 ```bash
@@ -1076,11 +1165,14 @@ cargo run -- https://example.com/file.txt
 ---
 
 **Last reviewed**: 2025-11-14
-**Current Status**: v0.0.7 COMPLETE! Test verification revealed critical bugs ⚠️
+**Current Status**: v0.0.8 WIP - Partial fixes implemented, tests still failing ⚠️
 **v0.0.3 Achievement**: 42/87 Perl tests (48.3%), +27.6% improvement
 **v0.0.4 Achievement**: Link conversion, output logging, proxy auth, Python analysis (3 documents)
 **v0.0.5 Achievement**: Conditional GET, exit code fixes, recursive enhancements, auth retry (~394 lines added)
 **v0.0.6 Achievement**: Auth preemptive fixed, recursive CLI mapping, cookie expiry investigation (~220 lines added)
 **v0.0.7 Result**: Python tests: 17/82 passing (20.7%), 4 critical bugs discovered
-**Next version**: v0.0.8 - Fix critical bugs (Conditional GET, robots.txt, 504 retry, auth timeouts)
-**Next review**: After bug fixes and re-running Python tests
+**v0.0.8 Result**: Python tests: 17/82 passing (20.7%), 2 partial fixes (not working as expected)
+  - Conditional GET: If-Modified-Since sent but needs early return on 304 HEAD
+  - robots.txt: Parser complete but rejected-log CSV format wrong
+**Next version**: v0.0.9 - Refine bug fixes (skip GET on 304, CSV format, 504 retry)
+**Next review**: After fixing test behavior mismatches
