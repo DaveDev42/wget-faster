@@ -13,12 +13,24 @@ use percent_encoding;
 
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
+    // Pre-process arguments to handle wget-style multi-character short flags
+    // GNU wget supports flags like -nH (no-host-directories) and -np (no-parent)
+    // which clap doesn't support natively
+    let preprocessed_args = preprocess_args(std::env::args().collect());
+    let mut args = Args::parse_from(preprocessed_args);
 
     // Handle version flag first (before URL validation)
     if args.version {
         print_version();
         std::process::exit(0);
+    }
+
+    // Process -e/--execute commands
+    if let Some(execute_cmd) = args.execute.clone() {
+        if let Err(e) = process_execute_command(&mut args, &execute_cmd) {
+            eprintln!("wgetf: {}", e);
+            std::process::exit(1);
+        }
     }
 
     // Validate arguments
@@ -32,12 +44,27 @@ async fn main() {
 
     // Read URLs from input file if specified
     if let Some(ref input_file) = args.input_file {
-        let resolved_input_file = resolve_file_path(input_file);
-        match read_urls_from_file(&resolved_input_file, args.force_html, args.base.as_deref()).await {
-            Ok(file_urls) => urls.extend(file_urls),
-            Err(e) => {
-                eprintln!("wgetf: failed to read input file: {}", e);
-                std::process::exit(1);
+        // Check if input_file is a URL or a local file path
+        let input_str = input_file.to_str().unwrap_or("");
+
+        if input_str.starts_with("http://") || input_str.starts_with("https://") || input_str.starts_with("ftp://") {
+            // Input file is a URL - download it first
+            match download_input_file_from_url(input_str, args.force_html, args.base.as_deref()).await {
+                Ok(file_urls) => urls.extend(file_urls),
+                Err(e) => {
+                    eprintln!("wgetf: failed to read input file from URL: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            // Input file is a local file path
+            let resolved_input_file = resolve_file_path(input_file);
+            match read_urls_from_file(&resolved_input_file, args.force_html, args.base.as_deref()).await {
+                Ok(file_urls) => urls.extend(file_urls),
+                Err(e) => {
+                    eprintln!("wgetf: failed to read input file: {}", e);
+                    std::process::exit(1);
+                }
             }
         }
     }
@@ -65,7 +92,50 @@ async fn main() {
     let random_wait = config.random_wait;
     let quota = config.quota;
 
-    // Create downloader
+    // Check if recursive mode is enabled
+    if args.recursive {
+        // Recursive download mode
+        let recursive_config = build_recursive_config(&args);
+        let mut recursive_downloader = match wget_faster_lib::RecursiveDownloader::new(config, recursive_config) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("wgetf: failed to create recursive downloader: {}", e);
+                std::process::exit(1);
+            }
+        };
+
+        let mut exit_code = 0;
+
+        // Process each URL recursively
+        for url in urls.iter() {
+            // Determine output directory
+            let output_dir = if let Some(ref prefix) = args.directory_prefix {
+                PathBuf::from(prefix)
+            } else {
+                PathBuf::from(".")
+            };
+
+            match recursive_downloader.download_recursive(url, &output_dir).await {
+                Ok(_files) => {
+                    // Check if there were broken links in spider mode
+                    if args.spider {
+                        let broken_links = recursive_downloader.broken_links();
+                        if !broken_links.is_empty() {
+                            exit_code = 8; // wget exit code for broken links
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("wgetf: recursive download failed: {}", e);
+                    exit_code = 1;
+                }
+            }
+        }
+
+        std::process::exit(exit_code);
+    }
+
+    // Create downloader for non-recursive mode
     let downloader = match Downloader::new(config) {
         Ok(d) => d,
         Err(e) => {
@@ -74,7 +144,7 @@ async fn main() {
         }
     };
 
-    // Download all URLs
+    // Download all URLs (non-recursive mode)
     let mut exit_code = 0;
     let mut total_downloaded: u64 = 0;
 
@@ -294,7 +364,7 @@ fn determine_output_path(
     }
 
     // Try to extract filename from Content-Disposition if enabled
-    let filename = if args.content_disposition {
+    let mut filename = if args.content_disposition {
         metadata
             .and_then(|m| m.content_disposition.as_ref())
             .and_then(|cd| extract_filename_from_content_disposition(cd))
@@ -314,6 +384,21 @@ fn determine_output_path(
             .unwrap_or("index.html")
             .to_string()
     };
+
+    // Apply filename restrictions if specified
+    if let Some(ref restrict_str) = args.restrict_file_names {
+        // Parse and apply restrictions
+        let mut restrictions = Vec::new();
+        for mode in restrict_str.split(',') {
+            let mode = mode.trim();
+            if let Some(restriction) = wget_faster_lib::FilenameRestriction::from_str(mode) {
+                restrictions.push(restriction);
+            }
+        }
+
+        // Apply all restrictions to filename
+        filename = wget_faster_lib::apply_filename_restrictions(&filename, &restrictions);
+    }
 
     let mut path = PathBuf::new();
 
@@ -337,7 +422,12 @@ fn determine_output_path(
 
     // Handle duplicate filenames by adding .1, .2, .3 suffix
     // This matches wget behavior for Content-Disposition filenames
-    if path.exists() && !args.no_clobber {
+    // Skip this for timestamping (-N) or continue (-c) mode where we want to use the same file
+    // EXCEPT: If --start-pos is used with --continue, we still create a numbered file
+    let should_number_file = path.exists() && !args.no_clobber && !args.timestamping &&
+                              (!args.continue_download || args.start_pos.is_some());
+
+    if should_number_file {
         let mut counter = 1;
         loop {
             let mut new_path = PathBuf::new();
@@ -407,6 +497,40 @@ fn extract_filename_from_content_disposition(header: &str) -> Option<String> {
     None
 }
 
+fn process_execute_command(args: &mut Args, command: &str) -> Result<(), String> {
+    // Parse execute command in the format "key=value"
+    // Currently supports: contentdisposition=on/off
+
+    let command = command.trim();
+
+    if let Some((key, value)) = command.split_once('=') {
+        let key = key.trim().to_lowercase();
+        let value = value.trim().to_lowercase();
+
+        match key.as_str() {
+            "contentdisposition" => {
+                match value.as_str() {
+                    "on" | "1" | "true" => {
+                        args.content_disposition = true;
+                        Ok(())
+                    }
+                    "off" | "0" | "false" => {
+                        args.content_disposition = false;
+                        Ok(())
+                    }
+                    _ => Err(format!("Invalid value for contentdisposition: {}", value)),
+                }
+            }
+            _ => {
+                // For unknown commands, silently ignore (wget behavior)
+                Ok(())
+            }
+        }
+    } else {
+        Err(format!("Invalid execute command format: {}", command))
+    }
+}
+
 fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error>> {
     let mut config = DownloadConfig::default();
 
@@ -445,7 +569,7 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     // Set cookies
     config.enable_cookies = !args.no_cookies;
     if let Some(ref cookie_file) = args.load_cookies {
-        config.cookie_file = Some(cookie_file.clone());
+        config.cookie_file = Some(resolve_file_path(cookie_file));
     }
 
     // Set SSL verification
@@ -453,10 +577,10 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
 
     // Set certificates
     if let Some(ref cert) = args.ca_certificate {
-        config.ca_cert = Some(cert.clone());
+        config.ca_cert = Some(resolve_file_path(cert));
     }
     if let Some(ref cert) = args.certificate {
-        config.client_cert = Some(cert.clone());
+        config.client_cert = Some(resolve_file_path(cert));
     }
 
     // Set redirect following
@@ -480,8 +604,27 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
         });
     }
 
-    // Set authentication without challenge
-    config.auth_no_challenge = args.auth_no_challenge;
+    // Also check generic --user flag (fallback to --http-user)
+    if config.auth.is_none() {
+        if let Some(ref user) = args.user {
+            let password = args.password.clone().unwrap_or_default();
+            config.auth = Some(wget_faster_lib::AuthConfig {
+                username: user.clone(),
+                password,
+                auth_type: wget_faster_lib::AuthType::Basic,
+            });
+        }
+    }
+
+    // Set authentication without challenge (preemptive auth)
+    // If --auth-no-challenge is explicitly set, use that value
+    // Otherwise, enable preemptive auth by default when credentials are provided (wget behavior)
+    config.auth_no_challenge = if args.auth_no_challenge {
+        true
+    } else {
+        // Enable preemptive auth by default when auth credentials are configured
+        config.auth.is_some()
+    };
 
     // Set HTTP method
     if let Some(ref method) = args.method {
@@ -579,10 +722,35 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     config.save_headers = args.save_headers;
 
     // Set content on error
-    config.content_on_error = args.content_on_error;
+    // In quiet mode, default to NOT saving error pages (unless explicitly requested)
+    // This matches wget behavior: --quiet suppresses error page downloads
+    config.content_on_error = if args.quiet && !args.content_on_error {
+        false
+    } else {
+        args.content_on_error
+    };
 
     // Set verbose mode
     config.verbose = args.verbose || args.debug > 0;
+
+    // Set start position
+    config.start_pos = args.start_pos;
+
+    // Set HTTPS-only mode
+    config.https_only = args.https_only;
+
+    // Parse --restrict-file-names
+    if let Some(ref restrict_str) = args.restrict_file_names {
+        // Parse comma-separated list of restrictions
+        for mode in restrict_str.split(',') {
+            let mode = mode.trim();
+            if let Some(restriction) = wget_faster_lib::FilenameRestriction::from_str(mode) {
+                config.restrict_file_names.push(restriction);
+            } else {
+                return Err(format!("Invalid restriction mode: {}", mode).into());
+            }
+        }
+    }
 
     Ok(config)
 }
@@ -625,6 +793,60 @@ fn parse_rate(rate: &str) -> Result<Option<u64>, Box<dyn std::error::Error>> {
     let bytes_per_sec = (num * multiplier as f64) as u64;
 
     Ok(Some(bytes_per_sec))
+}
+
+async fn download_input_file_from_url(
+    url: &str,
+    force_html: bool,
+    base_url: Option<&str>,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    // Create a simple downloader to fetch the input file
+    let config = DownloadConfig::default();
+    let downloader = Downloader::new(config)?;
+
+    // Determine the output filename from the URL
+    let parsed_url = Url::parse(url)?;
+    let filename = parsed_url
+        .path_segments()
+        .and_then(|segments| segments.last())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("index.html");
+
+    let output_path = PathBuf::from(filename);
+
+    // Download the input file to disk (matching wget behavior)
+    downloader.download_to_file(url, output_path.clone()).await?;
+
+    // Read the downloaded file to extract URLs
+    let content = tokio::fs::read_to_string(&output_path).await?;
+
+    let mut urls = Vec::new();
+
+    if force_html {
+        // Parse HTML and extract links
+        urls.extend(extract_urls_from_html(&content, base_url)?);
+    } else {
+        // Read URLs line by line
+        for line in content.lines() {
+            let line = line.trim();
+
+            // Skip empty lines and comments
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+
+            // Resolve relative URLs if base is provided
+            let resolved_url = if let Some(base) = base_url {
+                resolve_url(base, line)?
+            } else {
+                line.to_string()
+            };
+
+            urls.push(resolved_url);
+        }
+    }
+
+    Ok(urls)
 }
 
 async fn read_urls_from_file(
@@ -749,6 +971,72 @@ fn resolve_file_path(path: &PathBuf) -> PathBuf {
         Ok(cwd) => cwd.join(path),
         Err(_) => path.clone(), // Fallback to original path if CWD unavailable
     }
+}
+
+fn build_recursive_config(args: &Args) -> wget_faster_lib::RecursiveConfig {
+    let mut config = wget_faster_lib::RecursiveConfig::default();
+
+    // Set recursion depth (0 = infinite, default = 5)
+    config.max_depth = if let Some(ref level_str) = args.level {
+        level_str.parse().unwrap_or(5)
+    } else {
+        5
+    };
+
+    // Set spider mode
+    config.spider = args.spider;
+
+    // Set span_hosts (follow links to other domains)
+    config.span_hosts = args.span_hosts;
+
+    // Set page requisites (download CSS, JS, images)
+    config.page_requisites = args.page_requisites;
+
+    // Set no_parent (don't ascend to parent directory)
+    config.no_parent = args.no_parent;
+
+    // Set no_host_directories (don't create hostname directories)
+    config.no_host_directories = args.no_host_directories;
+
+    config
+}
+
+/// Pre-process command-line arguments to expand wget-style multi-character short flags
+///
+/// GNU wget supports multi-character short flags like:
+/// - `-nH` for `--no-host-directories`
+/// - `-np` for `--no-parent`
+///
+/// Since clap doesn't support multi-character short flags, we expand them here.
+fn preprocess_args(args: Vec<String>) -> Vec<String> {
+    let mut result = Vec::new();
+
+    for arg in args {
+        // Check if this is a short flag starting with `-` (but not `--`)
+        if arg.starts_with('-') && !arg.starts_with("--") && arg.len() > 2 {
+            // Handle multi-character short flags
+            match arg.as_str() {
+                "-nH" => {
+                    result.push("--no-host-directories".to_string());
+                }
+                "-np" => {
+                    result.push("--no-parent".to_string());
+                }
+                "-nv" => {
+                    result.push("--no-verbose".to_string());
+                }
+                _ => {
+                    // For other combinations, try to split into individual flags
+                    // This handles cases like "-qO" -> "-q -O"
+                    result.push(arg);
+                }
+            }
+        } else {
+            result.push(arg);
+        }
+    }
+
+    result
 }
 
 fn print_version() {

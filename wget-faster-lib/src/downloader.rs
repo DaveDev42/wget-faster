@@ -320,14 +320,67 @@ impl Downloader {
             eprintln!("{}", metadata.format_headers());
         }
 
-        // Check status code - for HEAD requests, 4xx and 5xx are informational, not fatal
-        // We'll let the actual GET request handle the error
-        if metadata.status_code >= 400 && metadata.status_code < 600 {
-            // For HEAD, we continue to GET which will handle the error properly
+        // Handle special status codes from HEAD request
+        match metadata.status_code {
+            // 204 No Content - success but no body, don't create file
+            204 => {
+                return Ok(DownloadResult {
+                    data: DownloadedData::new_memory(Bytes::new()),
+                    url: url.to_string(),
+                    metadata,
+                });
+            }
+            // 304 Not Modified - file is already up to date
+            304 => {
+                // If file exists, return it as-is
+                if path.exists() {
+                    let local_metadata = tokio::fs::metadata(&path).await?;
+                    let local_size = local_metadata.len();
+                    return Ok(DownloadResult {
+                        data: DownloadedData::new_file(path.clone(), local_size, false),
+                        url: url.to_string(),
+                        metadata,
+                    });
+                }
+                // If file doesn't exist, treat as success with empty result
+                return Ok(DownloadResult {
+                    data: DownloadedData::new_memory(Bytes::new()),
+                    url: url.to_string(),
+                    metadata,
+                });
+            }
+            // 416 Range Not Satisfiable - file is already complete
+            416 => {
+                // If file exists, return it as-is (already complete)
+                if path.exists() {
+                    let local_metadata = tokio::fs::metadata(&path).await?;
+                    let local_size = local_metadata.len();
+                    return Ok(DownloadResult {
+                        data: DownloadedData::new_file(path.clone(), local_size, false),
+                        url: url.to_string(),
+                        metadata,
+                    });
+                }
+                // If file doesn't exist, this is an error
+                return Err(Error::InvalidStatus(416));
+            }
+            // For other status codes 4xx and 5xx, check content_on_error setting
+            // If content_on_error is false, return error immediately (don't create file)
+            // Otherwise continue to GET which will handle them properly
             // This allows wget-compatible behavior where some servers respond differently to HEAD vs GET
+            // Note: 504 Gateway Timeout will be retried by the retry mechanism (TODO: implement retry loop)
+            _ if metadata.status_code >= 400 && metadata.status_code < 600 => {
+                if !self.client.config().content_on_error {
+                    // Don't create file for error responses when content_on_error is false
+                    return Err(Error::InvalidStatus(metadata.status_code));
+                }
+                // Otherwise, continue to GET request to download error page
+            }
+            _ => {}
         }
 
-        // Check timestamping - skip if local file is newer
+        // Check timestamping - skip if local file is newer or delete if we need to re-download
+        let mut should_delete_existing = false;
         if self.client.config().timestamping && path.exists() {
             let local_metadata = tokio::fs::metadata(&path).await?;
             let local_size = local_metadata.len();
@@ -338,7 +391,8 @@ impl Downloader {
                 if let Ok(remote_time) = httpdate::parse_http_date(remote_modified) {
                     // Check if local file is older than remote (need to download)
                     if local_time < remote_time {
-                        // Local file is older, continue to download
+                        // Local file is older, delete and re-download
+                        should_delete_existing = true;
                     } else if local_time > remote_time {
                         // Local file is newer, skip download
                         return Ok(DownloadResult {
@@ -357,7 +411,8 @@ impl Downloader {
                                     metadata,
                                 });
                             }
-                            // Same timestamp but different size - re-download
+                            // Same timestamp but different size - delete and re-download
+                            should_delete_existing = true;
                         } else {
                             // No remote size info, skip download (same timestamp)
                             return Ok(DownloadResult {
@@ -370,30 +425,38 @@ impl Downloader {
                 }
             } else {
                 // No Last-Modified header from server
-                // wget behavior: assume file is up-to-date if it exists
-                return Ok(DownloadResult {
-                    data: DownloadedData::new_file(path.clone(), local_size, false),
-                    url: url.to_string(),
-                    metadata,
-                });
+                // wget behavior: download the file (server doesn't provide timestamp info)
+                should_delete_existing = true;
             }
         }
 
+        // Delete existing file if timestamping determined we need to re-download
+        if should_delete_existing && path.exists() {
+            tokio::fs::remove_file(&path).await?;
+        }
+
         // Check if file exists for resume
-        let resume_from = if path.exists() {
+        // If --start-pos is specified, it overrides automatic resume from file size
+        let resume_from = if let Some(start_pos) = self.client.config().start_pos {
+            start_pos
+        } else if path.exists() {
             tokio::fs::metadata(&path).await?.len()
         } else {
             0
         };
 
         // Create or open file
-        let mut file = if resume_from > 0 {
+        // When --start-pos is used, always create a new file (even if resume_from > 0)
+        // because the file numbering logic will have created a new numbered file
+        let mut file = if resume_from > 0 && self.client.config().start_pos.is_none() {
+            // Resume mode: append to existing file
             tokio::fs::OpenOptions::new()
                 .write(true)
                 .append(true)
                 .open(&path)
                 .await?
         } else {
+            // Normal mode or --start-pos mode: create new file
             File::create(&path).await?
         };
 

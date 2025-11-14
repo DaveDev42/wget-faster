@@ -45,7 +45,7 @@ mod recursive;
 mod netrc;
 
 pub use error::{Error, Result};
-pub use config::{DownloadConfig, RetryConfig, ProxyConfig, AuthConfig, AuthType, HttpMethod};
+pub use config::{DownloadConfig, RetryConfig, ProxyConfig, AuthConfig, AuthType, HttpMethod, FilenameRestriction, apply_filename_restrictions};
 pub use client::{HttpClient, ResourceMetadata};
 pub use downloader::{Downloader, DownloadResult};
 pub use progress::{ProgressInfo, ProgressCallback, format_bytes, format_bytes_per_sec, format_duration};

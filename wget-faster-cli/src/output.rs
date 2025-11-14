@@ -237,6 +237,7 @@ impl WgetOutput {
 
     /// Print quota exceeded message
     pub fn print_quota_exceeded(&self, quota: u64) {
+        // Always show quota exceeded errors (even in quiet mode)
         eprintln!("Download quota of {} bytes EXCEEDED!", quota);
     }
 

@@ -44,6 +44,12 @@ pub struct RecursiveConfig {
 
     /// Don't ascend to parent directory
     pub no_parent: bool,
+
+    /// Don't create hostname directories
+    pub no_host_directories: bool,
+
+    /// Spider mode - only check links, don't download files
+    pub spider: bool,
 }
 
 impl Default for RecursiveConfig {
@@ -61,6 +67,8 @@ impl Default for RecursiveConfig {
             include_directories: Vec::new(),
             exclude_directories: Vec::new(),
             no_parent: false,
+            no_host_directories: false,
+            spider: false,
         }
     }
 }
@@ -72,6 +80,7 @@ pub struct RecursiveDownloader {
     visited: HashSet<String>,
     queue: VecDeque<(String, usize)>, // (URL, depth)
     base_url: Option<String>, // Base URL for no_parent check
+    broken_links: Vec<(String, u16)>, // (URL, status_code) for tracking broken links
 }
 
 impl RecursiveDownloader {
@@ -82,7 +91,13 @@ impl RecursiveDownloader {
             visited: HashSet::new(),
             queue: VecDeque::new(),
             base_url: None,
+            broken_links: Vec::new(),
         })
+    }
+
+    /// Get the list of broken links encountered during spider mode
+    pub fn broken_links(&self) -> &[(String, u16)] {
+        &self.broken_links
     }
 
     /// Start recursive download from a URL
@@ -111,7 +126,9 @@ impl RecursiveDownloader {
             }
 
             // Skip if URL doesn't match filters
-            if !self.should_download(&url)? {
+            // Note: Pass depth to should_download so it can handle --https-only correctly
+            // (starting URL is allowed even if HTTP, but extracted links are filtered)
+            if !self.should_download(&url, depth)? {
                 continue;
             }
 
@@ -122,8 +139,18 @@ impl RecursiveDownloader {
             let file_path = self.download_and_save(&url, output_dir, depth).await?;
             downloaded_files.push(file_path.clone());
 
-            // Parse HTML and extract links if this is an HTML file
-            if self.is_html_file(&file_path) {
+            // Parse HTML and extract links if this is an HTML file/URL
+            // In spider mode, we always try to extract links from HTML content
+            // In normal mode, check if saved file is HTML
+            let should_extract_links = if self.config.spider {
+                // In spider mode, check if URL points to HTML content
+                self.is_html_url(&url).await
+            } else {
+                // In normal mode, check if saved file is HTML
+                self.is_html_file(&file_path)
+            };
+
+            if should_extract_links {
                 let links = self.extract_links(&file_path, &url).await?;
 
                 // Add links to queue
@@ -139,9 +166,18 @@ impl RecursiveDownloader {
     }
 
     /// Check if URL should be downloaded
-    fn should_download(&self, url: &str) -> Result<bool> {
+    fn should_download(&self, url: &str, depth: usize) -> Result<bool> {
         let parsed_url = Url::parse(url)
             .map_err(|e| Error::ConfigError(format!("Invalid URL: {}", e)))?;
+
+        // Check HTTPS-only mode
+        // Note: --https-only only applies to extracted links (depth > 0), not the starting URL
+        // This matches GNU wget behavior: you can start with HTTP but only follow HTTPS links
+        if self.downloader.get_client().config().https_only && depth > 0 {
+            if parsed_url.scheme() != "https" {
+                return Ok(false);
+            }
+        }
 
         let domain = parsed_url
             .host_str()
@@ -197,8 +233,21 @@ impl RecursiveDownloader {
                     let base_path = base_parsed.path();
                     let current_path = parsed_url.path();
 
-                    // If current path doesn't start with base path, it's ascending to parent
-                    if !current_path.starts_with(base_path) {
+                    // Extract directory portion of base path
+                    // If base path ends with '/', it's already a directory
+                    // Otherwise, get the parent directory
+                    let base_dir = if base_path.ends_with('/') {
+                        base_path
+                    } else {
+                        // Get parent directory (everything up to and including last '/')
+                        match base_path.rfind('/') {
+                            Some(pos) => &base_path[..=pos], // Include the trailing '/'
+                            None => "/", // Root directory
+                        }
+                    };
+
+                    // If current path doesn't start with base directory, it's ascending to parent
+                    if !current_path.starts_with(base_dir) {
                         return Ok(false);
                     }
                 }
@@ -208,27 +257,48 @@ impl RecursiveDownloader {
         Ok(true)
     }
 
-    /// Download and save a file
+    /// Download and save a file (or just check in spider mode)
     async fn download_and_save(
-        &self,
+        &mut self,
         url: &str,
         output_dir: &Path,
         _depth: usize,
     ) -> Result<PathBuf> {
-        // Generate local file path
-        let local_path = self.url_to_local_path(url, output_dir)?;
+        // In spider mode, just check if URL exists without downloading
+        if self.config.spider {
+            // Use download_to_memory to check the URL (won't save to disk)
+            match self.downloader.download_to_memory(url).await {
+                Ok(_) => {
+                    // URL is accessible - return a dummy path
+                    Ok(PathBuf::from("/dev/null"))
+                }
+                Err(e) => {
+                    // Check if it's an HTTP error
+                    if let crate::Error::InvalidStatus(status_code) = &e {
+                        // Track broken link
+                        self.broken_links.push((url.to_string(), *status_code));
+                    }
+                    // In spider mode, we don't fail on errors - just track them
+                    Ok(PathBuf::from("/dev/null"))
+                }
+            }
+        } else {
+            // Normal mode - download and save
+            // Generate local file path
+            let local_path = self.url_to_local_path(url, output_dir)?;
 
-        // Create parent directories
-        if let Some(parent) = local_path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
+            // Create parent directories
+            if let Some(parent) = local_path.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+
+            // Download to file
+            self.downloader
+                .download_to_file(url, local_path.clone())
+                .await?;
+
+            Ok(local_path)
         }
-
-        // Download to file
-        self.downloader
-            .download_to_file(url, local_path.clone())
-            .await?;
-
-        Ok(local_path)
     }
 
     /// Convert URL to local file path
@@ -239,8 +309,10 @@ impl RecursiveDownloader {
         let mut path = output_dir.to_path_buf();
 
         // Add host directory (unless no_host_directories is set)
-        if let Some(host) = parsed.host_str() {
-            path.push(host);
+        if !self.config.no_host_directories {
+            if let Some(host) = parsed.host_str() {
+                path.push(host);
+            }
         }
 
         // Add path components
@@ -270,10 +342,67 @@ impl RecursiveDownloader {
         }
     }
 
-    /// Extract links from HTML file
+    /// Check if URL points to HTML content (for spider mode)
+    async fn is_html_url(&self, url: &str) -> bool {
+        // Get metadata to check content type
+        if let Ok(metadata) = self.downloader.get_client().get_metadata(url).await {
+            if let Some(content_type) = metadata.content_type {
+                return content_type.contains("text/html");
+            }
+        }
+        // Default to checking URL extension
+        url.ends_with(".html") || url.ends_with(".htm") || url.ends_with("/")
+    }
+
+    /// Check if HTML document has meta robots nofollow directive
+    fn has_meta_robots_nofollow(&self, document: &Html) -> bool {
+        // Parse meta tags with name="robots" (case-insensitive)
+        if let Ok(selector) = Selector::parse("meta[name]") {
+            for element in document.select(&selector) {
+                if let Some(name) = element.value().attr("name") {
+                    // Check if name attribute is "robots" (case-insensitive)
+                    if name.eq_ignore_ascii_case("robots") {
+                        if let Some(content) = element.value().attr("content") {
+                            // Parse comma-separated values in content attribute
+                            // Check for "nofollow" (case-insensitive)
+                            let directives: Vec<&str> = content
+                                .split(',')
+                                .map(|s| s.trim())
+                                .collect();
+
+                            for directive in directives {
+                                if directive.eq_ignore_ascii_case("nofollow") {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Extract links from HTML file (or URL in spider mode)
     async fn extract_links(&self, file_path: &Path, base_url: &str) -> Result<Vec<String>> {
-        let content = tokio::fs::read_to_string(file_path).await?;
+        // In spider mode, fetch the content from URL instead of file
+        let content = if self.config.spider {
+            // Download HTML content to memory
+            match self.downloader.download_to_memory(base_url).await {
+                Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
+                Err(_) => return Ok(Vec::new()), // Can't extract links if download failed
+            }
+        } else {
+            tokio::fs::read_to_string(file_path).await?
+        };
+
         let document = Html::parse_document(&content);
+
+        // Check for meta robots nofollow directive
+        if self.has_meta_robots_nofollow(&document) {
+            // Don't extract any links from pages with nofollow directive
+            return Ok(Vec::new());
+        }
 
         let mut links = Vec::new();
 

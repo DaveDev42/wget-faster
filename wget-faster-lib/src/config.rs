@@ -121,6 +121,16 @@ pub struct DownloadConfig {
 
     /// Use pretty/modern progress output instead of wget-style (default: false for wget compatibility)
     pub pretty_output: bool,
+
+    /// Filename restriction modes (lowercase, uppercase, nocontrol, ascii, unix, windows)
+    pub restrict_file_names: Vec<FilenameRestriction>,
+
+    /// Start downloading from this byte offset (--start-pos option)
+    /// If set, overrides resume functionality from --continue
+    pub start_pos: Option<u64>,
+
+    /// Only follow HTTPS URLs (reject HTTP URLs)
+    pub https_only: bool,
 }
 
 /// HTTP request method
@@ -186,6 +196,9 @@ impl Default for DownloadConfig {
             content_on_error: false,
             parallel_threshold: 10 * 1024 * 1024, // 10MB
             pretty_output: false, // wget-compatible by default
+            restrict_file_names: Vec::new(), // No restrictions by default
+            start_pos: None, // No start position by default
+            https_only: false, // Accept both HTTP and HTTPS by default
         }
     }
 }
@@ -284,4 +297,103 @@ pub enum AuthType {
     Basic,
     /// HTTP Digest authentication (challenge-response)
     Digest,
+}
+
+/// Filename restriction modes
+///
+/// Controls how filenames are sanitized and transformed.
+/// Multiple restrictions can be applied simultaneously.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilenameRestriction {
+    /// Convert filenames to lowercase
+    Lowercase,
+    /// Convert filenames to uppercase
+    Uppercase,
+    /// Remove control characters (0x00-0x1F, 0x7F)
+    NoControl,
+    /// Restrict to ASCII characters (percent-encode non-ASCII)
+    Ascii,
+    /// Make filenames Unix-compatible (remove/replace : * ? " < > |)
+    Unix,
+    /// Make filenames Windows-compatible (remove/replace / \ : * ? " < > |)
+    Windows,
+}
+
+impl FilenameRestriction {
+    /// Parse restriction mode from string (case-insensitive)
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "lowercase" => Some(FilenameRestriction::Lowercase),
+            "uppercase" => Some(FilenameRestriction::Uppercase),
+            "nocontrol" => Some(FilenameRestriction::NoControl),
+            "ascii" => Some(FilenameRestriction::Ascii),
+            "unix" => Some(FilenameRestriction::Unix),
+            "windows" => Some(FilenameRestriction::Windows),
+            _ => None,
+        }
+    }
+
+    /// Apply this restriction to a filename
+    pub fn apply(&self, filename: &str) -> String {
+        match self {
+            FilenameRestriction::Lowercase => filename.to_lowercase(),
+            FilenameRestriction::Uppercase => filename.to_uppercase(),
+            FilenameRestriction::NoControl => {
+                filename
+                    .chars()
+                    .filter(|c| {
+                        let byte = *c as u32;
+                        // Keep characters that are NOT control characters
+                        byte >= 0x20 && byte != 0x7F
+                    })
+                    .collect()
+            }
+            FilenameRestriction::Ascii => {
+                filename
+                    .chars()
+                    .map(|c| {
+                        if c.is_ascii() {
+                            c.to_string()
+                        } else {
+                            // Percent-encode non-ASCII characters
+                            format!("%{:02X}", c as u32)
+                        }
+                    })
+                    .collect()
+            }
+            FilenameRestriction::Unix => {
+                filename
+                    .chars()
+                    .map(|c| {
+                        // Unix problematic characters: \ : * ? " < > |
+                        match c {
+                            '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+                            _ => c,
+                        }
+                    })
+                    .collect()
+            }
+            FilenameRestriction::Windows => {
+                filename
+                    .chars()
+                    .map(|c| {
+                        // Windows problematic characters: / \ : * ? " < > |
+                        match c {
+                            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+                            _ => c,
+                        }
+                    })
+                    .collect()
+            }
+        }
+    }
+}
+
+/// Apply a list of filename restrictions in order
+pub fn apply_filename_restrictions(filename: &str, restrictions: &[FilenameRestriction]) -> String {
+    restrictions
+        .iter()
+        .fold(filename.to_string(), |name, restriction| {
+            restriction.apply(&name)
+        })
 }
