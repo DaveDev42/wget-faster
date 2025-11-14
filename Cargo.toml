@@ -112,6 +112,9 @@ httpdate = "1.0"
 # Random
 rand = "0.8"
 
+# Regular expressions
+regex = "1.11"
+
 # Testing
 mockito = "1.5"
 criterion = { version = "0.5", features = ["async_tokio"] }

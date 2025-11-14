@@ -1,13 +1,27 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use wget_faster_lib::{ProgressInfo, format_bytes, format_bytes_per_sec};
 use std::time::Duration;
+use std::path::PathBuf;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::sync::{Arc, Mutex};
 use chrono::Local;
+
+/// Output destination for log messages
+#[derive(Clone)]
+enum LogDestination {
+    /// Write to terminal (default)
+    Terminal,
+    /// Write to file (shared across threads)
+    File(Arc<Mutex<File>>),
+}
 
 pub struct WgetOutput {
     quiet: bool,
     verbose: bool,
     show_progress: bool,
     progress_bar: Option<ProgressBar>,
+    log_dest: LogDestination,
 }
 
 impl WgetOutput {
@@ -17,6 +31,59 @@ impl WgetOutput {
             verbose,
             show_progress,
             progress_bar: None,
+            log_dest: LogDestination::Terminal,
+        }
+    }
+
+    /// Create a new WgetOutput with file logging
+    pub fn with_log_file(quiet: bool, verbose: bool, show_progress: bool, log_file: PathBuf, append: bool) -> Result<Self, std::io::Error> {
+        let file = if append {
+            OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_file)?
+        } else {
+            OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(log_file)?
+        };
+
+        Ok(Self {
+            quiet,
+            verbose,
+            show_progress,
+            progress_bar: None,
+            log_dest: LogDestination::File(Arc::new(Mutex::new(file))),
+        })
+    }
+
+    /// Write a log message to the appropriate destination
+    fn write_log(&self, message: &str) {
+        match &self.log_dest {
+            LogDestination::Terminal => {
+                println!("{}", message);
+            }
+            LogDestination::File(file) => {
+                if let Ok(mut f) = file.lock() {
+                    let _ = writeln!(f, "{}", message);
+                }
+            }
+        }
+    }
+
+    /// Write a log message without newline
+    fn write_log_no_newline(&self, message: &str) {
+        match &self.log_dest {
+            LogDestination::Terminal => {
+                print!("{}", message);
+            }
+            LogDestination::File(file) => {
+                if let Ok(mut f) = file.lock() {
+                    let _ = write!(f, "{}", message);
+                }
+            }
         }
     }
 
@@ -24,16 +91,16 @@ impl WgetOutput {
     pub fn print_connecting(&self, url: &str, host: &str, port: u16) {
         if !self.quiet {
             let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-            println!("--{}--  {}", timestamp, url);
-            println!("Resolving {}... ", host);
-            println!("Connecting to {}:{}... connected.", host, port);
+            self.write_log(&format!("--{}--  {}", timestamp, url));
+            self.write_log(&format!("Resolving {}... ", host));
+            self.write_log(&format!("Connecting to {}:{}... connected.", host, port));
         }
     }
 
     /// Print HTTP request sent
     pub fn print_http_request(&self) {
         if self.verbose && !self.quiet {
-            println!("HTTP request sent, awaiting response... ");
+            self.write_log("HTTP request sent, awaiting response... ");
         }
     }
 
@@ -41,9 +108,9 @@ impl WgetOutput {
     pub fn print_http_response(&self, status: u16, status_text: &str) {
         if !self.quiet {
             if status == 200 {
-                println!("{} {}", status, status_text);
+                self.write_log(&format!("{} {}", status, status_text));
             } else {
-                println!("{} {}", status, status_text);
+                self.write_log(&format!("{} {}", status, status_text));
             }
         }
     }
@@ -51,25 +118,25 @@ impl WgetOutput {
     /// Print content length and type
     pub fn print_content_info(&self, length: Option<u64>, content_type: Option<&str>) {
         if !self.quiet {
-            if let Some(len) = length {
-                print!("Length: {} ({})", len, format_bytes(len));
+            let mut msg = if let Some(len) = length {
+                format!("Length: {} ({})", len, format_bytes(len))
             } else {
-                print!("Length: unspecified");
-            }
+                "Length: unspecified".to_string()
+            };
 
             if let Some(ct) = content_type {
-                println!(" [{}]", ct);
-            } else {
-                println!();
+                msg.push_str(&format!(" [{}]", ct));
             }
+
+            self.write_log(&msg);
         }
     }
 
     /// Print saving to file message
     pub fn print_saving_to(&self, filename: &str) {
         if !self.quiet {
-            println!("Saving to: '{}'", filename);
-            println!();
+            self.write_log(&format!("Saving to: '{}'", filename));
+            self.write_log("");
         }
     }
 
@@ -138,14 +205,14 @@ impl WgetOutput {
                 0.0
             };
 
-            println!();
-            println!(
+            self.write_log("");
+            self.write_log(&format!(
                 "{} - '{}' saved [{}]",
                 Local::now().format("%Y-%m-%d %H:%M:%S"),
                 filename,
                 downloaded
-            );
-            println!();
+            ));
+            self.write_log("");
         }
     }
 
@@ -164,7 +231,7 @@ impl WgetOutput {
     /// Print info message (verbose mode only)
     pub fn print_info(&self, info: &str) {
         if self.verbose && !self.quiet {
-            println!("{}", info);
+            self.write_log(info);
         }
     }
 
@@ -172,7 +239,7 @@ impl WgetOutput {
     pub fn print_server_headers(&self, headers: &[(String, String)]) {
         if !self.quiet {
             for (name, value) in headers {
-                println!("  {}: {}", name, value);
+                self.write_log(&format!("  {}: {}", name, value));
             }
         }
     }
@@ -181,15 +248,15 @@ impl WgetOutput {
     pub fn print_spider_result(&self, url: &str, status: u16, exists: bool) {
         if !self.quiet {
             if exists {
-                println!("Spider mode enabled. Check if remote file exists.");
-                println!("--{}--  {}", Local::now().format("%Y-%m-%d %H:%M:%S"), url);
-                println!("  HTTP {} OK", status);
-                println!("Remote file exists.");
+                self.write_log("Spider mode enabled. Check if remote file exists.");
+                self.write_log(&format!("--{}--  {}", Local::now().format("%Y-%m-%d %H:%M:%S"), url));
+                self.write_log(&format!("  HTTP {} OK", status));
+                self.write_log("Remote file exists.");
             } else {
-                println!("Spider mode enabled. Check if remote file exists.");
-                println!("--{}--  {}", Local::now().format("%Y-%m-%d %H:%M:%S"), url);
-                println!("  HTTP {} Not Found", status);
-                println!("Remote file does not exist -- broken link!!!");
+                self.write_log("Spider mode enabled. Check if remote file exists.");
+                self.write_log(&format!("--{}--  {}", Local::now().format("%Y-%m-%d %H:%M:%S"), url));
+                self.write_log(&format!("  HTTP {} Not Found", status));
+                self.write_log("Remote file does not exist -- broken link!!!");
             }
         }
     }
@@ -197,10 +264,10 @@ impl WgetOutput {
     /// Print retry message
     pub fn print_retry(&self, attempt: usize, max_attempts: usize, wait_secs: u64) {
         if !self.quiet {
-            println!(
+            self.write_log(&format!(
                 "Retrying ({}/{})... waiting {} seconds...",
                 attempt, max_attempts, wait_secs
-            );
+            ));
         }
     }
 
@@ -208,15 +275,15 @@ impl WgetOutput {
     pub fn print_timestamping(&self, local_newer: bool, filename: &str) {
         if !self.quiet {
             if local_newer {
-                println!(
+                self.write_log(&format!(
                     "Server file no newer than local file '{}' -- not retrieving.",
                     filename
-                );
+                ));
             } else {
-                println!(
+                self.write_log(&format!(
                     "Server file is newer than local file '{}' -- retrieving.",
                     filename
-                );
+                ));
             }
         }
     }
@@ -224,14 +291,14 @@ impl WgetOutput {
     /// Print continue/resume message
     pub fn print_resume(&self, filename: &str, resume_from: u64) {
         if !self.quiet {
-            println!(
+            self.write_log(&format!(
                 "Continuing in background. Output will be written to '{}'.",
                 filename
-            );
-            println!(
+            ));
+            self.write_log(&format!(
                 "Resuming download. Starting at byte position: {}",
                 resume_from
-            );
+            ));
         }
     }
 
@@ -244,7 +311,7 @@ impl WgetOutput {
     /// Print redirected message
     pub fn print_redirect(&self, from: &str, to: &str) {
         if self.verbose && !self.quiet {
-            println!("Location: {} [following]", to);
+            self.write_log(&format!("Location: {} [following]", to));
         }
     }
 }

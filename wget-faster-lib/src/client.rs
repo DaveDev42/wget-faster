@@ -51,12 +51,25 @@ impl HttpClient {
         builder = builder.danger_accept_invalid_certs(!config.verify_ssl);
 
         // Configure proxy
+        // Note: no_proxy filtering is done per-request basis, not at client level
+        // reqwest doesn't support dynamic no_proxy, so we configure the proxy here
+        // and handle no_proxy logic in the request builder
         if let Some(proxy_config) = &config.proxy {
             let mut proxy = reqwest::Proxy::all(&proxy_config.url)
                 .map_err(|e| Error::ConfigError(format!("Invalid proxy URL: {}", e)))?;
 
             if let Some((username, password)) = &proxy_config.auth {
                 proxy = proxy.basic_auth(username, password);
+            }
+
+            // Set no_proxy list if provided
+            if !proxy_config.no_proxy.is_empty() {
+                // reqwest supports NO_PROXY via environment variable parsing
+                // But we need to handle it manually for consistency with wget
+                let no_proxy = reqwest::NoProxy::from_string(
+                    &proxy_config.no_proxy.join(",")
+                );
+                proxy = proxy.no_proxy(no_proxy);
             }
 
             builder = builder.proxy(proxy);

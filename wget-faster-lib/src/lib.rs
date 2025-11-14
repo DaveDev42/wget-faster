@@ -43,6 +43,7 @@ mod cookies;
 mod adaptive;
 mod recursive;
 mod netrc;
+mod link_converter;
 
 pub use error::{Error, Result};
 pub use config::{DownloadConfig, RetryConfig, ProxyConfig, AuthConfig, AuthType, HttpMethod, FilenameRestriction, apply_filename_restrictions};
@@ -54,3 +55,4 @@ pub use cookies::{Cookie, CookieJar};
 pub use adaptive::AdaptiveDownloader;
 pub use recursive::{RecursiveDownloader, RecursiveConfig};
 pub use netrc::{Netrc, NetrcEntry};
+pub use link_converter::LinkConverter;

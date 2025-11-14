@@ -39,6 +39,7 @@ flate2 = { workspace = true }
 brotli = { workspace = true }
 chrono = { workspace = true }
 httpdate = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
 mockito = { workspace = true }

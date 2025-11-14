@@ -1,0 +1,195 @@
+================================================================================
+PYTHON TEST SUITE ANALYSIS - EXECUTIVE SUMMARY
+wget-faster v0.0.3 (2025-11-14)
+================================================================================
+
+CURRENT STATUS
+--------------
+Python Tests:    16/82 passing (19.5%)
+Perl Tests:      42/87 passing (48.3%)
+Gap:             28.8 percentage points
+Total:           58/169 passing (34.3%)
+
+FAILURE BREAKDOWN (66 failing tests)
+------------------------------------
+1. Metalink not supported        32 tests (48.5%)  [DEFER to v0.2.0]
+2. Auth HEAD request issue        8 tests (12.1%)  [PRIORITY 1 - QUICK WIN]
+3. TLS/HTTPS advanced            10 tests (15.2%)  [DEFER to v0.2.0]
+4. Recursive crawl issues         6 tests ( 9.1%)  [PRIORITY 6]
+5. Link conversion needed         2 tests ( 3.0%)  [DEFER to v0.2.0]
+6. Small bugs (5 categories)      6 tests ( 9.1%)  [PRIORITIES 2-5]
+7. Other/edge cases               2 tests ( 3.0%)  [Low priority]
+
+TOP FAILURE PATTERNS
+--------------------
+• "unexpected argument '--metalink'" (32 tests) - Feature not implemented
+• "Invalid response status: 401" (8 tests) - Auth retry missing for HEAD
+• Exit code 77 (10 tests) - TLS features not detected/implemented
+• "Not all files were crawled" (4 tests) - Recursive crawl incomplete
+• "Expected file not found" (3 tests) - Missing page requisites
+
+QUICK WIN PRIORITIES (v0.0.4)
+-----------------------------
+Rank  Fix                          Tests  Effort    Impact    Cumulative
+----  ---------------------------  -----  --------  --------  ----------
+1.    Auth HEAD request retry        8    Easy      +9.8%     29.3%
+2.    HTTP 504 exit code             1    V.Easy    +1.2%     30.5%
+3.    Proxy environment vars         1    Easy      +1.2%     31.7%
+4.    Cookie expiry handling         1    Easy      +1.2%     32.9%
+5.    Conditional GET (If-Mod)       1    Medium    +1.2%     34.1%
+6.    Recursive improvements       4-6    Medium    +5-7%     39-41%
+
+ESTIMATED EFFORT: 3-5 days total
+TARGET PASS RATE: 34.1% minimum, 39-41% stretch goal
+
+DETAILED PRIORITY ANALYSIS
+---------------------------
+
+PRIORITY 1: Auth HEAD Request Retry ⭐⭐⭐
+  Impact:  +8 tests (+9.8%)
+  Effort:  1-2 hours
+  Risk:    Low
+  Problem: HEAD request fails on 401, doesn't retry with credentials
+  Fix:     wget-faster-lib/src/downloader.rs - add auth retry to HEAD path
+  Tests:   Test-auth-basic*.py, Test-auth-digest.py, etc.
+
+PRIORITY 2: HTTP 504 Exit Code ⭐⭐⭐
+  Impact:  +1 test (+1.2%)
+  Effort:  15 minutes
+  Risk:    Very Low
+  Problem: 5xx errors should exit 4 (server error), not 8 (HTTP error)
+  Fix:     wget-faster-lib/src/error.rs - map 500-599 to exit code 4
+  Tests:   Test-504.py
+
+PRIORITY 3: Proxy Environment Variables ⭐⭐
+  Impact:  +1 test (+1.2%)
+  Effort:  1 hour
+  Risk:    Low
+  Problem: http_proxy and no_proxy env vars ignored
+  Fix:     wget-faster-lib/src/client.rs - configure reqwest with proxy
+  Tests:   Test-no_proxy-env.py
+
+PRIORITY 4: Cookie Expiry Handling ⭐⭐
+  Impact:  +1 test (+1.2%)
+  Effort:  30-60 minutes
+  Risk:    Low
+  Problem: Cookies with expiry not sent on subsequent requests
+  Fix:     wget-faster-lib/src/cookies.rs - fix expiry comparison
+  Tests:   Test-cookie-expires.py
+
+PRIORITY 5: Conditional GET (If-Modified-Since) ⭐
+  Impact:  +1 test (+1.2%)
+  Effort:  1-2 hours
+  Risk:    Medium
+  Problem: If-Modified-Since header not sent with timestamping (-N)
+  Fix:     wget-faster-lib/src/downloader.rs - add header to HEAD request
+  Tests:   Test-condget.py
+
+PRIORITY 6: Recursive Crawl Improvements
+  Impact:  +4-6 tests (+5-7%)
+  Effort:  4-6 hours
+  Risk:    Medium
+  Problems:
+    • Missing page requisites (-p flag)
+    • Incomplete link crawling
+    • --rejected-log not implemented
+    • Long path handling
+    • URL encoding in recursion
+  Fix:     wget-faster-lib/src/recursive.rs - multiple improvements
+  Tests:   Test-recursive-*.py, Test--spider-r.py, etc.
+
+PASSING TESTS (16) - What's Working Well
+-----------------------------------------
+✓ Basic HTTP downloads (Test-Head.py, Test-O.py, Test-Post.py, Test-416.py)
+✓ Content-Disposition parsing (2 tests)
+✓ Cookie handling basics (3 tests)
+✓ Auth failure cases (4 tests) - correctly fails when expected
+✓ Resume/continue (Test-c-full.py)
+✓ Redirects (Test-redirect.py)
+✓ Error handling (Test-missing-scheme-retval.py)
+
+NOT QUICK WINS (Defer)
+-----------------------
+• Metalink (32 tests) - New protocol, major feature
+• TLS advanced (10 tests) - Client certs, CRL, pinning
+• Link conversion -k (2 tests) - Planned v0.2.0
+• Edge cases (4 tests) - Low impact
+
+PYTHON vs PERL COMPARISON
+--------------------------
+Why Python lags Perl by 28.8%:
+1. Metalink concentration (39% of Python tests vs <10% of Perl)
+2. Auth issues affect both, but Python has more auth variations
+3. Python tests stricter on environment vars and edge cases
+
+If priorities 1-5 fixed:
+  Python: 19.5% → 34.1% (+14.6%)
+  Gap to Perl: 28.8% → 14.2% (50% reduction)
+
+If priority 6 also fixed:
+  Python: 19.5% → 39-41% (+19.6-21.6%)
+  Gap to Perl: 28.8% → ~7-9% (70% reduction)
+
+IMPLEMENTATION ROADMAP
+----------------------
+
+Week 1 (Days 1-3): Quick Wins
+  Day 1:
+    • Auth HEAD retry (2 hrs) → +8 tests
+    • HTTP 504 exit code (15 min) → +1 test
+    • Proxy env vars (1 hr) → +1 test
+  Day 2-3:
+    • Cookie expiry (1 hr) → +1 test
+    • Conditional GET (2 hrs) → +1 test
+  Milestone: 28/82 passing (34.1%) ✓
+
+Week 2 (Days 4-5): Recursive Improvements
+  Days 4-5:
+    • Recursive fixes (4-6 hrs) → +4-6 tests
+  Milestone: 32-34/82 passing (39-41%) ✓
+
+TESTING STRATEGY
+----------------
+After each fix:
+1. Build: cargo build --release && cargo install --path wget-faster-cli
+2. Test:  cd ../wget-faster-test && ./test --wget-faster $(which wgetf) --test-type python -v
+3. Verify: Check specific failing tests now pass
+4. Regression: Ensure no previously passing tests break
+
+RISK ASSESSMENT
+---------------
+Priority 1-2: Low risk (isolated changes)
+Priority 3-4: Low risk (well-defined APIs)
+Priority 5:   Medium risk (core download flow)
+Priority 6:   Medium risk (complex recursive logic)
+
+Overall: Manageable risk with good test coverage
+
+SUCCESS METRICS
+---------------
+v0.0.4 Minimum:       34.1% pass rate (28/82 tests)
+v0.0.4 Stretch:       39-41% pass rate (32-34/82 tests)
+v0.0.5 Target:        45-50% pass rate
+v0.2.0 Target:        75-80% pass rate (with Metalink + TLS)
+
+BUSINESS VALUE
+--------------
+• Improved wget compatibility for common use cases
+• Better authentication support (enterprise users)
+• Proper proxy handling (corporate environments)
+• More reliable recursive downloads
+• Stronger foundation for v0.2.0 features
+
+CONCLUSION
+----------
+Clear path to 2x improvement in Python test pass rate (19.5% → 39-41%) 
+with just 3-5 days of focused effort. Top priority (auth HEAD retry) alone
+delivers nearly 10% improvement. All fixes address real-world use cases.
+
+Next steps: Implement priorities 1-5 for v0.0.4 release.
+
+================================================================================
+Report generated: 2025-11-14
+Analysis based on: test_results_20251114_165004.json
+Total tests analyzed: 82 Python tests (16 passing, 66 failing)
+================================================================================

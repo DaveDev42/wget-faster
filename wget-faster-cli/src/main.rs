@@ -214,11 +214,44 @@ async fn download_url(
     let output_path = determine_output_path(&parsed_url, args, metadata.as_ref())?;
 
     // Create output formatter
-    let mut output = WgetOutput::new(
-        args.quiet,
-        args.verbose || args.debug > 0,
-        args.show_progress || (!args.quiet && !args.no_verbose),
-    );
+    let mut output = if let Some(ref log_file) = args.output_file {
+        // Use -o (truncate mode)
+        match WgetOutput::with_log_file(
+            args.quiet,
+            args.verbose || args.debug > 0,
+            args.show_progress || (!args.quiet && !args.no_verbose),
+            log_file.clone(),
+            false,
+        ) {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("wgetf: failed to open log file '{}': {}", log_file.display(), e);
+                std::process::exit(3); // File I/O error
+            }
+        }
+    } else if let Some(ref log_file) = args.append_output {
+        // Use -a (append mode)
+        match WgetOutput::with_log_file(
+            args.quiet,
+            args.verbose || args.debug > 0,
+            args.show_progress || (!args.quiet && !args.no_verbose),
+            log_file.clone(),
+            true,
+        ) {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("wgetf: failed to open log file '{}': {}", log_file.display(), e);
+                std::process::exit(3); // File I/O error
+            }
+        }
+    } else {
+        // Default to terminal output
+        WgetOutput::new(
+            args.quiet,
+            args.verbose || args.debug > 0,
+            args.show_progress || (!args.quiet && !args.no_verbose),
+        )
+    };
 
     // Print connection info
     let host = parsed_url.host_str().unwrap_or("unknown");
@@ -671,17 +704,35 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
         config.referer = Some(referer.clone());
     }
 
-    // Set proxy
-    if let Some(ref user) = args.proxy_user {
-        let password = args.proxy_password.clone().unwrap_or_default();
+    // Set proxy configuration
+    // Check for proxy URL from environment variables (unless --no-proxy is set)
+    if !args.no_proxy {
         if let Some(proxy_url) = std::env::var("http_proxy").ok()
             .or_else(|| std::env::var("https_proxy").ok())
             .or_else(|| std::env::var("HTTP_PROXY").ok())
             .or_else(|| std::env::var("HTTPS_PROXY").ok())
         {
+            // Parse no_proxy environment variable
+            let no_proxy_list = std::env::var("no_proxy")
+                .or_else(|_| std::env::var("NO_PROXY"))
+                .unwrap_or_default()
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>();
+
+            // Set up proxy authentication if provided
+            let auth = if let Some(ref user) = args.proxy_user {
+                let password = args.proxy_password.clone().unwrap_or_default();
+                Some((user.clone(), password))
+            } else {
+                None
+            };
+
             config.proxy = Some(wget_faster_lib::ProxyConfig {
                 url: proxy_url,
-                auth: Some((user.clone(), password)),
+                auth,
+                no_proxy: no_proxy_list,
             });
         }
     }
@@ -997,6 +1048,15 @@ fn build_recursive_config(args: &Args) -> wget_faster_lib::RecursiveConfig {
 
     // Set no_host_directories (don't create hostname directories)
     config.no_host_directories = args.no_host_directories;
+
+    // Set convert_links (-k flag)
+    config.convert_links = args.convert_links;
+
+    // Set backup_converted (-K flag)
+    config.backup_converted = args.backup_converted;
+
+    // Set adjust_extension (-E flag)
+    config.adjust_extension = args.adjust_extension;
 
     config
 }

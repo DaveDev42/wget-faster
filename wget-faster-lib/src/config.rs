@@ -275,6 +275,54 @@ pub struct ProxyConfig {
 
     /// Proxy authentication
     pub auth: Option<(String, String)>,
+
+    /// Domains to bypass proxy for (no_proxy list)
+    pub no_proxy: Vec<String>,
+}
+
+impl ProxyConfig {
+    /// Check if a URL should bypass the proxy based on no_proxy list
+    ///
+    /// Implements wget's no_proxy matching logic:
+    /// - "domain.com" matches "domain.com" and "*.domain.com"
+    /// - ".domain.com" matches only "*.domain.com" (not "domain.com" itself)
+    pub fn should_bypass(&self, url: &str) -> bool {
+        // Parse the URL to extract the host
+        let host = match url::Url::parse(url) {
+            Ok(parsed) => {
+                if let Some(h) = parsed.host_str() {
+                    h.to_lowercase()
+                } else {
+                    return false;
+                }
+            }
+            Err(_) => return false,
+        };
+
+        // Check each no_proxy pattern
+        for pattern in &self.no_proxy {
+            let pattern = pattern.trim().to_lowercase();
+            if pattern.is_empty() {
+                continue;
+            }
+
+            if pattern.starts_with('.') {
+                // ".domain.com" matches only subdomains (e.g., "www.domain.com")
+                // NOT the domain itself
+                let domain = &pattern[1..]; // Remove leading dot
+                if host.ends_with(&pattern) || host.ends_with(domain) && host != domain {
+                    return true;
+                }
+            } else {
+                // "domain.com" matches the domain AND subdomains
+                if host == pattern || host.ends_with(&format!(".{}", pattern)) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
 }
 
 /// Authentication configuration

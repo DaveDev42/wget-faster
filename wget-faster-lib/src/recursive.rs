@@ -1,6 +1,6 @@
 /// Recursive download functionality for downloading entire websites
 
-use crate::{Error, Result, Downloader, DownloadConfig};
+use crate::{Error, Result, Downloader, DownloadConfig, LinkConverter};
 use scraper::{Html, Selector};
 use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -20,6 +20,12 @@ pub struct RecursiveConfig {
 
     /// Convert links for local viewing
     pub convert_links: bool,
+
+    /// Backup original files before converting (with -K flag)
+    pub backup_converted: bool,
+
+    /// Adjust file extensions (.html for HTML/CSS files) - used with -E flag
+    pub adjust_extension: bool,
 
     /// Download page requisites (images, CSS, JS)
     pub page_requisites: bool,
@@ -59,6 +65,8 @@ impl Default for RecursiveConfig {
             span_hosts: false,
             relative_only: false,
             convert_links: false,
+            backup_converted: false,
+            adjust_extension: false,
             page_requisites: false,
             accept_extensions: Vec::new(),
             reject_extensions: Vec::new(),
@@ -81,6 +89,7 @@ pub struct RecursiveDownloader {
     queue: VecDeque<(String, usize)>, // (URL, depth)
     base_url: Option<String>, // Base URL for no_parent check
     broken_links: Vec<(String, u16)>, // (URL, status_code) for tracking broken links
+    link_converter: Option<LinkConverter>, // Link converter for -k flag
 }
 
 impl RecursiveDownloader {
@@ -92,6 +101,7 @@ impl RecursiveDownloader {
             queue: VecDeque::new(),
             base_url: None,
             broken_links: Vec::new(),
+            link_converter: None,
         })
     }
 
@@ -107,6 +117,14 @@ impl RecursiveDownloader {
         output_dir: &Path,
     ) -> Result<Vec<PathBuf>> {
         let mut downloaded_files = Vec::new();
+
+        // Initialize link converter if convert_links is enabled
+        if self.config.convert_links {
+            self.link_converter = Some(LinkConverter::new(
+                output_dir.to_path_buf(),
+                self.config.backup_converted,
+            ));
+        }
 
         // Set base URL for no_parent check
         self.base_url = Some(start_url.to_string());
@@ -137,6 +155,12 @@ impl RecursiveDownloader {
 
             // Download the file
             let file_path = self.download_and_save(&url, output_dir, depth).await?;
+
+            // Register file with link converter if enabled
+            if let Some(ref mut converter) = self.link_converter {
+                converter.register_file(&url, file_path.clone());
+            }
+
             downloaded_files.push(file_path.clone());
 
             // Parse HTML and extract links if this is an HTML file/URL
@@ -160,6 +184,11 @@ impl RecursiveDownloader {
                     }
                 }
             }
+        }
+
+        // Convert links after all files are downloaded
+        if let Some(ref converter) = self.link_converter {
+            converter.convert_all_links().await?;
         }
 
         Ok(downloaded_files)
@@ -327,6 +356,22 @@ impl RecursiveDownloader {
         // If path ends with /, add index.html
         if path.is_dir() || url.ends_with('/') {
             path.push("index.html");
+        }
+
+        // Adjust extension if requested (-E flag)
+        // Add .html extension to files that don't have one but are HTML/CSS content
+        if self.config.adjust_extension {
+            let current_ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+            // If the file doesn't already have .html extension, add it
+            // This matches wget -E behavior: file.php -> file.php.html
+            if !current_ext.is_empty() && current_ext != "html" && current_ext != "htm" {
+                // Only add .html if it looks like server-side script or no extension
+                // Common server-side extensions: php, asp, aspx, jsp, cgi, pl
+                if matches!(current_ext, "php" | "asp" | "aspx" | "jsp" | "cgi" | "pl" | "py" | "rb") {
+                    path.set_extension(format!("{}.html", current_ext));
+                }
+            }
         }
 
         Ok(path)
