@@ -70,11 +70,11 @@ impl Error {
     /// - 1: Generic error
     /// - 2: Parse error
     /// - 3: File I/O error
-    /// - 4: Network failure
+    /// - 4: Network failure (including server errors 5xx)
     /// - 5: SSL verification failure
     /// - 6: Authentication failure
     /// - 7: Protocol error
-    /// - 8: Server error response (4xx/5xx)
+    /// - 8: Server error response (4xx client errors only)
     pub fn exit_code(&self) -> i32 {
         match self {
             // File I/O errors -> 3
@@ -92,8 +92,11 @@ impl Error {
             // Authentication failure -> 6
             Error::InvalidStatus(401) | Error::InvalidStatus(407) => 6,
 
-            // Server error responses (4xx/5xx) -> 8
-            Error::InvalidStatus(code) if *code >= 400 => 8,
+            // Client errors (4xx) -> 8
+            Error::InvalidStatus(code) if *code >= 400 && *code < 500 => 8,
+
+            // Server errors (5xx) -> 4
+            Error::InvalidStatus(code) if *code >= 500 => 4,
 
             // Protocol errors -> 7
             Error::RangeNotSupported | Error::ContentLengthUnavailable => 7,
@@ -156,5 +159,58 @@ impl Error {
     /// Example: "wget: https://example.com/file.txt: failed: Connection refused."
     pub fn format_with_url(&self, url: &str) -> String {
         format!("{}: {}", url, self.format_wget_style())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exit_codes_client_errors() {
+        // Client errors (4xx except 401/407) should return exit code 8
+        assert_eq!(Error::InvalidStatus(400).exit_code(), 8, "400 Bad Request");
+        assert_eq!(Error::InvalidStatus(403).exit_code(), 8, "403 Forbidden");
+        assert_eq!(Error::InvalidStatus(404).exit_code(), 8, "404 Not Found");
+        assert_eq!(Error::InvalidStatus(410).exit_code(), 8, "410 Gone");
+        assert_eq!(Error::InvalidStatus(429).exit_code(), 8, "429 Too Many Requests");
+        assert_eq!(Error::InvalidStatus(499).exit_code(), 8, "499 (last 4xx)");
+    }
+
+    #[test]
+    fn test_exit_codes_auth_errors() {
+        // Authentication errors should return exit code 6
+        assert_eq!(Error::InvalidStatus(401).exit_code(), 6, "401 Unauthorized");
+        assert_eq!(Error::InvalidStatus(407).exit_code(), 6, "407 Proxy Auth Required");
+    }
+
+    #[test]
+    fn test_exit_codes_server_errors() {
+        // Server errors (5xx) should return exit code 4
+        assert_eq!(Error::InvalidStatus(500).exit_code(), 4, "500 Internal Server Error");
+        assert_eq!(Error::InvalidStatus(502).exit_code(), 4, "502 Bad Gateway");
+        assert_eq!(Error::InvalidStatus(503).exit_code(), 4, "503 Service Unavailable");
+        assert_eq!(Error::InvalidStatus(504).exit_code(), 4, "504 Gateway Timeout");
+        assert_eq!(Error::InvalidStatus(599).exit_code(), 4, "599 (last 5xx)");
+    }
+
+    #[test]
+    fn test_exit_codes_io_errors() {
+        // File I/O errors should return exit code 3
+        assert_eq!(Error::TempFileError("test".to_string()).exit_code(), 3);
+        assert_eq!(Error::WriteError("test".to_string()).exit_code(), 3);
+    }
+
+    #[test]
+    fn test_exit_codes_network_errors() {
+        // Network failures should return exit code 4
+        assert_eq!(Error::Timeout.exit_code(), 4);
+    }
+
+    #[test]
+    fn test_exit_codes_protocol_errors() {
+        // Protocol errors should return exit code 7
+        assert_eq!(Error::RangeNotSupported.exit_code(), 7);
+        assert_eq!(Error::ContentLengthUnavailable.exit_code(), 7);
     }
 }

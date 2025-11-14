@@ -313,7 +313,18 @@ impl Downloader {
         progress_callback: Option<ProgressCallback>,
     ) -> Result<DownloadResult> {
         // Get metadata first
-        let metadata = self.client.get_metadata(url).await?;
+        // If timestamping is enabled and file exists, use If-Modified-Since header
+        let metadata = if self.client.config().timestamping && path.exists() {
+            // Get local file modification time
+            let local_metadata = tokio::fs::metadata(&path).await?;
+            let local_time = local_metadata.modified()?;
+
+            // Fetch metadata with If-Modified-Since header
+            self.client.get_metadata_conditional(url, Some(local_time)).await?
+        } else {
+            // Normal metadata fetch without If-Modified-Since
+            self.client.get_metadata(url).await?
+        };
 
         // Print server response if requested
         if self.client.config().print_server_response {

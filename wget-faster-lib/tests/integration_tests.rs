@@ -591,3 +591,116 @@ async fn test_no_speed_limit() {
 
     mock.assert_async().await;
 }
+
+#[tokio::test]
+async fn test_if_modified_since_header() {
+    use std::time::SystemTime;
+
+    let mut server = Server::new_async().await;
+
+    // Create a time in the past
+    let past_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1420070400); // Jan 1, 2015
+    let http_date = httpdate::fmt_http_date(past_time);
+
+    // Mock HEAD request that should receive If-Modified-Since header
+    let head_mock = server
+        .mock("HEAD", "/timestamped-file.txt")
+        .match_header("If-Modified-Since", http_date.as_str())
+        .with_status(304) // Not Modified
+        .with_header("Last-Modified", &http_date)
+        .create_async()
+        .await;
+
+    // Create a temporary file with the past modification time
+    let temp_dir = tempfile::tempdir().unwrap();
+    let file_path = temp_dir.path().join("timestamped-file.txt");
+    std::fs::write(&file_path, "old content").unwrap();
+
+    // Set file mtime to the past time
+    let file_time = filetime::FileTime::from_system_time(past_time);
+    filetime::set_file_mtime(&file_path, file_time).unwrap();
+
+    // Configure downloader with timestamping enabled
+    let config = DownloadConfig {
+        timestamping: true,
+        use_server_timestamps: true,
+        ..Default::default()
+    };
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/timestamped-file.txt", server.url());
+    let result = downloader.download_to_file(&url, file_path.clone()).await;
+
+    // Should succeed and not download (304 Not Modified)
+    assert!(result.is_ok());
+
+    // File should still contain old content (not re-downloaded)
+    let content = std::fs::read_to_string(&file_path).unwrap();
+    assert_eq!(content, "old content");
+
+    head_mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_if_modified_since_with_newer_remote() {
+    use std::time::SystemTime;
+
+    let mut server = Server::new_async().await;
+
+    // Local file time (old)
+    let old_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1420070400); // Jan 1, 2015
+    let old_http_date = httpdate::fmt_http_date(old_time);
+
+    // Remote file time (newer)
+    let new_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1483228800); // Jan 1, 2017
+    let new_http_date = httpdate::fmt_http_date(new_time);
+
+    // Mock HEAD request
+    let head_mock = server
+        .mock("HEAD", "/updated-file.txt")
+        .match_header("If-Modified-Since", old_http_date.as_str())
+        .with_status(200) // Modified, proceed with download
+        .with_header("Last-Modified", &new_http_date)
+        .with_header("Content-Length", "11")
+        .create_async()
+        .await;
+
+    // Mock GET request for the actual download
+    let get_mock = server
+        .mock("GET", "/updated-file.txt")
+        .with_status(200)
+        .with_header("Last-Modified", &new_http_date)
+        .with_body("new content")
+        .create_async()
+        .await;
+
+    // Create a temporary file with old modification time
+    let temp_dir = tempfile::tempdir().unwrap();
+    let file_path = temp_dir.path().join("updated-file.txt");
+    std::fs::write(&file_path, "old content").unwrap();
+
+    // Set file mtime to old time
+    let file_time = filetime::FileTime::from_system_time(old_time);
+    filetime::set_file_mtime(&file_path, file_time).unwrap();
+
+    // Configure downloader with timestamping
+    let config = DownloadConfig {
+        timestamping: true,
+        use_server_timestamps: true,
+        ..Default::default()
+    };
+    let downloader = Downloader::new(config).unwrap();
+
+    let url = format!("{}/updated-file.txt", server.url());
+    let result = downloader.download_to_file(&url, file_path.clone()).await;
+
+    // Should succeed and re-download
+    assert!(result.is_ok());
+
+    // File should now contain new content
+    let content = std::fs::read_to_string(&file_path).unwrap();
+    assert_eq!(content, "new content");
+
+    head_mock.assert_async().await;
+    get_mock.assert_async().await;
+}

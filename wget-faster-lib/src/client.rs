@@ -146,9 +146,94 @@ impl HttpClient {
     }
 
     /// Get metadata about the resource (supports range, content length, etc.)
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL to fetch metadata for
+    /// * `if_modified_since` - Optional timestamp for conditional GET (If-Modified-Since header)
     pub async fn get_metadata(&self, url: &str) -> Result<ResourceMetadata> {
-        let response = self.client.head(url).send().await?;
+        self.get_metadata_conditional(url, None).await
+    }
 
+    /// Get metadata about the resource with optional If-Modified-Since header
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL to fetch metadata for
+    /// * `if_modified_since` - Optional timestamp for conditional GET (If-Modified-Since header)
+    pub async fn get_metadata_conditional(
+        &self,
+        url: &str,
+        if_modified_since: Option<std::time::SystemTime>,
+    ) -> Result<ResourceMetadata> {
+        // Build HEAD request with optional If-Modified-Since header
+        let mut request = self.client.head(url);
+
+        // Add If-Modified-Since header if provided
+        if let Some(time) = if_modified_since {
+            let http_date = httpdate::fmt_http_date(time);
+            request = request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
+        }
+
+        // Add authentication if configured and auth_no_challenge is set (preemptive auth)
+        if self.config.auth_no_challenge {
+            if let Some(ref auth) = self.config.auth {
+                request = request.basic_auth(&auth.username, Some(&auth.password));
+            }
+        }
+
+        let response = request.send().await?;
+        let status_code = response.status().as_u16();
+
+        // Handle authentication challenges (401/407)
+        // If we have credentials but didn't send them preemptively, retry with auth
+        if (status_code == 401 || status_code == 407) && !self.config.auth_no_challenge {
+            // Try configured auth first, then .netrc
+            let auth = if let Some(ref auth) = self.config.auth {
+                Some(auth.clone())
+            } else {
+                // Try .netrc file
+                match crate::netrc::Netrc::from_default_location() {
+                    Ok(Some(netrc)) => {
+                        // Extract hostname from URL
+                        if let Ok(parsed) = url::Url::parse(url) {
+                            if let Some(host) = parsed.host_str() {
+                                netrc.get(host)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            };
+
+            if let Some(auth) = auth {
+                // Retry HEAD request with authentication
+                let mut retry_request = self.client.head(url)
+                    .basic_auth(&auth.username, Some(&auth.password));
+
+                // Re-add If-Modified-Since header if it was present
+                if let Some(time) = if_modified_since {
+                    let http_date = httpdate::fmt_http_date(time);
+                    retry_request = retry_request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
+                }
+
+                let retry_response = retry_request.send().await?;
+
+                // If still unauthorized, return error (will be captured in metadata)
+                // Don't fail here - let the caller handle it
+                return Self::extract_metadata(retry_response).await;
+            }
+        }
+
+        Self::extract_metadata(response).await
+    }
+
+    /// Extract metadata from a HEAD response
+    async fn extract_metadata(response: reqwest::Response) -> Result<ResourceMetadata> {
         let supports_range = response
             .headers()
             .get(reqwest::header::ACCEPT_RANGES)
