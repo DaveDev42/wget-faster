@@ -650,14 +650,9 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     }
 
     // Set authentication without challenge (preemptive auth)
-    // If --auth-no-challenge is explicitly set, use that value
-    // Otherwise, enable preemptive auth by default when credentials are provided (wget behavior)
-    config.auth_no_challenge = if args.auth_no_challenge {
-        true
-    } else {
-        // Enable preemptive auth by default when auth credentials are configured
-        config.auth.is_some()
-    };
+    // Only enable preemptive auth when --auth-no-challenge is explicitly provided
+    // Default behavior: wait for 401/407 challenge before sending credentials
+    config.auth_no_challenge = args.auth_no_challenge;
 
     // Set HTTP method
     if let Some(ref method) = args.method {
@@ -1057,6 +1052,12 @@ fn build_recursive_config(args: &Args) -> wget_faster_lib::RecursiveConfig {
 
     // Set adjust_extension (-E flag)
     config.adjust_extension = args.adjust_extension;
+
+    // Set rejected_log (--rejected-log)
+    config.rejected_log = args.rejected_log.clone();
+
+    // Set no_directories (-nd/--no-directories)
+    config.no_directories = args.no_directories;
 
     config
 }

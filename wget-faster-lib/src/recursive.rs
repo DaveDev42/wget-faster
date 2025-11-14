@@ -56,6 +56,12 @@ pub struct RecursiveConfig {
 
     /// Spider mode - only check links, don't download files
     pub spider: bool,
+
+    /// Log rejected URLs to a file
+    pub rejected_log: Option<PathBuf>,
+
+    /// Don't create directories (save all files in output directory)
+    pub no_directories: bool,
 }
 
 impl Default for RecursiveConfig {
@@ -77,6 +83,8 @@ impl Default for RecursiveConfig {
             no_parent: false,
             no_host_directories: false,
             spider: false,
+            rejected_log: None,
+            no_directories: false,
         }
     }
 }
@@ -90,6 +98,7 @@ pub struct RecursiveDownloader {
     base_url: Option<String>, // Base URL for no_parent check
     broken_links: Vec<(String, u16)>, // (URL, status_code) for tracking broken links
     link_converter: Option<LinkConverter>, // Link converter for -k flag
+    rejected_urls: Vec<(String, String)>, // (URL, reason) for tracking rejected URLs
 }
 
 impl RecursiveDownloader {
@@ -102,6 +111,7 @@ impl RecursiveDownloader {
             base_url: None,
             broken_links: Vec::new(),
             link_converter: None,
+            rejected_urls: Vec::new(),
         })
     }
 
@@ -146,8 +156,15 @@ impl RecursiveDownloader {
             // Skip if URL doesn't match filters
             // Note: Pass depth to should_download so it can handle --https-only correctly
             // (starting URL is allowed even if HTTP, but extracted links are filtered)
-            if !self.should_download(&url, depth)? {
-                continue;
+            match self.should_download(&url, depth) {
+                Ok(true) => {
+                    // URL passed all filters
+                }
+                Ok(false) => {
+                    // URL was rejected - the reason was already logged
+                    continue;
+                }
+                Err(e) => return Err(e),
             }
 
             // Mark as visited
@@ -191,11 +208,22 @@ impl RecursiveDownloader {
             converter.convert_all_links().await?;
         }
 
+        // Write rejected URLs to log file if configured
+        if let Some(ref log_path) = self.config.rejected_log {
+            if !self.rejected_urls.is_empty() {
+                use tokio::io::AsyncWriteExt;
+                let mut file = tokio::fs::File::create(log_path).await?;
+                for (url, reason) in &self.rejected_urls {
+                    file.write_all(format!("{}: {}\n", url, reason).as_bytes()).await?;
+                }
+            }
+        }
+
         Ok(downloaded_files)
     }
 
     /// Check if URL should be downloaded
-    fn should_download(&self, url: &str, depth: usize) -> Result<bool> {
+    fn should_download(&mut self, url: &str, depth: usize) -> Result<bool> {
         let parsed_url = Url::parse(url)
             .map_err(|e| Error::ConfigError(format!("Invalid URL: {}", e)))?;
 
@@ -204,6 +232,7 @@ impl RecursiveDownloader {
         // This matches GNU wget behavior: you can start with HTTP but only follow HTTPS links
         if self.downloader.get_client().config().https_only && depth > 0 {
             if parsed_url.scheme() != "https" {
+                self.log_rejected_url(url, "Non-HTTPS URL rejected (HTTPS-only mode)");
                 return Ok(false);
             }
         }
@@ -215,11 +244,13 @@ impl RecursiveDownloader {
         // Check domain filters
         if !self.config.accepted_domains.is_empty() {
             if !self.config.accepted_domains.iter().any(|d| domain.contains(d)) {
+                self.log_rejected_url(url, &format!("Domain not in accepted list: {}", domain));
                 return Ok(false);
             }
         }
 
         if self.config.rejected_domains.iter().any(|d| domain.contains(d)) {
+            self.log_rejected_url(url, &format!("Domain in rejected list: {}", domain));
             return Ok(false);
         }
 
@@ -230,11 +261,13 @@ impl RecursiveDownloader {
 
             if !self.config.accept_extensions.is_empty() {
                 if !self.config.accept_extensions.contains(&ext) {
+                    self.log_rejected_url(url, &format!("Extension not in accepted list: {}", ext));
                     return Ok(false);
                 }
             }
 
             if self.config.reject_extensions.contains(&ext) {
+                self.log_rejected_url(url, &format!("Extension in rejected list: {}", ext));
                 return Ok(false);
             }
         }
@@ -242,11 +275,13 @@ impl RecursiveDownloader {
         // Check directory filters
         if !self.config.include_directories.is_empty() {
             if !self.config.include_directories.iter().any(|d| path.contains(d)) {
+                self.log_rejected_url(url, &format!("Directory not in include list: {}", path));
                 return Ok(false);
             }
         }
 
         if self.config.exclude_directories.iter().any(|d| path.contains(d)) {
+            self.log_rejected_url(url, &format!("Directory in exclude list: {}", path));
             return Ok(false);
         }
 
@@ -277,6 +312,7 @@ impl RecursiveDownloader {
 
                     // If current path doesn't start with base directory, it's ascending to parent
                     if !current_path.starts_with(base_dir) {
+                        self.log_rejected_url(url, "Ascends to parent directory (no-parent mode)");
                         return Ok(false);
                     }
                 }
@@ -284,6 +320,13 @@ impl RecursiveDownloader {
         }
 
         Ok(true)
+    }
+
+    /// Log a rejected URL with a reason (if rejected_log is enabled)
+    fn log_rejected_url(&mut self, url: &str, reason: &str) {
+        if self.config.rejected_log.is_some() {
+            self.rejected_urls.push((url.to_string(), reason.to_string()));
+        }
     }
 
     /// Download and save a file (or just check in spider mode)
@@ -337,18 +380,30 @@ impl RecursiveDownloader {
 
         let mut path = output_dir.to_path_buf();
 
-        // Add host directory (unless no_host_directories is set)
-        if !self.config.no_host_directories {
-            if let Some(host) = parsed.host_str() {
-                path.push(host);
-            }
-        }
+        // If no_directories is set, just use the filename without any directory structure
+        if self.config.no_directories {
+            // Extract just the filename from the URL
+            let filename = parsed
+                .path_segments()
+                .and_then(|segments| segments.last())
+                .filter(|name| !name.is_empty())
+                .unwrap_or("index.html");
 
-        // Add path components
-        if let Some(segments) = parsed.path_segments() {
-            for segment in segments {
-                if !segment.is_empty() {
-                    path.push(segment);
+            path.push(filename);
+        } else {
+            // Add host directory (unless no_host_directories is set)
+            if !self.config.no_host_directories {
+                if let Some(host) = parsed.host_str() {
+                    path.push(host);
+                }
+            }
+
+            // Add path components
+            if let Some(segments) = parsed.path_segments() {
+                for segment in segments {
+                    if !segment.is_empty() {
+                        path.push(segment);
+                    }
                 }
             }
         }
