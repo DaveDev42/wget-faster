@@ -221,9 +221,9 @@ fn test_http_method_conversions() {
     assert_eq!(HttpMethod::Patch.as_str(), "PATCH");
     assert_eq!(HttpMethod::Options.as_str(), "OPTIONS");
 
-    assert_eq!(HttpMethod::from_str("GET"), Some(HttpMethod::Get));
-    assert_eq!(HttpMethod::from_str("post"), Some(HttpMethod::Post));
-    assert_eq!(HttpMethod::from_str("INVALID"), None);
+    assert_eq!("GET".parse::<HttpMethod>(), Ok(HttpMethod::Get));
+    assert_eq!("post".parse::<HttpMethod>(), Ok(HttpMethod::Post));
+    assert!("INVALID".parse::<HttpMethod>().is_err());
 }
 
 #[tokio::test]
