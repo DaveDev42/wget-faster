@@ -216,18 +216,22 @@ impl HttpMethod {
             HttpMethod::Options => "OPTIONS",
         }
     }
+}
+
+impl std::str::FromStr for HttpMethod {
+    type Err = String;
 
     /// Parse HTTP method from string (case-insensitive)
-    pub fn from_str(s: &str) -> Option<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
-            "GET" => Some(HttpMethod::Get),
-            "HEAD" => Some(HttpMethod::Head),
-            "POST" => Some(HttpMethod::Post),
-            "PUT" => Some(HttpMethod::Put),
-            "DELETE" => Some(HttpMethod::Delete),
-            "PATCH" => Some(HttpMethod::Patch),
-            "OPTIONS" => Some(HttpMethod::Options),
-            _ => None,
+            "GET" => Ok(HttpMethod::Get),
+            "HEAD" => Ok(HttpMethod::Head),
+            "POST" => Ok(HttpMethod::Post),
+            "PUT" => Ok(HttpMethod::Put),
+            "DELETE" => Ok(HttpMethod::Delete),
+            "PATCH" => Ok(HttpMethod::Patch),
+            "OPTIONS" => Ok(HttpMethod::Options),
+            _ => Err(format!("Invalid HTTP method: {s}")),
         }
     }
 }
@@ -368,19 +372,6 @@ pub enum FilenameRestriction {
 }
 
 impl FilenameRestriction {
-    /// Parse restriction mode from string (case-insensitive)
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "lowercase" => Some(FilenameRestriction::Lowercase),
-            "uppercase" => Some(FilenameRestriction::Uppercase),
-            "nocontrol" => Some(FilenameRestriction::NoControl),
-            "ascii" => Some(FilenameRestriction::Ascii),
-            "unix" => Some(FilenameRestriction::Unix),
-            "windows" => Some(FilenameRestriction::Windows),
-            _ => None,
-        }
-    }
-
     /// Apply this restriction to a filename
     pub fn apply(&self, filename: &str) -> String {
         match self {
@@ -433,6 +424,23 @@ impl FilenameRestriction {
                     })
                     .collect()
             },
+        }
+    }
+}
+
+impl std::str::FromStr for FilenameRestriction {
+    type Err = String;
+
+    /// Parse restriction mode from string (case-insensitive)
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "lowercase" => Ok(FilenameRestriction::Lowercase),
+            "uppercase" => Ok(FilenameRestriction::Uppercase),
+            "nocontrol" => Ok(FilenameRestriction::NoControl),
+            "ascii" => Ok(FilenameRestriction::Ascii),
+            "unix" => Ok(FilenameRestriction::Unix),
+            "windows" => Ok(FilenameRestriction::Windows),
+            _ => Err(format!("Invalid filename restriction: {s}")),
         }
     }
 }

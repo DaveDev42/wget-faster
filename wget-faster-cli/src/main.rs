@@ -455,7 +455,7 @@ fn determine_output_path(
         let mut restrictions = Vec::new();
         for mode in restrict_str.split(',') {
             let mode = mode.trim();
-            if let Some(restriction) = wget_faster_lib::FilenameRestriction::from_str(mode) {
+            if let Ok(restriction) = mode.parse::<wget_faster_lib::FilenameRestriction>() {
                 restrictions.push(restriction);
             }
         }
@@ -686,8 +686,9 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
 
     // Set HTTP method
     if let Some(ref method) = args.method {
-        config.method = wget_faster_lib::HttpMethod::from_str(method)
-            .ok_or_else(|| anyhow!("Invalid HTTP method: {method}"))?;
+        config.method = method
+            .parse::<wget_faster_lib::HttpMethod>()
+            .map_err(|e| anyhow!("{e}"))?;
     }
 
     // Set POST data
@@ -829,10 +830,9 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
         // Parse comma-separated list of restrictions
         for mode in restrict_str.split(',') {
             let mode = mode.trim();
-            if let Some(restriction) = wget_faster_lib::FilenameRestriction::from_str(mode) {
-                config.restrict_file_names.push(restriction);
-            } else {
-                return Err(anyhow!("Invalid restriction mode: {mode}"));
+            match mode.parse::<wget_faster_lib::FilenameRestriction>() {
+                Ok(restriction) => config.restrict_file_names.push(restriction),
+                Err(e) => return Err(anyhow!("{e}")),
             }
         }
     }
