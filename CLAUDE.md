@@ -10,7 +10,7 @@ Context document for AI assistants working with the wget-faster codebase.
 3. **Adaptive Chunking** - Dynamic sizing based on network conditions
 4. **Async I/O** - Non-blocking I/O with tokio
 
-**Status**: v0.0.1 - Core features complete, ~4,250 lines of Rust, 30+ tests
+**Status**: v0.0.4 - Core features complete, ~4,250 lines of Rust, 30+ tests, 36.1% wget test compatibility
 
 ## Project Structure
 
@@ -358,12 +358,20 @@ The analysis script highlights high-impact, low-effort fixes:
 
 See `TODO.md` "Test Failure Analysis" section for latest results.
 
-**Current test status (v0.0.3 - 2025-11-12):**
-- **Pass rate:** 21.3% (36/169 total tests) ⬆️ **+3.5%** from v0.0.2
-  - Perl: 28.7% (25/87 tests) ⬆️ **+5.7%** (+5 tests)
-  - Python: 13.4% (11/82 tests) ⬆️ **+1.2%** (+1 test)
-- **Passing tests:** Basic HTTP downloads, cookies, resume functionality (-c), Content-Disposition (all variants), recursive downloads, spider mode (basic + fail detection), timestamping (-N with all Content-Disposition variants), output handling (-O), meta-robots, filename restrictions (ASCII)
-- **Recent improvements (v0.0.3):**
+**Current test status (v0.0.4 - 2025-11-15):**
+- **Pass rate:** 36.1% (61/169 total tests) ⬆️ **+14.8%** from v0.0.3
+  - Perl: 50.6% (44/87 tests) ⬆️ **+21.9%** (+19 tests)
+  - Python: 20.7% (17/82 tests) ⬆️ **+7.3%** (+6 tests)
+- **Passing tests:** Basic HTTP downloads, cookies, resume functionality (-c), Content-Disposition (all variants), recursive downloads (significantly improved), spider mode (basic + fail detection), timestamping (-N with all Content-Disposition variants), output handling (-O), meta-robots, filename restrictions (ASCII)
+- **Recent improvements (v0.0.4):**
+  - ✅ **HEAD request optimization** - Major refactoring for wget compatibility (+25 tests)
+    - Skip HEAD requests for simple downloads when parallel is disabled
+    - Optimized `is_html_url()` to check extension first (eliminates hundreds of HEAD requests)
+    - Only send HEAD when needed: parallel downloads, timestamping, or uncertain content-type
+  - ✅ **Recursive download improvements** - Massive improvement in recursive crawling
+    - ~50% reduction in HTTP requests during recursive downloads
+    - Better wget compatibility for link extraction
+- **Previous improvements (v0.0.3):**
   - ✅ HTTP 401/407 authentication retry with credentials
   - ✅ .netrc file support for automatic authentication
   - ✅ Exit codes (3 for I/O, 6 for auth, 8 for HTTP errors)
