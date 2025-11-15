@@ -69,6 +69,15 @@ async fn test_recursive_download_single_page() {
         </html>
     "#;
 
+    // Add HEAD request mock (downloader checks metadata first)
+    let head_mock = server
+        .mock("HEAD", "/")
+        .with_status(200)
+        .with_header("content-type", "text/html")
+        .with_header("content-length", &html.len().to_string())
+        .create_async()
+        .await;
+
     let mock = server
         .mock("GET", "/")
         .with_status(200)
@@ -89,6 +98,7 @@ async fn test_recursive_download_single_page() {
     // Should successfully download at least the root page
     assert!(result.is_ok() || result.is_err()); // Accept either result for now
 
+    head_mock.assert_async().await;
     mock.assert_async().await;
 }
 
@@ -227,11 +237,30 @@ async fn test_recursive_with_links() {
         </html>
     "#;
 
+    // Add HEAD request mock for index
+    let index_head_mock = server
+        .mock("HEAD", "/")
+        .with_status(200)
+        .with_header("content-type", "text/html")
+        .with_header("content-length", &index_html.len().to_string())
+        .create_async()
+        .await;
+
     let index_mock = server
         .mock("GET", "/")
         .with_status(200)
         .with_header("content-type", "text/html")
         .with_body(&index_html)
+        .create_async()
+        .await;
+
+    // Add HEAD request mock for page1 (may be called if recursive depth allows)
+    let _page1_head_mock = server
+        .mock("HEAD", "/page1.html")
+        .with_status(200)
+        .with_header("content-type", "text/html")
+        .with_header("content-length", &page1_html.len().to_string())
+        .expect_at_least(0)
         .create_async()
         .await;
 
@@ -254,6 +283,7 @@ async fn test_recursive_with_links() {
     let _result = downloader.download_recursive(&server.url(), temp_dir.path()).await;
 
     // At minimum, the index should be downloaded
+    index_head_mock.assert_async().await;
     index_mock.assert_async().await;
 
     drop(page1_mock);
