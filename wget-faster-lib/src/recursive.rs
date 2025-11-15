@@ -93,11 +93,11 @@ pub struct RecursiveDownloader {
     downloader: Downloader,
     config: RecursiveConfig,
     visited: HashSet<String>,
-    queue: VecDeque<(String, usize)>,      // (URL, depth)
-    base_url: Option<String>,              // Base URL for no_parent check
-    broken_links: Vec<(String, u16)>,      // (URL, status_code) for tracking broken links
+    queue: VecDeque<(String, usize, Option<String>)>, // (URL, depth, parent_url)
+    base_url: Option<String>,                         // Base URL for no_parent check
+    broken_links: Vec<(String, u16)>, // (URL, status_code) for tracking broken links
     link_converter: Option<LinkConverter>, // Link converter for -k flag
-    rejected_urls: Vec<(String, String)>,  // (URL, reason) for tracking rejected URLs
+    rejected_urls: Vec<(String, String, Option<String>)>, // (URL, reason, parent_url) for tracking rejected URLs
     robots_cache: HashMap<String, Option<crate::robots::RobotsTxt>>, // Cache of robots.txt per host (None if not found/failed)
 }
 
@@ -163,12 +163,21 @@ impl RecursiveDownloader {
         // Set base URL for no_parent check
         self.base_url = Some(start_url.to_string());
 
-        // Add starting URL to queue
-        self.queue.push_back((start_url.to_string(), 0));
+        // Add starting URL to queue (no parent URL)
+        self.queue.push_back((start_url.to_string(), 0, None));
 
-        while let Some((url, depth)) = self.queue.pop_front() {
-            // Skip if already visited
+        while let Some((url, depth, parent_url)) = self.queue.pop_front() {
+            // Skip if already visited (log as BLACKLIST - recursive loop)
             if self.visited.contains(&url) {
+                // Log this as a rejection if it has a parent (i.e., it's a link from another page)
+                // This prevents logging the starting URL when it's first queued
+                if parent_url.is_some() {
+                    self.log_rejected_url(
+                        &url,
+                        "Already visited (recursive loop)",
+                        parent_url.as_deref(),
+                    );
+                }
                 continue;
             }
 
@@ -180,7 +189,10 @@ impl RecursiveDownloader {
             // Skip if URL doesn't match filters
             // Note: Pass depth to should_download so it can handle --https-only correctly
             // (starting URL is allowed even if HTTP, but extracted links are filtered)
-            match self.should_download(&url, depth, output_dir).await {
+            match self
+                .should_download(&url, depth, parent_url.as_deref(), output_dir)
+                .await
+            {
                 Ok(true) => {
                     // URL passed all filters
                 },
@@ -218,11 +230,10 @@ impl RecursiveDownloader {
             if should_extract_links {
                 let links = self.extract_links(&file_path, &url).await?;
 
-                // Add links to queue
+                // Add links to queue (with current URL as parent)
+                // Note: We queue ALL links, even if already visited, so we can log them as rejected
                 for link in links {
-                    if !self.visited.contains(&link) {
-                        self.queue.push_back((link, depth + 1));
-                    }
+                    self.queue.push_back((link, depth + 1, Some(url.clone())));
                 }
             }
         }
@@ -237,9 +248,19 @@ impl RecursiveDownloader {
             if !self.rejected_urls.is_empty() {
                 use tokio::io::AsyncWriteExt;
                 let mut file = tokio::fs::File::create(log_path).await?;
-                for (url, reason) in &self.rejected_urls {
-                    file.write_all(format!("{url}: {reason}\n").as_bytes())
-                        .await?;
+
+                // Write CSV header
+                file.write_all(b"REASON\tU_URL\tU_SCHEME\tU_HOST\tU_PORT\tU_PATH\tU_PARAMS\tU_QUERY\tU_FRAGMENT\tP_URL\tP_SCHEME\tP_HOST\tP_PORT\tP_PATH\tP_PARAMS\tP_QUERY\tP_FRAGMENT\n")
+                    .await?;
+
+                // Write rejected URLs in CSV format
+                for (url, reason, parent_url) in &self.rejected_urls {
+                    if let Ok(csv_line) =
+                        self.format_rejected_url_csv(url, reason, parent_url.as_deref())
+                    {
+                        file.write_all(csv_line.as_bytes()).await?;
+                        file.write_all(b"\n").await?;
+                    }
                 }
             }
         }
@@ -306,6 +327,7 @@ impl RecursiveDownloader {
         &mut self,
         url: &str,
         depth: usize,
+        parent_url: Option<&str>,
         output_dir: &Path,
     ) -> Result<bool> {
         let parsed_url =
@@ -318,7 +340,7 @@ impl RecursiveDownloader {
             && depth > 0
             && parsed_url.scheme() != "https"
         {
-            self.log_rejected_url(url, "Non-HTTPS URL rejected (HTTPS-only mode)");
+            self.log_rejected_url(url, "Non-HTTPS URL rejected (HTTPS-only mode)", parent_url);
             return Ok(false);
         }
 
@@ -340,8 +362,25 @@ impl RecursiveDownloader {
                 let user_agent = &self.downloader.get_client().config().user_agent;
 
                 if !robots.is_allowed(path, user_agent) {
-                    self.log_rejected_url(url, "Rejected by robots.txt rules");
+                    self.log_rejected_url(url, "Rejected by robots.txt rules", parent_url);
                     return Ok(false);
+                }
+            }
+        }
+
+        // Check span_hosts (only for extracted links, not starting URL)
+        if !self.config.span_hosts && depth > 0 {
+            // Get the base domain from the starting URL
+            if let Some(ref base_url_str) = self.base_url {
+                if let Ok(base_parsed) = Url::parse(base_url_str) {
+                    if base_parsed.host() != parsed_url.host() {
+                        self.log_rejected_url(
+                            url,
+                            &format!("Domain not in accepted list: {domain}"),
+                            parent_url,
+                        );
+                        return Ok(false);
+                    }
                 }
             }
         }
@@ -354,7 +393,11 @@ impl RecursiveDownloader {
                 .iter()
                 .any(|d| domain.contains(d))
         {
-            self.log_rejected_url(url, &format!("Domain not in accepted list: {domain}"));
+            self.log_rejected_url(
+                url,
+                &format!("Domain not in accepted list: {domain}"),
+                parent_url,
+            );
             return Ok(false);
         }
 
@@ -364,7 +407,7 @@ impl RecursiveDownloader {
             .iter()
             .any(|d| domain.contains(d))
         {
-            self.log_rejected_url(url, &format!("Domain in rejected list: {domain}"));
+            self.log_rejected_url(url, &format!("Domain in rejected list: {domain}"), parent_url);
             return Ok(false);
         }
 
@@ -376,12 +419,20 @@ impl RecursiveDownloader {
             if !self.config.accept_extensions.is_empty()
                 && !self.config.accept_extensions.contains(&ext)
             {
-                self.log_rejected_url(url, &format!("Extension not in accepted list: {ext}"));
+                self.log_rejected_url(
+                    url,
+                    &format!("Extension not in accepted list: {ext}"),
+                    parent_url,
+                );
                 return Ok(false);
             }
 
             if self.config.reject_extensions.contains(&ext) {
-                self.log_rejected_url(url, &format!("Extension in rejected list: {ext}"));
+                self.log_rejected_url(
+                    url,
+                    &format!("Extension in rejected list: {ext}"),
+                    parent_url,
+                );
                 return Ok(false);
             }
         }
@@ -394,7 +445,11 @@ impl RecursiveDownloader {
                 .iter()
                 .any(|d| path.contains(d))
         {
-            self.log_rejected_url(url, &format!("Directory not in include list: {path}"));
+            self.log_rejected_url(
+                url,
+                &format!("Directory not in include list: {path}"),
+                parent_url,
+            );
             return Ok(false);
         }
 
@@ -404,7 +459,7 @@ impl RecursiveDownloader {
             .iter()
             .any(|d| path.contains(d))
         {
-            self.log_rejected_url(url, &format!("Directory in exclude list: {path}"));
+            self.log_rejected_url(url, &format!("Directory in exclude list: {path}"), parent_url);
             return Ok(false);
         }
 
@@ -435,7 +490,11 @@ impl RecursiveDownloader {
 
                     // If current path doesn't start with base directory, it's ascending to parent
                     if !current_path.starts_with(base_dir) {
-                        self.log_rejected_url(url, "Ascends to parent directory (no-parent mode)");
+                        self.log_rejected_url(
+                            url,
+                            "Ascends to parent directory (no-parent mode)",
+                            parent_url,
+                        );
                         return Ok(false);
                     }
                 }
@@ -446,10 +505,13 @@ impl RecursiveDownloader {
     }
 
     /// Log a rejected URL with a reason (if `rejected_log` is enabled)
-    fn log_rejected_url(&mut self, url: &str, reason: &str) {
+    fn log_rejected_url(&mut self, url: &str, reason: &str, parent_url: Option<&str>) {
         if self.config.rejected_log.is_some() {
-            self.rejected_urls
-                .push((url.to_string(), reason.to_string()));
+            self.rejected_urls.push((
+                url.to_string(),
+                reason.to_string(),
+                parent_url.map(|s| s.to_string()),
+            ));
         }
     }
 
@@ -694,21 +756,110 @@ impl RecursiveDownloader {
             .join(relative)
             .map_err(|e| Error::ConfigError(format!("Failed to resolve URL: {e}")))?;
 
-        // Check if we should follow this link
-        if self.config.relative_only {
-            // Only follow if same host
-            if base_url.host() != absolute.host() {
-                return Err(Error::ConfigError("Skipping external link".to_string()));
-            }
-        }
-
-        if !self.config.span_hosts {
-            // Only follow if same host
-            if base_url.host() != absolute.host() {
-                return Err(Error::ConfigError("Skipping external host".to_string()));
-            }
-        }
-
+        // Don't filter based on span_hosts here - let should_download() handle it
+        // so rejected URLs can be logged properly
+        // Just return the resolved URL
         Ok(absolute.to_string())
+    }
+
+    /// Format a rejected URL as a CSV line
+    /// Format: REASON\tU_URL\tU_SCHEME\tU_HOST\tU_PORT\tU_PATH\t...
+    fn format_rejected_url_csv(
+        &self,
+        url: &str,
+        reason: &str,
+        parent_url: Option<&str>,
+    ) -> Result<String> {
+        use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+
+        // Custom encoding set that encodes : but preserves /
+        // This matches wget's CSV format: http%3A//host/path
+        const URL_ENCODE: &AsciiSet = &CONTROLS.add(b':');
+
+        let parsed =
+            Url::parse(url).map_err(|e| Error::ConfigError(format!("Invalid URL: {e}")))?;
+
+        // Map rejection reason to CSV reason code
+        let csv_reason = if reason.contains("robots.txt") {
+            "ROBOTS"
+        } else if reason.contains("Domain in rejected list")
+            || reason.contains("Domain not in accepted list")
+        {
+            "SPANNEDHOST"
+        } else if reason.contains("Extension") || reason.contains("Directory") {
+            "BLACKLIST"
+        } else if reason.contains("parent directory") {
+            "BLACKLIST"
+        } else if reason.contains("Already visited") {
+            "BLACKLIST" // Recursive loops
+        } else {
+            "BLACKLIST" // Default to BLACKLIST for unknown reasons
+        };
+
+        // URL-encode the URLs (encode : to match wget format)
+        let encoded_url = utf8_percent_encode(url, URL_ENCODE).to_string();
+
+        // Get scheme type
+        let scheme = if parsed.scheme() == "https" {
+            "SCHEME_HTTPS"
+        } else if parsed.scheme() == "http" {
+            "SCHEME_HTTP"
+        } else if parsed.scheme() == "ftp" {
+            "SCHEME_FTP"
+        } else {
+            "SCHEME_HTTP" // Default
+        };
+
+        let host = parsed.host_str().unwrap_or("");
+        let port = parsed.port().unwrap_or_else(|| match parsed.scheme() {
+            "https" => 443,
+            "http" => 80,
+            "ftp" => 21,
+            _ => 80,
+        });
+        let path = parsed.path().trim_start_matches('/');
+        let query = parsed.query().unwrap_or("");
+        let fragment = parsed.fragment().unwrap_or("");
+
+        // Format parent URL columns if parent_url is provided
+        let parent_cols = if let Some(p_url) = parent_url {
+            if let Ok(p_parsed) = Url::parse(p_url) {
+                let p_encoded = utf8_percent_encode(p_url, URL_ENCODE).to_string();
+                let p_scheme = if p_parsed.scheme() == "https" {
+                    "SCHEME_HTTPS"
+                } else if p_parsed.scheme() == "http" {
+                    "SCHEME_HTTP"
+                } else if p_parsed.scheme() == "ftp" {
+                    "SCHEME_FTP"
+                } else {
+                    "SCHEME_HTTP"
+                };
+                let p_host = p_parsed.host_str().unwrap_or("");
+                let p_port = p_parsed.port().unwrap_or_else(|| match p_parsed.scheme() {
+                    "https" => 443,
+                    "http" => 80,
+                    "ftp" => 21,
+                    _ => 80,
+                });
+                let p_path = p_parsed.path().trim_start_matches('/');
+                let p_query = p_parsed.query().unwrap_or("");
+                let p_fragment = p_parsed.fragment().unwrap_or("");
+
+                format!(
+                    "{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
+                    p_encoded, p_scheme, p_host, p_port, p_path, p_query, p_fragment
+                )
+            } else {
+                "\t\t\t\t\t\t\t".to_string()
+            }
+        } else {
+            "\t\t\t\t\t\t\t".to_string()
+        };
+
+        // Format CSV line (tab-separated)
+        Ok(format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
+            csv_reason, encoded_url, scheme, host, port, path, query, fragment, parent_cols
+        ))
     }
 }

@@ -88,6 +88,12 @@ pub fn should_create_file(status_code: u16, downloaded_bytes: u64, resumed_from:
         return false;
     }
 
+    // Don't delete file for 304 Not Modified (file already up to date)
+    // Even if downloaded_bytes is 0, the file should be kept
+    if status_code == 304 {
+        return true;
+    }
+
     // Don't create empty files unless we're resuming
     if downloaded_bytes == 0 && resumed_from == 0 {
         return false;

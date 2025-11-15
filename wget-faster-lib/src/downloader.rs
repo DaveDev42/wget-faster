@@ -363,101 +363,118 @@ impl Downloader {
         path: PathBuf,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<DownloadResult> {
-        // Get metadata first
-        // If timestamping is enabled and file exists, use If-Modified-Since header
-        let (metadata, if_modified_since) = if self.client.config().timestamping && path.exists() {
-            // Get local file modification time
-            let local_metadata = tokio::fs::metadata(&path).await?;
-            let local_time = local_metadata.modified()?;
+        // In timestamping mode (-N), skip HEAD request and go directly to GET with If-Modified-Since
+        // This matches GNU wget behavior and ensures test compatibility
+        let skip_head = self.client.config().timestamping;
 
-            // Fetch metadata with If-Modified-Since header
-            (
-                self.client
-                    .get_metadata_conditional(url, Some(local_time))
-                    .await?,
-                Some(local_time),
-            )
+        // Get metadata first (unless in timestamping mode)
+        // If timestamping is enabled, use GET with If-Modified-Since header instead of HEAD
+        let (metadata, if_modified_since) = if skip_head {
+            // Timestamping mode: skip HEAD, use GET with If-Modified-Since directly
+            // Create dummy metadata for now - actual metadata will come from GET request
+            let dummy_metadata = crate::client::ResourceMetadata {
+                content_length: None,
+                content_type: None,
+                supports_range: false,
+                status_code: 200, // Assume success, will be validated in GET
+                last_modified: None,
+                etag: None,
+                content_disposition: None,
+                headers: reqwest::header::HeaderMap::new(),
+            };
+
+            let if_modified_since_time = if path.exists() {
+                let local_metadata = tokio::fs::metadata(&path).await?;
+                Some(local_metadata.modified()?)
+            } else {
+                None
+            };
+
+            (dummy_metadata, if_modified_since_time)
         } else {
-            // Normal metadata fetch without If-Modified-Since
+            // Normal mode: use HEAD request to get metadata
             (self.client.get_metadata(url).await?, None)
         };
 
-        // Print server response if requested
-        if self.client.config().print_server_response {
+        // Print server response if requested (skip in timestamping mode since we haven't made request yet)
+        if !skip_head && self.client.config().print_server_response {
             eprintln!("{}", metadata.format_headers());
         }
 
-        // Handle special status codes from HEAD request
-        use crate::response_handler::ResponseStatus;
-        let response_status = ResponseStatus::from_status_code(metadata.status_code);
+        // Handle special status codes from HEAD request (skip in timestamping mode)
+        if !skip_head {
+            use crate::response_handler::ResponseStatus;
+            let response_status = ResponseStatus::from_status_code(metadata.status_code);
 
-        match response_status {
-            ResponseStatus::NoContent => {
-                tracing::info!("HTTP 204 No Content - skipping file creation");
-                return Ok(DownloadResult {
-                    data: DownloadedData::new_memory(Bytes::new()),
-                    url: url.to_string(),
-                    metadata,
-                });
-            },
-            ResponseStatus::NotModified => {
-                tracing::info!(path = %path.display(), "HTTP 304 Not Modified - file is up to date");
-                // If file exists, return it as-is
-                if path.exists() {
-                    let local_metadata = tokio::fs::metadata(&path).await?;
-                    let local_size = local_metadata.len();
+            match response_status {
+                ResponseStatus::NoContent => {
+                    tracing::info!("HTTP 204 No Content - skipping file creation");
                     return Ok(DownloadResult {
-                        data: DownloadedData::new_file(path.clone(), local_size, false),
+                        data: DownloadedData::new_memory(Bytes::new()),
                         url: url.to_string(),
                         metadata,
                     });
-                }
-                // If file doesn't exist, treat as success with empty result
-                tracing::warn!("HTTP 304 but file doesn't exist - returning empty result");
-                return Ok(DownloadResult {
-                    data: DownloadedData::new_memory(Bytes::new()),
-                    url: url.to_string(),
-                    metadata,
-                });
-            },
-            ResponseStatus::RangeNotSatisfiable => {
-                tracing::info!(path = %path.display(), "HTTP 416 Range Not Satisfiable - file already complete");
-                // If file exists, return it as-is (already complete)
-                if path.exists() {
-                    let local_metadata = tokio::fs::metadata(&path).await?;
-                    let local_size = local_metadata.len();
+                },
+                ResponseStatus::NotModified => {
+                    tracing::info!(path = %path.display(), "HTTP 304 Not Modified - file is up to date");
+                    // If file exists, return it as-is
+                    if path.exists() {
+                        let local_metadata = tokio::fs::metadata(&path).await?;
+                        let local_size = local_metadata.len();
+                        return Ok(DownloadResult {
+                            data: DownloadedData::new_file(path.clone(), local_size, false),
+                            url: url.to_string(),
+                            metadata,
+                        });
+                    }
+                    // If file doesn't exist, treat as success with empty result
+                    tracing::warn!("HTTP 304 but file doesn't exist - returning empty result");
                     return Ok(DownloadResult {
-                        data: DownloadedData::new_file(path.clone(), local_size, false),
+                        data: DownloadedData::new_memory(Bytes::new()),
                         url: url.to_string(),
                         metadata,
                     });
-                }
-                // If file doesn't exist, this is an error
-                tracing::error!("HTTP 416 but file doesn't exist - this is an error");
-                return Err(Error::InvalidStatus(416));
-            },
-            ResponseStatus::ClientError | ResponseStatus::ServerError => {
-                // Check content_on_error setting
-                // If false, return error immediately (don't create file)
-                // Otherwise continue to GET which will handle them properly
-                if !self.client.config().content_on_error {
+                },
+                ResponseStatus::RangeNotSatisfiable => {
+                    tracing::info!(path = %path.display(), "HTTP 416 Range Not Satisfiable - file already complete");
+                    // If file exists, return it as-is (already complete)
+                    if path.exists() {
+                        let local_metadata = tokio::fs::metadata(&path).await?;
+                        let local_size = local_metadata.len();
+                        return Ok(DownloadResult {
+                            data: DownloadedData::new_file(path.clone(), local_size, false),
+                            url: url.to_string(),
+                            metadata,
+                        });
+                    }
+                    // If file doesn't exist, this is an error
+                    tracing::error!("HTTP 416 but file doesn't exist - this is an error");
+                    return Err(Error::InvalidStatus(416));
+                },
+                ResponseStatus::ClientError | ResponseStatus::ServerError => {
+                    // Check content_on_error setting
+                    // If false, return error immediately (don't create file)
+                    // Otherwise continue to GET which will handle them properly
+                    if !self.client.config().content_on_error {
+                        return Err(Error::InvalidStatus(metadata.status_code));
+                    }
+                    // Continue to GET request to download error page
+                },
+                ResponseStatus::AuthChallenge => {
+                    // Auth challenges should have been handled in get_metadata
+                    // If we're here, auth failed
                     return Err(Error::InvalidStatus(metadata.status_code));
-                }
-                // Continue to GET request to download error page
-            },
-            ResponseStatus::AuthChallenge => {
-                // Auth challenges should have been handled in get_metadata
-                // If we're here, auth failed
-                return Err(Error::InvalidStatus(metadata.status_code));
-            },
-            _ => {
-                // Success or other - continue normally
-            },
+                },
+                _ => {
+                    // Success or other - continue normally
+                },
+            }
         }
 
         // Check timestamping - skip if local file is newer or delete if we need to re-download
+        // In skip_head mode, this check will be done after GET request in download_sequential_to_writer
         let mut should_delete_existing = false;
-        if self.client.config().timestamping {
+        if !skip_head && self.client.config().timestamping {
             tracing::debug!(path = %path.display(), "Timestamping enabled - checking local vs remote timestamps");
 
             let (action, result_data) =
@@ -493,7 +510,12 @@ impl Downloader {
 
         // Check if file exists for resume
         // If --start-pos is specified, it overrides automatic resume from file size
-        let resume_from = if let Some(start_pos) = self.client.config().start_pos {
+        // IMPORTANT: When timestamping (-N) is enabled, don't resume - do conditional GET instead
+        let resume_from = if self.client.config().timestamping {
+            // Timestamping mode: always start from 0 and use If-Modified-Since header
+            tracing::debug!("Timestamping enabled - skipping resume, will use conditional GET");
+            0
+        } else if let Some(start_pos) = self.client.config().start_pos {
             tracing::debug!(start_pos, "Using --start-pos for resume");
             start_pos
         } else if path.exists() {
@@ -509,6 +531,7 @@ impl Downloader {
         // Create or open file
         // When --start-pos is used, always create a new file (even if resume_from > 0)
         // because the file numbering logic will have created a new numbered file
+        // IMPORTANT: In timestamping mode, don't truncate existing files - we might get a 304
         let mut file = if resume_from > 0 && self.client.config().start_pos.is_none() {
             // Resume mode: append to existing file
             tokio::fs::OpenOptions::new()
@@ -516,8 +539,17 @@ impl Downloader {
                 .append(true)
                 .open(&path)
                 .await?
+        } else if self.client.config().timestamping && path.exists() {
+            // Timestamping mode with existing file: open for writing WITHOUT truncating
+            // If we get a 304, we'll keep the existing file as-is
+            // If we get a 200, we'll truncate and write new content
+            tokio::fs::OpenOptions::new()
+                .write(true)
+                .truncate(false)
+                .open(&path)
+                .await?
         } else {
-            // Normal mode or --start-pos mode: create new file
+            // Normal mode or --start-pos mode or timestamping without existing file: create new file
             File::create(&path).await?
         };
 
@@ -568,11 +600,14 @@ impl Downloader {
 
         // Check if we should create/keep the file
         // Remove empty files for 204 No Content or 0 bytes without resume
-        if !crate::response_handler::should_create_file(
-            metadata.status_code,
-            total_bytes,
-            resume_from,
-        ) {
+        // Skip this check in timestamping mode - file handling is done in download_sequential_to_writer
+        if !skip_head
+            && !crate::response_handler::should_create_file(
+                metadata.status_code,
+                total_bytes,
+                resume_from,
+            )
+        {
             tracing::info!(path = %path.display(), "Removing empty file (should not create)");
             // Drop the file handle before deleting
             drop(file);
@@ -603,8 +638,15 @@ impl Downloader {
             )?;
         }
 
+        // In timestamping mode, if we got 0 bytes (304 Not Modified), use the existing file size
+        let final_size = if skip_head && total_bytes == 0 && path.exists() {
+            tokio::fs::metadata(&path).await?.len()
+        } else {
+            total_bytes
+        };
+
         Ok(DownloadResult {
-            data: DownloadedData::new_file(path, total_bytes, resume_from > 0),
+            data: DownloadedData::new_file(path, final_size, resume_from > 0),
             url: url.to_string(),
             metadata,
         })
@@ -887,6 +929,16 @@ impl Downloader {
                 // 204 No Content - don't create file
                 return Ok(0);
             },
+            ResponseStatus::NotModified => {
+                // 304 Not Modified - file is already up to date
+                // In timestamping mode, the file should already exist - return its size
+                tracing::info!("HTTP 304 Not Modified on GET - file is up to date");
+                // Close the writer without writing anything
+                writer.flush().await?;
+                // Return 0 to indicate no new bytes were downloaded
+                // The caller will handle keeping the existing file
+                return Ok(0);
+            },
             ResponseStatus::RangeNotSatisfiable => {
                 // 416 Range Not Satisfiable - file is already complete
                 return Ok(resume_from);
@@ -933,6 +985,11 @@ impl Downloader {
             ResponseStatus::NoContent => {
                 // 204 No Content - don't create file
                 return Ok(0);
+            },
+            ResponseStatus::NotModified => {
+                // 304 Not Modified - file is already up to date
+                tracing::info!("HTTP 304 Not Modified - file is up to date");
+                return Ok(resume_from);
             },
             ResponseStatus::RangeNotSatisfiable => {
                 // 416 Range Not Satisfiable - file is already complete

@@ -197,22 +197,71 @@ async fn main() {
             }
         }
 
-        match download_url(&downloader, url, &args).await {
-            Ok(bytes) => {
-                total_downloaded += bytes;
-            },
-            Err(e) => {
-                eprintln!("wgetf: {e}");
+        // Retry loop for 5xx errors and other transient failures
+        let mut attempt = 0;
+        let max_tries = downloader.get_client().config().retry.max_retries;
 
-                // Get exit code from error - check if it's a library error first
-                if let Some(lib_err) = e.downcast_ref::<wget_faster_lib::Error>() {
-                    // Use wget-compatible exit code from library error
-                    exit_code = lib_err.exit_code();
-                } else {
-                    // For other errors, use generic exit code 1
-                    exit_code = 1;
-                }
-            },
+        loop {
+            attempt += 1;
+
+            match download_url(&downloader, url, &args).await {
+                Ok(bytes) => {
+                    total_downloaded += bytes;
+                    break;
+                },
+                Err(e) => {
+                    // Check if error is retryable
+                    let should_retry =
+                        if let Some(lib_err) = e.downcast_ref::<wget_faster_lib::Error>() {
+                            // Check if this is a retryable status code
+                            if let wget_faster_lib::Error::InvalidStatus(status) = lib_err {
+                                downloader
+                                    .get_client()
+                                    .config()
+                                    .retry
+                                    .retry_on_status
+                                    .contains(status)
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        };
+
+                    if should_retry && attempt < max_tries {
+                        // Calculate backoff delay
+                        let retry_config = &downloader.get_client().config().retry;
+                        let delay = retry_config.initial_delay.as_secs_f64()
+                            * retry_config.backoff_multiplier.powi((attempt - 1) as i32);
+                        let delay = Duration::from_secs_f64(
+                            delay.min(retry_config.max_delay.as_secs_f64()),
+                        );
+
+                        eprintln!(
+                            "wgetf: retrying in {} seconds... (attempt {}/{})",
+                            delay.as_secs(),
+                            attempt,
+                            max_tries
+                        );
+
+                        tokio::time::sleep(delay).await;
+                        continue;
+                    }
+
+                    // Not retryable or max retries reached
+                    eprintln!("wgetf: {e}");
+
+                    // Get exit code from error - check if it's a library error first
+                    if let Some(lib_err) = e.downcast_ref::<wget_faster_lib::Error>() {
+                        // Use wget-compatible exit code from library error
+                        exit_code = lib_err.exit_code();
+                    } else {
+                        // For other errors, use generic exit code 1
+                        exit_code = 1;
+                    }
+                    break;
+                },
+            }
         }
     }
 
