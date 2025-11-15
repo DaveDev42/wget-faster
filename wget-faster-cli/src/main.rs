@@ -13,6 +13,19 @@ use percent_encoding;
 
 #[tokio::main]
 async fn main() {
+    // Initialize tracing subscriber for structured logging
+    // Use RUST_LOG environment variable to control log level
+    // Example: RUST_LOG=debug wgetf https://example.com
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn"))
+        )
+        .with_target(false) // Don't print module paths
+        .with_thread_ids(false) // Don't print thread IDs
+        .with_line_number(true) // Show line numbers for debugging
+        .init();
+
     // Pre-process arguments to handle wget-style multi-character short flags
     // GNU wget supports flags like -nH (no-host-directories) and -np (no-parent)
     // which clap doesn't support natively

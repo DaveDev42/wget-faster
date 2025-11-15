@@ -191,8 +191,16 @@ impl Downloader {
         url: &str,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Bytes> {
+        tracing::debug!(url = %url, "Starting download to memory");
+
         // Get metadata
         let metadata = self.client.get_metadata(url).await?;
+        tracing::debug!(
+            status_code = metadata.status_code,
+            content_length = ?metadata.content_length,
+            supports_range = metadata.supports_range,
+            "Received metadata from HEAD request"
+        );
 
         // Print server response if requested
         if self.client.config().print_server_response {
@@ -211,6 +219,12 @@ impl Downloader {
             if let Some(total_size) = metadata.content_length {
                 if total_size > self.client.config().parallel_threshold {
                     // Use parallel for files > threshold
+                    tracing::info!(
+                        total_size,
+                        threshold = self.client.config().parallel_threshold,
+                        chunks = self.client.config().parallel_chunks,
+                        "Using parallel download (file size exceeds threshold)"
+                    );
                     return parallel::download_parallel(
                         &self.client,
                         url,
@@ -218,8 +232,18 @@ impl Downloader {
                         progress_callback,
                     )
                     .await;
+                } else {
+                    tracing::debug!(
+                        total_size,
+                        threshold = self.client.config().parallel_threshold,
+                        "Using sequential download (file size below threshold)"
+                    );
                 }
+            } else {
+                tracing::debug!("Using sequential download (no content length)");
             }
+        } else {
+            tracing::debug!("Using sequential download (server doesn't support Range requests)");
         }
 
         // Fall back to sequential download
@@ -341,6 +365,7 @@ impl Downloader {
         match metadata.status_code {
             // 204 No Content - success but no body, don't create file
             204 => {
+                tracing::info!("HTTP 204 No Content - skipping file creation");
                 return Ok(DownloadResult {
                     data: DownloadedData::new_memory(Bytes::new()),
                     url: url.to_string(),
@@ -349,6 +374,7 @@ impl Downloader {
             }
             // 304 Not Modified - file is already up to date
             304 => {
+                tracing::info!(path = %path.display(), "HTTP 304 Not Modified - file is up to date");
                 // If file exists, return it as-is
                 if path.exists() {
                     let local_metadata = tokio::fs::metadata(&path).await?;
@@ -360,6 +386,7 @@ impl Downloader {
                     });
                 }
                 // If file doesn't exist, treat as success with empty result
+                tracing::warn!("HTTP 304 but file doesn't exist - returning empty result");
                 return Ok(DownloadResult {
                     data: DownloadedData::new_memory(Bytes::new()),
                     url: url.to_string(),
@@ -368,6 +395,7 @@ impl Downloader {
             }
             // 416 Range Not Satisfiable - file is already complete
             416 => {
+                tracing::info!(path = %path.display(), "HTTP 416 Range Not Satisfiable - file already complete");
                 // If file exists, return it as-is (already complete)
                 if path.exists() {
                     let local_metadata = tokio::fs::metadata(&path).await?;
@@ -379,6 +407,7 @@ impl Downloader {
                     });
                 }
                 // If file doesn't exist, this is an error
+                tracing::error!("HTTP 416 but file doesn't exist - this is an error");
                 return Err(Error::InvalidStatus(416));
             }
             // For other status codes 4xx and 5xx, check content_on_error setting
@@ -399,6 +428,7 @@ impl Downloader {
         // Check timestamping - skip if local file is newer or delete if we need to re-download
         let mut should_delete_existing = false;
         if self.client.config().timestamping && path.exists() {
+            tracing::debug!(path = %path.display(), "Timestamping enabled - checking local vs remote timestamps");
             let local_metadata = tokio::fs::metadata(&path).await?;
             let local_size = local_metadata.len();
             let local_time = local_metadata.modified()?;
@@ -406,12 +436,22 @@ impl Downloader {
             if let Some(ref remote_modified) = metadata.last_modified {
                 // Parse remote Last-Modified header (RFC 2822 or RFC 3339 format)
                 if let Ok(remote_time) = httpdate::parse_http_date(remote_modified) {
+                    tracing::debug!(
+                        local_time = ?local_time,
+                        remote_time = ?remote_time,
+                        local_size,
+                        remote_size = ?metadata.content_length,
+                        "Comparing timestamps"
+                    );
+
                     // Check if local file is older than remote (need to download)
                     if local_time < remote_time {
                         // Local file is older, delete and re-download
+                        tracing::info!("Local file is older than remote - will re-download");
                         should_delete_existing = true;
                     } else if local_time > remote_time {
                         // Local file is newer, skip download
+                        tracing::info!("Local file is newer than remote - skipping download");
                         return Ok(DownloadResult {
                             data: DownloadedData::new_file(path.clone(), local_size, false),
                             url: url.to_string(),
@@ -419,9 +459,11 @@ impl Downloader {
                         });
                     } else {
                         // Same timestamp - check file size
+                        tracing::debug!("Same timestamp - checking file size");
                         if let Some(remote_size) = metadata.content_length {
                             if local_size == remote_size {
                                 // Same timestamp and size, skip download
+                                tracing::info!("Same timestamp and size - skipping download");
                                 return Ok(DownloadResult {
                                     data: DownloadedData::new_file(path.clone(), local_size, false),
                                     url: url.to_string(),
@@ -429,9 +471,11 @@ impl Downloader {
                                 });
                             }
                             // Same timestamp but different size - delete and re-download
+                            tracing::info!("Same timestamp but different size - will re-download");
                             should_delete_existing = true;
                         } else {
                             // No remote size info, skip download (same timestamp)
+                            tracing::info!("Same timestamp, no remote size - skipping download");
                             return Ok(DownloadResult {
                                 data: DownloadedData::new_file(path.clone(), local_size, false),
                                 url: url.to_string(),
@@ -439,25 +483,34 @@ impl Downloader {
                             });
                         }
                     }
+                } else {
+                    tracing::warn!(last_modified = %remote_modified, "Failed to parse Last-Modified header");
                 }
             } else {
                 // No Last-Modified header from server
                 // wget behavior: download the file (server doesn't provide timestamp info)
+                tracing::info!("No Last-Modified header from server - will download");
                 should_delete_existing = true;
             }
         }
 
         // Delete existing file if timestamping determined we need to re-download
         if should_delete_existing && path.exists() {
+            tracing::info!(path = %path.display(), "Deleting existing file for re-download");
             tokio::fs::remove_file(&path).await?;
         }
 
         // Check if file exists for resume
         // If --start-pos is specified, it overrides automatic resume from file size
         let resume_from = if let Some(start_pos) = self.client.config().start_pos {
+            tracing::debug!(start_pos, "Using --start-pos for resume");
             start_pos
         } else if path.exists() {
-            tokio::fs::metadata(&path).await?.len()
+            let size = tokio::fs::metadata(&path).await?.len();
+            if size > 0 {
+                tracing::info!(path = %path.display(), existing_size = size, "Resuming download from existing file");
+            }
+            size
         } else {
             0
         };
@@ -507,12 +560,14 @@ impl Downloader {
         // If 204 No Content or no bytes downloaded, remove the empty file
         // This matches wget behavior: don't create files for 204 responses
         if total_bytes == 0 && resume_from == 0 {
+            tracing::info!(path = %path.display(), "Removing empty file (0 bytes downloaded)");
             // Drop the file handle before deleting
             drop(file);
 
             // Remove the empty file
             if let Err(e) = tokio::fs::remove_file(&path).await {
                 // Log error but don't fail if file doesn't exist
+                tracing::warn!(path = %path.display(), error = %e, "Failed to remove empty file");
                 if self.client.config().verbose {
                     eprintln!("Warning: Failed to remove empty file: {}", e);
                 }
@@ -530,16 +585,26 @@ impl Downloader {
         if self.client.config().use_server_timestamps {
             if let Some(ref last_modified_str) = metadata.last_modified {
                 if let Ok(remote_time) = httpdate::parse_http_date(last_modified_str) {
+                    tracing::debug!(
+                        path = %path.display(),
+                        remote_time = ?remote_time,
+                        "Setting file modification time to server timestamp"
+                    );
                     // Convert SystemTime to FileTime for setting the modification time
                     let file_time = filetime::FileTime::from_system_time(remote_time);
                     // Set the file modification time (atime is set to current time, mtime to server time)
                     if let Err(e) = filetime::set_file_mtime(&path, file_time) {
                         // Log error but don't fail the download
+                        tracing::warn!(path = %path.display(), error = %e, "Failed to set file modification time");
                         if self.client.config().verbose {
                             eprintln!("Warning: Failed to set file modification time: {}", e);
                         }
                     }
+                } else {
+                    tracing::warn!(last_modified = %last_modified_str, "Failed to parse Last-Modified for setting file time");
                 }
+            } else {
+                tracing::debug!("No Last-Modified header - skipping file timestamp setting");
             }
         }
 
@@ -630,25 +695,37 @@ impl Downloader {
         url: &str,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Bytes> {
+        tracing::debug!(url = %url, "Starting sequential download");
         let request = self.build_request(url, None, None)?;
         let response = request.send().await?;
 
         let status_code = response.status().as_u16();
+        tracing::debug!(status_code, "Received response from GET request");
 
         // Handle authentication challenges (401/407)
         // If we have credentials but didn't send them preemptively, retry with auth
         if (status_code == 401 || status_code == 407) && !self.client.config().auth_no_challenge {
+            tracing::info!(status_code, "Authentication challenge received - retrying with credentials");
+
             // Try configured auth first, then .netrc
             let auth = if let Some(ref auth) = self.client.config().auth {
+                tracing::debug!("Using configured auth credentials");
                 Some(auth.clone())
             } else {
+                tracing::debug!("No configured auth - trying .netrc file");
                 // Try .netrc file
                 match crate::netrc::Netrc::from_default_location() {
                     Ok(Some(netrc)) => {
                         // Extract hostname from URL
                         if let Ok(parsed) = url::Url::parse(url) {
                             if let Some(host) = parsed.host_str() {
-                                netrc.get(host)
+                                if let Some(entry) = netrc.get(host) {
+                                    tracing::debug!(host = %host, "Found .netrc entry for host");
+                                    Some(entry)
+                                } else {
+                                    tracing::debug!(host = %host, "No .netrc entry found for host");
+                                    None
+                                }
                             } else {
                                 None
                             }
@@ -656,27 +733,39 @@ impl Downloader {
                             None
                         }
                     }
-                    _ => None,
+                    Ok(None) => {
+                        tracing::debug!("No .netrc file found");
+                        None
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to read .netrc file");
+                        None
+                    }
                 }
             };
 
             if let Some(auth) = auth {
+                tracing::debug!(username = %auth.username, "Retrying with authentication");
                 // Retry with authentication
                 let retry_request = self.client.client().get(url)
                     .basic_auth(&auth.username, Some(&auth.password));
 
                 let retry_response = retry_request.send().await?;
                 let retry_status = retry_response.status().as_u16();
+                tracing::debug!(retry_status, "Received retry response with auth");
 
                 // If still unauthorized, return error
                 if retry_status == 401 || retry_status == 407 {
+                    tracing::error!(retry_status, "Authentication failed even with credentials");
                     return Err(Error::InvalidStatus(retry_status));
                 }
 
                 // Success! Continue with retry_response
+                tracing::info!("Authentication successful");
                 return self.process_sequential_response(retry_response, url, progress_callback).await;
             } else {
                 // No credentials available
+                tracing::warn!("No credentials available for authentication");
                 return Err(Error::InvalidStatus(status_code));
             }
         }
