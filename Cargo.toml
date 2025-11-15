@@ -52,11 +52,11 @@ repository = "https://github.com/wget-faster/wget-faster"
 
 [workspace.dependencies]
 # Async runtime
-tokio = { version = "1.42", features = ["full"] }
+tokio = { version = "1.48", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 
 # HTTP client
-reqwest = { version = "0.12", features = ["stream", "rustls-tls", "cookies"], default-features = false }
+reqwest = { version = "0.12.24", features = ["stream", "rustls-tls", "cookies"], default-features = false }
 http = "1.1"
 hyper = "1.5"
 
@@ -71,7 +71,7 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 # CLI and configuration
-clap = { version = "4.5", features = ["derive", "cargo", "wrap_help"] }
+clap = { version = "4.5.51", features = ["derive", "cargo", "wrap_help"] }
 clap_complete = "4.5"
 
 # Progress and output
