@@ -150,6 +150,7 @@ pub enum Output {
 - ✅ Spider mode (`--spider`)
 - ✅ Input files (`-i`, `-F`)
 - ✅ .netrc authentication (automatic credentials)
+- ✅ `--no-parallel` - Disable parallel downloads for full GNU wget compatibility
 
 ### Not Yet Implemented
 - ❌ HTTP/3 (QUIC) - planned v0.1.0
@@ -191,6 +192,34 @@ tracing::debug!("Chunk {}/{}: {} bytes", chunk_num, total, bytes);
 - Server lacks Range support → Check `Accept-Ranges` header
 - File too small → Check `parallel_threshold` (default 10MB)
 - Slow performance → Increase chunk count or check network latency
+
+### Parallel Downloads vs GNU wget Compatibility
+
+**Default behavior:**
+- wget-faster sends HEAD requests before downloads to check file size and Range support
+- Enables automatic parallel downloading for files ≥10MB
+- Provides 3-8x performance improvement for large files
+
+**GNU wget compatibility mode (`--no-parallel`):**
+- Disables parallel downloads completely
+- Skips HEAD requests (matches GNU wget behavior)
+- Use when strict wget compatibility is needed (e.g., testing, scripts expecting exact wget behavior)
+
+**Implementation details:**
+- `--no-parallel` sets `parallel_chunks=1` and `parallel_threshold=0`
+- This triggers skip_head logic in downloader.rs
+- HEAD requests are only sent when actually needed (timestamping, uncertain content-type)
+
+**Example usage:**
+```bash
+# Default (parallel mode)
+wgetf https://example.com/large-file.zip
+# Sends: HEAD → GET (if file ≥10MB, uses Range requests)
+
+# GNU wget compatible mode
+wgetf --no-parallel https://example.com/large-file.zip
+# Sends: GET only (no HEAD, sequential download)
+```
 
 ### Adding HTTP/3 Support (Future)
 
@@ -371,6 +400,10 @@ See `TODO.md` "Test Failure Analysis" section for latest results.
   - ✅ **Recursive download improvements** - Massive improvement in recursive crawling
     - ~50% reduction in HTTP requests during recursive downloads
     - Better wget compatibility for link extraction
+  - ✅ **`--no-parallel` option** - GNU wget compatibility mode
+    - Disables parallel downloads and HEAD requests
+    - Ensures wget-faster behaves exactly like GNU wget when needed
+    - Useful for testing and scripts expecting exact wget behavior
 - **Previous improvements (v0.0.3):**
   - ✅ HTTP 401/407 authentication retry with credentials
   - ✅ .netrc file support for automatic authentication
