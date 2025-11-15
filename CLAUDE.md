@@ -275,6 +275,89 @@ ls -t test_results_*.json | head -1 | xargs cat
 cat reports/report_$(ls -t reports/ | grep report | head -1)
 ```
 
+### Test Failure Analysis Workflow
+
+**After running tests, analyze and document failures:**
+
+```bash
+# 1. Run tests and get results
+cd ../wget-faster-test
+./run_tests.sh --wget-faster $(which wgetf) -v
+
+# 2. Analyze failures and generate documentation
+cd ../wget-faster
+python3 scripts/analyze_tests.py ../wget-faster-test/reports/test_results_*.json
+
+# 3. Review generated documentation
+ls todo/               # Individual test failure docs
+cat todo/README.md     # Category summary and index
+
+# 4. Investigate specific test
+# Open todo/${test_name}.md and add implementation notes
+# Example: todo/Test-condget_py.md
+
+# 5. After fixing issues, re-run tests and update analysis
+cd ../wget-faster-test
+./run_tests.sh --wget-faster $(which wgetf) -v
+cd ../wget-faster
+python3 scripts/analyze_tests.py ../wget-faster-test/reports/test_results_*.json
+```
+
+**Test documentation structure:**
+
+```
+wget-faster/
+├── scripts/
+│   └── analyze_tests.py      # Test analysis script
+├── todo/
+│   ├── README.md              # Index of all failed tests by category
+│   ├── Test-*.md              # Individual test documentation
+│   └── ...                    # One file per failed test
+└── TODO.md                    # Links to todo/README.md
+```
+
+**Analysis script features:**
+
+1. **Automatic categorization** - Groups failures by type:
+   - `missing_feature_metalink` - Metalink not implemented (32 tests)
+   - `missing_feature_ftp` - FTP not implemented (14 tests)
+   - `skipped_ssl_tls` - Advanced SSL/TLS features (10 tests)
+   - `test_framework_missing_file` - Expected files not created (7 tests)
+   - `test_framework_content_mismatch` - Content doesn't match (6 tests)
+   - `test_framework_crawl_mismatch` - Files crawled incorrectly (5 tests)
+   - `timeout` - Tests timing out (3 tests)
+   - `unknown` - Needs manual investigation
+
+2. **Detailed documentation** - Each test file includes:
+   - Test description and metadata
+   - Full error messages and output
+   - Automatic analysis of likely causes
+   - Suggested investigation steps
+   - Space for implementation notes
+
+3. **Progress tracking** - Update documentation as you fix issues:
+   ```markdown
+   ## Implementation Notes
+
+   **2025-11-15**: Investigated conditional GET logic
+   - HEAD returns 304 correctly
+   - Issue: GET request still sent after 304
+   - Need to add early return in downloader.rs:350
+
+   **2025-11-16**: Fixed
+   - Added early return when HEAD returns 304
+   - Test now passing
+   ```
+
+**Quick win identification:**
+
+The analysis script highlights high-impact, low-effort fixes:
+- Tests failing due to bugs rather than missing features
+- Grouped by category for batch fixing
+- Estimated improvement potential
+
+See `TODO.md` "Test Failure Analysis" section for latest results.
+
 **Current test status (v0.0.3 - 2025-11-12):**
 - **Pass rate:** 21.3% (36/169 total tests) ⬆️ **+3.5%** from v0.0.2
   - Perl: 28.7% (25/87 tests) ⬆️ **+5.7%** (+5 tests)
