@@ -101,6 +101,10 @@ pub struct Args {
     #[arg(long, value_name = "ERRORS")]
     pub retry_on_http_error: Option<String>,
 
+    /// Disable parallel downloads (use sequential downloads only)
+    #[arg(long, overrides_with = "no_parallel")]
+    pub no_parallel: bool,
+
     /// Write documents to FILE
     #[arg(short = 'O', long, value_name = "FILE")]
     pub output_document: Option<PathBuf>,

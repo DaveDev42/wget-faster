@@ -874,6 +874,13 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
     // Set HTTPS-only mode
     config.https_only = args.https_only;
 
+    // Disable parallel downloads if --no-parallel is set
+    // This makes wget-faster behave exactly like GNU wget (no HEAD requests, sequential only)
+    if args.no_parallel {
+        config.parallel_chunks = 1; // Disable parallel chunks
+        config.parallel_threshold = 0; // Disable threshold check
+    }
+
     // Parse --restrict-file-names
     if let Some(ref restrict_str) = args.restrict_file_names {
         // Parse comma-separated list of restrictions
