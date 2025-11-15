@@ -88,32 +88,32 @@ fn test_progress_update() {
 
 #[test]
 fn test_format_bytes() {
-    assert_eq!(format_bytes(0), "0 B");
-    assert_eq!(format_bytes(500), "500 B");
-    assert_eq!(format_bytes(1024), "1.0 KB");
-    assert_eq!(format_bytes(1536), "1.5 KB");
-    assert_eq!(format_bytes(1024 * 1024), "1.0 MB");
-    assert_eq!(format_bytes(1024 * 1024 * 1024), "1.0 GB");
-    assert_eq!(format_bytes(1024u64.pow(4)), "1.0 TB");
+    assert_eq!(format_bytes(0), "0B");
+    assert_eq!(format_bytes(500), "500B");
+    assert_eq!(format_bytes(1024), "1.00KB");
+    assert_eq!(format_bytes(1536), "1.50KB");
+    assert_eq!(format_bytes(1024 * 1024), "1.00MB");
+    assert_eq!(format_bytes(1024 * 1024 * 1024), "1.00GB");
+    assert_eq!(format_bytes(1024u64.pow(4)), "1.00TB");
 }
 
 #[test]
 fn test_format_bytes_per_sec() {
-    assert_eq!(format_bytes_per_sec(0.0), "0 B/s");
-    assert_eq!(format_bytes_per_sec(500.0), "500 B/s");
-    assert_eq!(format_bytes_per_sec(1024.0), "1.0 KB/s");
-    assert_eq!(format_bytes_per_sec(1536.0), "1.5 KB/s");
-    assert_eq!(format_bytes_per_sec(1048576.0), "1.0 MB/s");
-    assert_eq!(format_bytes_per_sec(1073741824.0), "1.0 GB/s");
+    assert_eq!(format_bytes_per_sec(0.0), "0B/s");
+    assert_eq!(format_bytes_per_sec(500.0), "500B/s");
+    assert_eq!(format_bytes_per_sec(1024.0), "1.00KB/s");
+    assert_eq!(format_bytes_per_sec(1536.0), "1.50KB/s");
+    assert_eq!(format_bytes_per_sec(1048576.0), "1.00MB/s");
+    assert_eq!(format_bytes_per_sec(1073741824.0), "1.00GB/s");
 }
 
 #[test]
 fn test_format_duration() {
     assert_eq!(format_duration(Duration::from_secs(0)), "0s");
     assert_eq!(format_duration(Duration::from_secs(30)), "30s");
-    assert_eq!(format_duration(Duration::from_secs(60)), "1m 0s");
+    assert_eq!(format_duration(Duration::from_secs(60)), "1m");
     assert_eq!(format_duration(Duration::from_secs(90)), "1m 30s");
-    assert_eq!(format_duration(Duration::from_secs(3600)), "1h 0m 0s");
+    assert_eq!(format_duration(Duration::from_secs(3600)), "1h");
     assert_eq!(format_duration(Duration::from_secs(3665)), "1h 1m 5s");
 }
 
@@ -124,7 +124,7 @@ fn test_progress_format_downloaded() {
     progress.downloaded = 1024 * 1024; // 1 MB
 
     let formatted = progress.format_downloaded();
-    assert_eq!(formatted, "1.0 MB");
+    assert_eq!(formatted, "1.00MB");
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn test_progress_format_total() {
 
     let formatted = progress.format_total();
     assert!(formatted.is_some());
-    assert_eq!(formatted.unwrap(), "10.0 MB");
+    assert_eq!(formatted.unwrap(), "10.00MB");
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn test_progress_format_speed() {
     progress.speed = 1024.0 * 1024.0; // 1 MB/s
 
     let formatted = progress.format_speed();
-    assert_eq!(formatted, "1.0 MB/s");
+    assert_eq!(formatted, "1.00MB/s");
 }
 
 #[test]

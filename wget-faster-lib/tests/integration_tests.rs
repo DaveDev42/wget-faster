@@ -340,6 +340,15 @@ async fn test_download_to_file() {
     let mut server = Server::new_async().await;
 
     let body = "File content to download";
+
+    // Add HEAD request mock (downloader checks metadata first)
+    let head_mock = server
+        .mock("HEAD", "/downloadable.txt")
+        .with_status(200)
+        .with_header("content-length", &body.len().to_string())
+        .create_async()
+        .await;
+
     let mock = server
         .mock("GET", "/downloadable.txt")
         .with_status(200)
@@ -358,13 +367,17 @@ async fn test_download_to_file() {
     let url = format!("{}/downloadable.txt", server.url());
     let result = downloader.download_to_file(&url, file_path.clone()).await;
 
-    assert!(result.is_ok());
+    if let Err(e) = &result {
+        eprintln!("Download to file failed: {:?}", e);
+    }
+    assert!(result.is_ok(), "Download failed: {:?}", result.err());
     assert!(file_path.exists());
 
     // Verify file contents
     let content = std::fs::read_to_string(&file_path).unwrap();
     assert_eq!(content, body);
 
+    head_mock.assert_async().await;
     mock.assert_async().await;
 }
 
