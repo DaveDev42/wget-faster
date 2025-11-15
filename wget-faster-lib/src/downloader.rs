@@ -55,6 +55,14 @@ impl Downloader {
     fn build_request(&self, url: &str, range: Option<&str>, if_modified_since: Option<std::time::SystemTime>) -> Result<reqwest::RequestBuilder> {
         let config = self.client.config();
 
+        tracing::debug!(
+            method = %config.method.as_str(),
+            url = %url,
+            has_range = range.is_some(),
+            has_if_modified_since = if_modified_since.is_some(),
+            "Building HTTP request"
+        );
+
         let mut request = match config.method {
             crate::config::HttpMethod::Get => self.client.client().get(url),
             crate::config::HttpMethod::Head => self.client.client().head(url),
@@ -87,18 +95,21 @@ impl Downloader {
 
         // Add Range header if provided
         if let Some(range_value) = range {
+            tracing::debug!(range = %range_value, "Adding Range header");
             request = request.header(reqwest::header::RANGE, range_value);
         }
 
         // Add If-Modified-Since header if provided (for timestamping/conditional GET)
         if let Some(time) = if_modified_since {
             let http_date = httpdate::fmt_http_date(time);
+            tracing::debug!(if_modified_since = %http_date, "Adding If-Modified-Since header");
             request = request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
         }
 
         // Add authentication if configured and auth_no_challenge is set
         if config.auth_no_challenge {
             if let Some(ref auth) = config.auth {
+                tracing::debug!(username = %auth.username, "Adding preemptive Basic authentication");
                 request = request.basic_auth(&auth.username, Some(&auth.password));
             }
         }

@@ -166,24 +166,29 @@ impl HttpClient {
         url: &str,
         if_modified_since: Option<std::time::SystemTime>,
     ) -> Result<ResourceMetadata> {
+        tracing::debug!(url = %url, has_if_modified_since = if_modified_since.is_some(), "Sending HEAD request for metadata");
+
         // Build HEAD request with optional If-Modified-Since header
         let mut request = self.client.head(url);
 
         // Add If-Modified-Since header if provided
         if let Some(time) = if_modified_since {
             let http_date = httpdate::fmt_http_date(time);
+            tracing::debug!(if_modified_since = %http_date, "Adding If-Modified-Since to HEAD request");
             request = request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
         }
 
         // Add authentication if configured and auth_no_challenge is set (preemptive auth)
         if self.config.auth_no_challenge {
             if let Some(ref auth) = self.config.auth {
+                tracing::debug!(username = %auth.username, "Adding preemptive auth to HEAD request");
                 request = request.basic_auth(&auth.username, Some(&auth.password));
             }
         }
 
         let response = request.send().await?;
         let status_code = response.status().as_u16();
+        tracing::debug!(status_code, "Received HEAD response");
 
         // Handle authentication challenges (401/407)
         // If we have credentials but didn't send them preemptively, retry with auth
