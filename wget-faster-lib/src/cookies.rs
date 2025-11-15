@@ -102,9 +102,10 @@ impl CookieJar {
                 for cookie in cookies {
                     // Check if cookie is expired
                     if let Some(expiration) = cookie.expiration {
+                        // Safe: System time should never be before UNIX_EPOCH (1970-01-01)
                         let now = SystemTime::now()
                             .duration_since(UNIX_EPOCH)
-                            .unwrap()
+                            .expect("System time should be after UNIX epoch")
                             .as_secs();
                         if now > expiration {
                             continue; // Skip expired cookies
@@ -395,9 +396,10 @@ impl CookieJar {
                 }
             } else if part.to_lowercase().starts_with("max-age=") {
                 if let Ok(max_age) = part[8..].trim().parse::<u64>() {
+                    // Safe: System time should never be before UNIX_EPOCH (1970-01-01)
                     let now = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
-                        .unwrap()
+                        .expect("System time should be after UNIX epoch")
                         .as_secs();
                     cookie.expiration = Some(now + max_age);
                 }

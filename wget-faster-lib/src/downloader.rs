@@ -467,8 +467,10 @@ impl Downloader {
             match action {
                 TimestampAction::Skip => {
                     // Local file is up to date, return it
+                    // Safe: check_timestamp always returns Some(DownloadedData) when action is Skip
                     return Ok(DownloadResult {
-                        data: result_data.unwrap(),
+                        data: result_data
+                            .expect("check_timestamp should return data when action is Skip"),
                         url: url.to_string(),
                         metadata,
                     });

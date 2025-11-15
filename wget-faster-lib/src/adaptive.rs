@@ -9,11 +9,23 @@ use tokio::sync::Mutex;
 /// Performance statistics for a chunk download
 #[derive(Debug, Clone)]
 struct ChunkStats {
-    #[allow(dead_code)]
-    size: u64,
-    #[allow(dead_code)]
-    duration: Duration,
-    speed: f64, // bytes per second
+    /// Size of the chunk in bytes (stored for debugging/logging)
+    _size: u64,
+    /// Duration of the download (stored for debugging/logging)
+    _duration: Duration,
+    /// Download speed in bytes per second
+    speed: f64,
+}
+
+/// Parameters for downloading chunks in parallel
+struct ChunkDownloadParams {
+    url: String,
+    chunks: Vec<(u64, u64)>,
+    downloaded: Arc<Mutex<u64>>,
+    stats: Arc<Mutex<Vec<ChunkStats>>>,
+    start_time: Instant,
+    total_size: u64,
+    progress_callback: Option<ProgressCallback>,
 }
 
 /// Adaptive download manager
@@ -83,18 +95,18 @@ impl AdaptiveDownloader {
 
             // Download next batch of chunks
             let batch_end = std::cmp::min(position + (chunk_size * chunk_count as u64), total_size);
-            let batch_chunks = self.create_chunks(position, batch_end, chunk_size);
+            let batch_chunks = Self::create_chunks(position, batch_end, chunk_size);
 
             let batch_results = self
-                .download_chunks(
-                    url,
-                    batch_chunks,
-                    &downloaded,
-                    &stats,
+                .download_chunks(ChunkDownloadParams {
+                    url: url.to_string(),
+                    chunks: batch_chunks,
+                    downloaded: Arc::clone(&downloaded),
+                    stats: Arc::clone(&stats),
                     start_time,
                     total_size,
-                    progress_callback.clone(),
-                )
+                    progress_callback: progress_callback.clone(),
+                })
                 .await?;
 
             // Merge results
@@ -115,29 +127,45 @@ impl AdaptiveDownloader {
     }
 
     /// Adjust chunk size based on observed performance
-    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     fn adjust_chunk_size(&self, stats: &[ChunkStats], current_size: u64) -> u64 {
         if stats.len() < 2 {
             return current_size;
         }
 
         // Calculate average speed
-        let avg_speed: f64 = stats.iter().map(|s| s.speed).sum::<f64>() / stats.len() as f64;
+        // Note: Precision loss in f64 conversion is acceptable for performance metrics
+        #[allow(clippy::cast_precision_loss)]
+        let avg_speed: f64 = stats.iter().map(|s| s.speed).sum::<f64>() / (stats.len() as f64);
 
         // Find slow chunks (below 70% of average)
         let slow_threshold = avg_speed * 0.7;
         let slow_count = stats.iter().filter(|s| s.speed < slow_threshold).count();
 
         // If many chunks are slow, decrease chunk size
-        if slow_count as f64 / stats.len() as f64 > 0.3 {
-            let new_size = (current_size as f64 * 0.75) as u64;
+        #[allow(clippy::cast_precision_loss)]
+        let slow_ratio = (slow_count as f64) / (stats.len() as f64);
+        if slow_ratio > 0.3 {
+            // Reduce chunk size by 25%
+            // Note: Precision loss acceptable for adaptive sizing calculations
+            #[allow(clippy::cast_precision_loss)]
+            let new_size_f64 = (current_size as f64) * 0.75;
+            // Safe: new_size will be positive and within u64 range
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let new_size = new_size_f64 as u64;
             return new_size.clamp(self.min_chunk_size, self.max_chunk_size);
         }
 
         // If all chunks are fast and uniform, increase chunk size
-        let speed_variance = self.calculate_variance(stats.iter().map(|s| s.speed).collect());
+        let speeds: Vec<f64> = stats.iter().map(|s| s.speed).collect();
+        let speed_variance = Self::calculate_variance(&speeds);
         if speed_variance < avg_speed * 0.2 {
-            let new_size = (current_size as f64 * 1.25) as u64;
+            // Increase chunk size by 25%
+            // Note: Precision loss acceptable for adaptive sizing calculations
+            #[allow(clippy::cast_precision_loss)]
+            let new_size_f64 = (current_size as f64) * 1.25;
+            // Safe: new_size will be positive and within u64 range
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let new_size = new_size_f64 as u64;
             return new_size.clamp(self.min_chunk_size, self.max_chunk_size);
         }
 
@@ -145,22 +173,24 @@ impl AdaptiveDownloader {
     }
 
     /// Adjust chunk count based on observed performance
-    #[allow(clippy::cast_precision_loss)]
     fn adjust_chunk_count(&self, stats: &[ChunkStats], current_count: usize) -> usize {
         if stats.len() < 3 {
             return current_count;
         }
 
         // Calculate efficiency (did more chunks help?)
-        let avg_speed: f64 = stats.iter().map(|s| s.speed).sum::<f64>() / stats.len() as f64;
+        // Note: Precision loss in f64 conversion is acceptable for performance metrics
+        #[allow(clippy::cast_precision_loss)]
+        let avg_speed: f64 = stats.iter().map(|s| s.speed).sum::<f64>() / (stats.len() as f64);
 
         // If we have recent stats, compare
         let recent_count = stats.len().min(5);
+        #[allow(clippy::cast_precision_loss)]
         let recent_avg: f64 = stats[stats.len() - recent_count..]
             .iter()
             .map(|s| s.speed)
             .sum::<f64>()
-            / recent_count as f64;
+            / (recent_count as f64);
 
         // If recent performance is better, we can add more chunks
         if recent_avg > avg_speed * 1.1 && current_count < self.max_chunks {
@@ -176,7 +206,7 @@ impl AdaptiveDownloader {
     }
 
     /// Create chunk ranges
-    fn create_chunks(&self, start: u64, end: u64, chunk_size: u64) -> Vec<(u64, u64)> {
+    fn create_chunks(start: u64, end: u64, chunk_size: u64) -> Vec<(u64, u64)> {
         let mut chunks = Vec::new();
         let mut pos = start;
 
@@ -190,24 +220,17 @@ impl AdaptiveDownloader {
     }
 
     /// Download multiple chunks in parallel
-    async fn download_chunks(
-        &self,
-        url: &str,
-        chunks: Vec<(u64, u64)>,
-        downloaded: &Arc<Mutex<u64>>,
-        stats: &Arc<Mutex<Vec<ChunkStats>>>,
-        start_time: Instant,
-        total_size: u64,
-        progress_callback: Option<ProgressCallback>,
-    ) -> Result<Vec<Bytes>> {
+    async fn download_chunks(&self, params: ChunkDownloadParams) -> Result<Vec<Bytes>> {
         let mut tasks = Vec::new();
 
-        for (start, end) in chunks {
+        for (start, end) in params.chunks {
             let client = self.client.clone();
-            let url = url.to_string();
-            let downloaded = Arc::clone(downloaded);
-            let stats = Arc::clone(stats);
-            let progress_callback = progress_callback.clone();
+            let url = params.url.clone();
+            let downloaded = Arc::clone(&params.downloaded);
+            let stats = Arc::clone(&params.stats);
+            let progress_callback = params.progress_callback.clone();
+            let start_time = params.start_time;
+            let total_size = params.total_size;
 
             let task = tokio::spawn(async move {
                 let chunk_start = Instant::now();
@@ -230,10 +253,12 @@ impl AdaptiveDownloader {
                 let chunk_duration = chunk_start.elapsed();
 
                 // Record stats
-                let speed = size as f64 / chunk_duration.as_secs_f64();
+                // Note: Precision loss acceptable for performance metrics
+                #[allow(clippy::cast_precision_loss)]
+                let speed = (size as f64) / chunk_duration.as_secs_f64();
                 stats.lock().await.push(ChunkStats {
-                    size,
-                    duration: chunk_duration,
+                    _size: size,
+                    _duration: chunk_duration,
                     speed,
                 });
 
@@ -274,14 +299,17 @@ impl AdaptiveDownloader {
     }
 
     /// Calculate variance of a set of values
-    #[allow(clippy::cast_precision_loss)]
-    fn calculate_variance(&self, values: Vec<f64>) -> f64 {
+    fn calculate_variance(values: &[f64]) -> f64 {
         if values.is_empty() {
             return 0.0;
         }
 
-        let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        // Note: Precision loss in f64 conversion is acceptable for performance metrics
+        #[allow(clippy::cast_precision_loss)]
+        let mean = values.iter().sum::<f64>() / (values.len() as f64);
+        #[allow(clippy::cast_precision_loss)]
+        let variance =
+            values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (values.len() as f64);
 
         variance.sqrt()
     }
