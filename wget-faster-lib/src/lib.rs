@@ -36,7 +36,7 @@ mod adaptive;
 mod auth_handler;
 mod client;
 mod config;
-mod cookies;
+pub mod cookies;
 mod downloader;
 mod error;
 mod link_converter;
