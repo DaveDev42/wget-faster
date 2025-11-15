@@ -273,7 +273,8 @@ async fn download_url(downloader: &Downloader, url: &str, args: &Args) -> Result
     let parsed_url = Url::parse(url).with_context(|| format!("Failed to parse URL: {url}"))?;
 
     // Get metadata first if content_disposition is enabled
-    let metadata = if args.content_disposition {
+    // Skip HEAD request in timestamping mode (-N) as it will be handled in the downloader
+    let metadata = if args.content_disposition && !args.timestamping {
         Some(
             downloader
                 .get_client()
