@@ -230,30 +230,9 @@ impl HttpClient {
 
         // Handle authentication challenges (401/407)
         // If we have credentials but didn't send them preemptively, retry with auth
-        if (status_code == 401 || status_code == 407) && !self.config.auth_no_challenge {
-            // Try configured auth first, then .netrc
-            let auth = if let Some(ref auth) = self.config.auth {
-                Some(auth.clone())
-            } else {
-                // Try .netrc file
-                match crate::netrc::Netrc::from_default_location() {
-                    Ok(Some(netrc)) => {
-                        // Extract hostname from URL
-                        if let Ok(parsed) = url::Url::parse(url) {
-                            if let Some(host) = parsed.host_str() {
-                                netrc.get(host)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                }
-            };
-
-            if let Some(auth) = auth {
+        if crate::auth_handler::should_retry_auth(status_code, &self.config) {
+            // Get credentials (configured auth or .netrc)
+            if let Some(auth) = crate::auth_handler::get_credentials(url, &self.config) {
                 // Retry HEAD request with authentication
                 let mut retry_request = self.client.head(url)
                     .basic_auth(&auth.username, Some(&auth.password));

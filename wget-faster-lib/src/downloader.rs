@@ -373,9 +373,11 @@ impl Downloader {
         }
 
         // Handle special status codes from HEAD request
-        match metadata.status_code {
-            // 204 No Content - success but no body, don't create file
-            204 => {
+        use crate::response_handler::ResponseStatus;
+        let response_status = ResponseStatus::from_status_code(metadata.status_code);
+
+        match response_status {
+            ResponseStatus::NoContent => {
                 tracing::info!("HTTP 204 No Content - skipping file creation");
                 return Ok(DownloadResult {
                     data: DownloadedData::new_memory(Bytes::new()),
@@ -383,8 +385,7 @@ impl Downloader {
                     metadata,
                 });
             }
-            // 304 Not Modified - file is already up to date
-            304 => {
+            ResponseStatus::NotModified => {
                 tracing::info!(path = %path.display(), "HTTP 304 Not Modified - file is up to date");
                 // If file exists, return it as-is
                 if path.exists() {
@@ -404,8 +405,7 @@ impl Downloader {
                     metadata,
                 });
             }
-            // 416 Range Not Satisfiable - file is already complete
-            416 => {
+            ResponseStatus::RangeNotSatisfiable => {
                 tracing::info!(path = %path.display(), "HTTP 416 Range Not Satisfiable - file already complete");
                 // If file exists, return it as-is (already complete)
                 if path.exists() {
@@ -421,87 +421,49 @@ impl Downloader {
                 tracing::error!("HTTP 416 but file doesn't exist - this is an error");
                 return Err(Error::InvalidStatus(416));
             }
-            // For other status codes 4xx and 5xx, check content_on_error setting
-            // If content_on_error is false, return error immediately (don't create file)
-            // Otherwise continue to GET which will handle them properly
-            // This allows wget-compatible behavior where some servers respond differently to HEAD vs GET
-            // Note: 504 Gateway Timeout will be retried by the retry mechanism (TODO: implement retry loop)
-            _ if metadata.status_code >= 400 && metadata.status_code < 600 => {
+            ResponseStatus::ClientError | ResponseStatus::ServerError => {
+                // Check content_on_error setting
+                // If false, return error immediately (don't create file)
+                // Otherwise continue to GET which will handle them properly
                 if !self.client.config().content_on_error {
-                    // Don't create file for error responses when content_on_error is false
                     return Err(Error::InvalidStatus(metadata.status_code));
                 }
-                // Otherwise, continue to GET request to download error page
+                // Continue to GET request to download error page
             }
-            _ => {}
+            ResponseStatus::AuthChallenge => {
+                // Auth challenges should have been handled in get_metadata
+                // If we're here, auth failed
+                return Err(Error::InvalidStatus(metadata.status_code));
+            }
+            _ => {
+                // Success or other - continue normally
+            }
         }
 
         // Check timestamping - skip if local file is newer or delete if we need to re-download
         let mut should_delete_existing = false;
-        if self.client.config().timestamping && path.exists() {
+        if self.client.config().timestamping {
             tracing::debug!(path = %path.display(), "Timestamping enabled - checking local vs remote timestamps");
-            let local_metadata = tokio::fs::metadata(&path).await?;
-            let local_size = local_metadata.len();
-            let local_time = local_metadata.modified()?;
 
-            if let Some(ref remote_modified) = metadata.last_modified {
-                // Parse remote Last-Modified header (RFC 2822 or RFC 3339 format)
-                if let Ok(remote_time) = httpdate::parse_http_date(remote_modified) {
-                    tracing::debug!(
-                        local_time = ?local_time,
-                        remote_time = ?remote_time,
-                        local_size,
-                        remote_size = ?metadata.content_length,
-                        "Comparing timestamps"
-                    );
+            let (action, result_data) = crate::timestamping::check_timestamp(&path, &metadata).await?;
 
-                    // Check if local file is older than remote (need to download)
-                    if local_time < remote_time {
-                        // Local file is older, delete and re-download
-                        tracing::info!("Local file is older than remote - will re-download");
-                        should_delete_existing = true;
-                    } else if local_time > remote_time {
-                        // Local file is newer, skip download
-                        tracing::info!("Local file is newer than remote - skipping download");
-                        return Ok(DownloadResult {
-                            data: DownloadedData::new_file(path.clone(), local_size, false),
-                            url: url.to_string(),
-                            metadata,
-                        });
-                    } else {
-                        // Same timestamp - check file size
-                        tracing::debug!("Same timestamp - checking file size");
-                        if let Some(remote_size) = metadata.content_length {
-                            if local_size == remote_size {
-                                // Same timestamp and size, skip download
-                                tracing::info!("Same timestamp and size - skipping download");
-                                return Ok(DownloadResult {
-                                    data: DownloadedData::new_file(path.clone(), local_size, false),
-                                    url: url.to_string(),
-                                    metadata,
-                                });
-                            }
-                            // Same timestamp but different size - delete and re-download
-                            tracing::info!("Same timestamp but different size - will re-download");
-                            should_delete_existing = true;
-                        } else {
-                            // No remote size info, skip download (same timestamp)
-                            tracing::info!("Same timestamp, no remote size - skipping download");
-                            return Ok(DownloadResult {
-                                data: DownloadedData::new_file(path.clone(), local_size, false),
-                                url: url.to_string(),
-                                metadata,
-                            });
-                        }
-                    }
-                } else {
-                    tracing::warn!(last_modified = %remote_modified, "Failed to parse Last-Modified header");
+            use crate::timestamping::TimestampAction;
+            match action {
+                TimestampAction::Skip => {
+                    // Local file is up to date, return it
+                    return Ok(DownloadResult {
+                        data: result_data.unwrap(),
+                        url: url.to_string(),
+                        metadata,
+                    });
                 }
-            } else {
-                // No Last-Modified header from server
-                // wget behavior: download the file (server doesn't provide timestamp info)
-                tracing::info!("No Last-Modified header from server - will download");
-                should_delete_existing = true;
+                TimestampAction::DeleteAndDownload => {
+                    // Need to delete and re-download
+                    should_delete_existing = true;
+                }
+                TimestampAction::Download => {
+                    // Just download (file doesn't exist)
+                }
             }
         }
 
@@ -568,10 +530,10 @@ impl Downloader {
                 .await?
         };
 
-        // If 204 No Content or no bytes downloaded, remove the empty file
-        // This matches wget behavior: don't create files for 204 responses
-        if total_bytes == 0 && resume_from == 0 {
-            tracing::info!(path = %path.display(), "Removing empty file (0 bytes downloaded)");
+        // Check if we should create/keep the file
+        // Remove empty files for 204 No Content or 0 bytes without resume
+        if !crate::response_handler::should_create_file(metadata.status_code, total_bytes, resume_from) {
+            tracing::info!(path = %path.display(), "Removing empty file (should not create)");
             // Drop the file handle before deleting
             drop(file);
 
@@ -594,29 +556,7 @@ impl Downloader {
 
         // Set file modification time from server if configured and available
         if self.client.config().use_server_timestamps {
-            if let Some(ref last_modified_str) = metadata.last_modified {
-                if let Ok(remote_time) = httpdate::parse_http_date(last_modified_str) {
-                    tracing::debug!(
-                        path = %path.display(),
-                        remote_time = ?remote_time,
-                        "Setting file modification time to server timestamp"
-                    );
-                    // Convert SystemTime to FileTime for setting the modification time
-                    let file_time = filetime::FileTime::from_system_time(remote_time);
-                    // Set the file modification time (atime is set to current time, mtime to server time)
-                    if let Err(e) = filetime::set_file_mtime(&path, file_time) {
-                        // Log error but don't fail the download
-                        tracing::warn!(path = %path.display(), error = %e, "Failed to set file modification time");
-                        if self.client.config().verbose {
-                            eprintln!("Warning: Failed to set file modification time: {}", e);
-                        }
-                    }
-                } else {
-                    tracing::warn!(last_modified = %last_modified_str, "Failed to parse Last-Modified for setting file time");
-                }
-            } else {
-                tracing::debug!("No Last-Modified header - skipping file timestamp setting");
-            }
+            crate::timestamping::set_file_timestamp(&path, &metadata, self.client.config().verbose)?;
         }
 
         Ok(DownloadResult {
@@ -715,47 +655,11 @@ impl Downloader {
 
         // Handle authentication challenges (401/407)
         // If we have credentials but didn't send them preemptively, retry with auth
-        if (status_code == 401 || status_code == 407) && !self.client.config().auth_no_challenge {
+        if crate::auth_handler::should_retry_auth(status_code, self.client.config()) {
             tracing::info!(status_code, "Authentication challenge received - retrying with credentials");
 
-            // Try configured auth first, then .netrc
-            let auth = if let Some(ref auth) = self.client.config().auth {
-                tracing::debug!("Using configured auth credentials");
-                Some(auth.clone())
-            } else {
-                tracing::debug!("No configured auth - trying .netrc file");
-                // Try .netrc file
-                match crate::netrc::Netrc::from_default_location() {
-                    Ok(Some(netrc)) => {
-                        // Extract hostname from URL
-                        if let Ok(parsed) = url::Url::parse(url) {
-                            if let Some(host) = parsed.host_str() {
-                                if let Some(entry) = netrc.get(host) {
-                                    tracing::debug!(host = %host, "Found .netrc entry for host");
-                                    Some(entry)
-                                } else {
-                                    tracing::debug!(host = %host, "No .netrc entry found for host");
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
-                    Ok(None) => {
-                        tracing::debug!("No .netrc file found");
-                        None
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "Failed to read .netrc file");
-                        None
-                    }
-                }
-            };
-
-            if let Some(auth) = auth {
+            // Get credentials (configured auth or .netrc)
+            if let Some(auth) = crate::auth_handler::get_credentials(url, self.client.config()) {
                 tracing::debug!(username = %auth.username, "Retrying with authentication");
                 // Retry with authentication
                 let retry_request = self.client.client().get(url)
@@ -766,7 +670,7 @@ impl Downloader {
                 tracing::debug!(retry_status, "Received retry response with auth");
 
                 // If still unauthorized, return error
-                if retry_status == 401 || retry_status == 407 {
+                if crate::auth_handler::is_auth_challenge(retry_status) {
                     tracing::error!(retry_status, "Authentication failed even with credentials");
                     return Err(Error::InvalidStatus(retry_status));
                 }
@@ -781,24 +685,21 @@ impl Downloader {
             }
         }
 
-        // 204 No Content is a success but has no body
-        if status_code == 204 {
-            return Ok(Bytes::new());
-        }
-
-        // Check for HTTP errors (4xx/5xx)
-        if status_code >= 400 {
-            // Only save error content if content_on_error is enabled
-            if !self.client.config().content_on_error {
-                return Err(Error::InvalidStatus(status_code));
+        // Check if we should proceed based on status code
+        match crate::response_handler::should_proceed_download(status_code, self.client.config()) {
+            Ok(true) => {
+                // Proceed with download
+                self.process_sequential_response(response, url, progress_callback).await
             }
-            // If content_on_error is enabled, continue downloading the error page
-        } else if !response.status().is_success() {
-            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
-            return Err(Error::InvalidStatus(status_code));
+            Ok(false) => {
+                // Skip download (304/416 - should not reach here in sequential download)
+                Ok(Bytes::new())
+            }
+            Err(err_status) => {
+                // Return error
+                Err(Error::InvalidStatus(err_status))
+            }
         }
-
-        self.process_sequential_response(response, url, progress_callback).await
     }
 
     /// Helper to process response body for sequential downloads
@@ -810,21 +711,19 @@ impl Downloader {
     ) -> Result<Bytes> {
         let status_code = response.status().as_u16();
 
-        // 204 No Content is a success but has no body
-        if status_code == 204 {
-            return Ok(Bytes::new());
-        }
-
-        // Check for HTTP errors (4xx/5xx)
-        if status_code >= 400 {
-            // Only save error content if content_on_error is enabled
-            if !self.client.config().content_on_error {
-                return Err(Error::InvalidStatus(status_code));
+        // Check if we should proceed based on status code
+        match crate::response_handler::should_proceed_download(status_code, self.client.config()) {
+            Ok(false) => {
+                // Skip download (empty response)
+                return Ok(Bytes::new());
             }
-            // If content_on_error is enabled, continue downloading the error page
-        } else if !response.status().is_success() {
-            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
-            return Err(Error::InvalidStatus(status_code));
+            Err(err_status) => {
+                // Return error
+                return Err(Error::InvalidStatus(err_status));
+            }
+            Ok(true) => {
+                // Proceed with download
+            }
         }
 
         let total_size = response.content_length();
@@ -889,30 +788,9 @@ impl Downloader {
 
         // Handle authentication challenges (401/407)
         // If we have credentials but didn't send them preemptively, retry with auth
-        if (status_code == 401 || status_code == 407) && !self.client.config().auth_no_challenge {
-            // Try configured auth first, then .netrc
-            let auth = if let Some(ref auth) = self.client.config().auth {
-                Some(auth.clone())
-            } else {
-                // Try .netrc file
-                match crate::netrc::Netrc::from_default_location() {
-                    Ok(Some(netrc)) => {
-                        // Extract hostname from URL
-                        if let Ok(parsed) = url::Url::parse(url) {
-                            if let Some(host) = parsed.host_str() {
-                                netrc.get(host)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                }
-            };
-
-            if let Some(auth) = auth {
+        if crate::auth_handler::should_retry_auth(status_code, self.client.config()) {
+            // Get credentials (configured auth or .netrc)
+            if let Some(auth) = crate::auth_handler::get_credentials(url, self.client.config()) {
                 // Retry with authentication (preserving range header if needed)
                 let mut retry_request = self.client.client().get(url)
                     .basic_auth(&auth.username, Some(&auth.password));
@@ -925,7 +803,7 @@ impl Downloader {
                 let retry_status = retry_response.status().as_u16();
 
                 // If still unauthorized, return error
-                if retry_status == 401 || retry_status == 407 {
+                if crate::auth_handler::is_auth_challenge(retry_status) {
                     return Err(Error::InvalidStatus(retry_status));
                 }
 
@@ -937,28 +815,33 @@ impl Downloader {
             }
         }
 
-        // 204 No Content is a success but has no body - don't create file
-        if status_code == 204 {
-            return Ok(0);
-        }
+        // Handle special status codes
+        use crate::response_handler::ResponseStatus;
+        let response_status = ResponseStatus::from_status_code(status_code);
 
-        // 416 Range Not Satisfiable means the file is already complete
-        if status_code == 416 {
-            // File is already fully downloaded
-            return Ok(resume_from);
-        }
-
-        // Check for HTTP errors (4xx/5xx)
-        if status_code >= 400 {
-            // Only save error content if content_on_error is enabled
-            if !self.client.config().content_on_error {
+        match response_status {
+            ResponseStatus::NoContent => {
+                // 204 No Content - don't create file
+                return Ok(0);
+            }
+            ResponseStatus::RangeNotSatisfiable => {
+                // 416 Range Not Satisfiable - file is already complete
+                return Ok(resume_from);
+            }
+            ResponseStatus::Success => {
+                // 200 OK or 206 Partial Content - proceed
+            }
+            ResponseStatus::ClientError | ResponseStatus::ServerError => {
+                // Check content_on_error
+                if !self.client.config().content_on_error {
+                    return Err(Error::InvalidStatus(status_code));
+                }
+                // Proceed to download error page
+            }
+            _ => {
+                // Other non-success status codes
                 return Err(Error::InvalidStatus(status_code));
             }
-            // If content_on_error is enabled, continue downloading the error page
-        } else if !response.status().is_success() && status_code != 206 {
-            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
-            // 206 is acceptable for partial content (resume)
-            return Err(Error::InvalidStatus(status_code));
         }
 
         self.process_writer_response(response, url, writer, progress_callback, resume_from).await
@@ -978,27 +861,33 @@ impl Downloader {
     {
         let status_code = response.status().as_u16();
 
-        // 204 No Content is a success but has no body - don't create file
-        if status_code == 204 {
-            return Ok(0);
-        }
+        // Handle special status codes
+        use crate::response_handler::ResponseStatus;
+        let response_status = ResponseStatus::from_status_code(status_code);
 
-        // 416 Range Not Satisfiable means the file is already complete
-        if status_code == 416 {
-            return Ok(resume_from);
-        }
-
-        // Check for HTTP errors (4xx/5xx)
-        if status_code >= 400 {
-            // Only save error content if content_on_error is enabled
-            if !self.client.config().content_on_error {
+        match response_status {
+            ResponseStatus::NoContent => {
+                // 204 No Content - don't create file
+                return Ok(0);
+            }
+            ResponseStatus::RangeNotSatisfiable => {
+                // 416 Range Not Satisfiable - file is already complete
+                return Ok(resume_from);
+            }
+            ResponseStatus::Success => {
+                // 200 OK or 206 Partial Content - proceed
+            }
+            ResponseStatus::ClientError | ResponseStatus::ServerError => {
+                // Check content_on_error
+                if !self.client.config().content_on_error {
+                    return Err(Error::InvalidStatus(status_code));
+                }
+                // Proceed to download error page
+            }
+            _ => {
+                // Other non-success status codes
                 return Err(Error::InvalidStatus(status_code));
             }
-            // If content_on_error is enabled, continue downloading the error page
-        } else if !response.status().is_success() && status_code != 206 {
-            // Other non-success status codes (e.g., 1xx, 3xx unexpected)
-            // 206 is acceptable for partial content (resume)
-            return Err(Error::InvalidStatus(status_code));
         }
 
         let total_size = response.content_length().map(|s| s + resume_from);

@@ -43,6 +43,9 @@ mod cookies;
 mod adaptive;
 mod recursive;
 mod netrc;
+mod auth_handler;
+mod response_handler;
+mod timestamping;
 mod link_converter;
 
 pub use error::{Error, Result};
@@ -56,3 +59,6 @@ pub use adaptive::AdaptiveDownloader;
 pub use recursive::{RecursiveDownloader, RecursiveConfig};
 pub use netrc::{Netrc, NetrcEntry};
 pub use link_converter::LinkConverter;
+
+// Export robots module for doctests
+pub mod robots;
