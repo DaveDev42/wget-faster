@@ -1,0 +1,146 @@
+# Test Failure Analysis
+
+**Generated from**: test_results_20251115_134509.json
+**Timestamp**: 2025-11-15T13:43:02.080732
+**Total Failed**: 108 / 169
+
+## Summary by Category
+
+
+### missing_feature_metalink (32 tests)
+
+- [Test-metalink-http-baddigest.py](./Test-metalink-http-baddigest_py.md) (python)
+- [Test-metalink-http-quoted.py](./Test-metalink-http-quoted_py.md) (python)
+- [Test-metalink-http-xml-trust-name.py](./Test-metalink-http-xml-trust-name_py.md) (python)
+- [Test-metalink-http-xml-trust.py](./Test-metalink-http-xml-trust_py.md) (python)
+- [Test-metalink-http-xml-type-content.py](./Test-metalink-http-xml-type-content_py.md) (python)
+- [Test-metalink-http-xml-type-trust-content.py](./Test-metalink-http-xml-type-trust-content_py.md) (python)
+- [Test-metalink-http-xml-type-trust.py](./Test-metalink-http-xml-type-trust_py.md) (python)
+- [Test-metalink-http-xml-type.py](./Test-metalink-http-xml-type_py.md) (python)
+- [Test-metalink-http-xml.py](./Test-metalink-http-xml_py.md) (python)
+- [Test-metalink-http.py](./Test-metalink-http_py.md) (python)
+- [Test-metalink-xml-abspath-trust.py](./Test-metalink-xml-abspath-trust_py.md) (python)
+- [Test-metalink-xml-abspath.py](./Test-metalink-xml-abspath_py.md) (python)
+- [Test-metalink-xml-absprefix-trust.py](./Test-metalink-xml-absprefix-trust_py.md) (python)
+- [Test-metalink-xml-absprefix.py](./Test-metalink-xml-absprefix_py.md) (python)
+- [Test-metalink-xml-continue.py](./Test-metalink-xml-continue_py.md) (python)
+- [Test-metalink-xml-emptyprefix-trust.py](./Test-metalink-xml-emptyprefix-trust_py.md) (python)
+- [Test-metalink-xml-homepath-trust.py](./Test-metalink-xml-homepath-trust_py.md) (python)
+- [Test-metalink-xml-homepath.py](./Test-metalink-xml-homepath_py.md) (python)
+- [Test-metalink-xml-homeprefix-trust.py](./Test-metalink-xml-homeprefix-trust_py.md) (python)
+- [Test-metalink-xml-homeprefix.py](./Test-metalink-xml-homeprefix_py.md) (python)
+- [Test-metalink-xml-nohash.py](./Test-metalink-xml-nohash_py.md) (python)
+- [Test-metalink-xml-nourls.py](./Test-metalink-xml-nourls_py.md) (python)
+- [Test-metalink-xml-prefix-trust.py](./Test-metalink-xml-prefix-trust_py.md) (python)
+- [Test-metalink-xml-prefix.py](./Test-metalink-xml-prefix_py.md) (python)
+- [Test-metalink-xml-relpath-trust.py](./Test-metalink-xml-relpath-trust_py.md) (python)
+- [Test-metalink-xml-relpath.py](./Test-metalink-xml-relpath_py.md) (python)
+- [Test-metalink-xml-relprefix-trust.py](./Test-metalink-xml-relprefix-trust_py.md) (python)
+- [Test-metalink-xml-relprefix.py](./Test-metalink-xml-relprefix_py.md) (python)
+- [Test-metalink-xml-size.py](./Test-metalink-xml-size_py.md) (python)
+- [Test-metalink-xml-trust.py](./Test-metalink-xml-trust_py.md) (python)
+- [Test-metalink-xml-urlbreak.py](./Test-metalink-xml-urlbreak_py.md) (python)
+- [Test-metalink-xml.py](./Test-metalink-xml_py.md) (python)
+
+### unknown (29 tests)
+
+- [Test-E-k-K.px](./Test-E-k-K_px.md) (perl)
+- [Test-O-nonexisting.px](./Test-O-nonexisting_px.md) (perl)
+- [Test-ftp-iri-disabled.px](./Test-ftp-iri-disabled_px.md) (perl)
+- [Test-ftp-iri-fallback.px](./Test-ftp-iri-fallback_px.md) (perl)
+- [Test-ftp-iri-recursive.px](./Test-ftp-iri-recursive_px.md) (perl)
+- [Test-ftp-iri.px](./Test-ftp-iri_px.md) (perl)
+- [Test-https-badcerts.px](./Test-https-badcerts_px.md) (perl)
+- [Test-https-clientcert.px](./Test-https-clientcert_px.md) (perl)
+- [Test-https-crl.px](./Test-https-crl_px.md) (perl)
+- [Test-https-pfs.px](./Test-https-pfs_px.md) (perl)
+- [Test-https-selfsigned.px](./Test-https-selfsigned_px.md) (perl)
+- [Test-https-tlsv1.px](./Test-https-tlsv1_px.md) (perl)
+- [Test-https-tlsv1x.px](./Test-https-tlsv1x_px.md) (perl)
+- [Test-https-weboftrust.px](./Test-https-weboftrust_px.md) (perl)
+- [Test-idn-cmd-utf8.px](./Test-idn-cmd-utf8_px.md) (perl)
+- [Test-idn-cmd.px](./Test-idn-cmd_px.md) (perl)
+- [Test-idn-headers.px](./Test-idn-headers_px.md) (perl)
+- [Test-idn-meta.px](./Test-idn-meta_px.md) (perl)
+- [Test-idn-robots-utf8.px](./Test-idn-robots-utf8_px.md) (perl)
+- [Test-idn-robots.px](./Test-idn-robots_px.md) (perl)
+- [Test-iri-disabled.px](./Test-iri-disabled_px.md) (perl)
+- [Test-iri-forced-remote.px](./Test-iri-forced-remote_px.md) (perl)
+- [Test-iri-list.px](./Test-iri-list_px.md) (perl)
+- [Test-iri-percent.px](./Test-iri-percent_px.md) (perl)
+- [Test-iri.px](./Test-iri_px.md) (perl)
+- [Test-proxied-https-auth-keepalive.px](./Test-proxied-https-auth-keepalive_px.md) (perl)
+- [Test-proxied-https-auth.px](./Test-proxied-https-auth_px.md) (perl)
+- [Test-proxy-auth-basic.px](./Test-proxy-auth-basic_px.md) (perl)
+- [Test-stdouterr.px](./Test-stdouterr_px.md) (perl)
+
+### missing_feature_ftp (14 tests)
+
+- [Test-ftp--start-pos.px](./Test-ftp_start-pos_px.md) (perl)
+- [Test-ftp-bad-list.px](./Test-ftp-bad-list_px.md) (perl)
+- [Test-ftp-dir.px](./Test-ftp-dir_px.md) (perl)
+- [Test-ftp-list-Multinet.px](./Test-ftp-list-Multinet_px.md) (perl)
+- [Test-ftp-list-UNIX-hidden.px](./Test-ftp-list-UNIX-hidden_px.md) (perl)
+- [Test-ftp-list-Unknown-a.px](./Test-ftp-list-Unknown-a_px.md) (perl)
+- [Test-ftp-list-Unknown-hidden.px](./Test-ftp-list-Unknown-hidden_px.md) (perl)
+- [Test-ftp-list-Unknown-list-a-fails.px](./Test-ftp-list-Unknown-list-a-fails_px.md) (perl)
+- [Test-ftp-list-Unknown.px](./Test-ftp-list-Unknown_px.md) (perl)
+- [Test-ftp-pasv-fail.px](./Test-ftp-pasv-fail_px.md) (perl)
+- [Test-ftp-pasv-not-supported.px](./Test-ftp-pasv-not-supported_px.md) (perl)
+- [Test-ftp-recursive.px](./Test-ftp-recursive_px.md) (perl)
+- [Test-ftp.px](./Test-ftp_px.md) (perl)
+- [Test-i-ftp.px](./Test-i-ftp_px.md) (perl)
+
+### skipped_ssl_tls (10 tests)
+
+- [Test--https-crl.py](./Test_https-crl_py.md) (python)
+- [Test--https.py](./Test_https_py.md) (python)
+- [Test-hsts.py](./Test-hsts_py.md) (python)
+- [Test-https-k.py](./Test-https-k_py.md) (python)
+- [Test-pinnedpubkey-der-https.py](./Test-pinnedpubkey-der-https_py.md) (python)
+- [Test-pinnedpubkey-der-no-check-https.py](./Test-pinnedpubkey-der-no-check-https_py.md) (python)
+- [Test-pinnedpubkey-hash-https.py](./Test-pinnedpubkey-hash-https_py.md) (python)
+- [Test-pinnedpubkey-hash-no-check-fail-https.py](./Test-pinnedpubkey-hash-no-check-fail-https_py.md) (python)
+- [Test-pinnedpubkey-pem-fail-https.py](./Test-pinnedpubkey-pem-fail-https_py.md) (python)
+- [Test-pinnedpubkey-pem-https.py](./Test-pinnedpubkey-pem-https_py.md) (python)
+
+### test_framework_missing_file (7 tests)
+
+- [Test-Proto.py](./Test-Proto_py.md) (python)
+- [Test-auth-basic-netrc-pass-given.py](./Test-auth-basic-netrc-pass-given_py.md) (python)
+- [Test-auth-basic-netrc-user-given.py](./Test-auth-basic-netrc-user-given_py.md) (python)
+- [Test-auth-both.py](./Test-auth-both_py.md) (python)
+- [Test-auth-digest.py](./Test-auth-digest_py.md) (python)
+- [Test-recursive-include.py](./Test-recursive-include_py.md) (python)
+- [Test-recursive-pathmax.py](./Test-recursive-pathmax_py.md) (python)
+
+### test_framework_content_mismatch (6 tests)
+
+- [Test--convert-links--content-on-error.py](./Test_convert-links_content-on-error_py.md) (python)
+- [Test--rejected-log.py](./Test_rejected-log_py.md) (python)
+- [Test-cookie-expires.py](./Test-cookie-expires_py.md) (python)
+- [Test-k.py](./Test-k_py.md) (python)
+- [Test-no_proxy-env.py](./Test-no_proxy-env_py.md) (python)
+- [Test-redirect-crash.py](./Test-redirect-crash_py.md) (python)
+
+### test_framework_crawl_mismatch (5 tests)
+
+- [Test--spider-r.py](./Test_spider-r_py.md) (python)
+- [Test-504.py](./Test-504_py.md) (python)
+- [Test-condget.py](./Test-condget_py.md) (python)
+- [Test-recursive-basic.py](./Test-recursive-basic_py.md) (python)
+- [Test-reserved-chars.py](./Test-reserved-chars_py.md) (python)
+
+### timeout (3 tests)
+
+- [Test-auth-basic-netrc.py](./Test-auth-basic-netrc_py.md) (python)
+- [Test-auth-basic.py](./Test-auth-basic_py.md) (python)
+- [Test-auth-with-content-disposition.py](./Test-auth-with-content-disposition_py.md) (python)
+
+### import_error (1 tests)
+
+- [Test-Parallel-Proto.py](./Test-Parallel-Proto_py.md) (python)
+
+### test_framework_other (1 tests)
+
+- [Test-recursive-redirect.py](./Test-recursive-redirect_py.md) (python)

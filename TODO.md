@@ -1087,9 +1087,37 @@ wget-faster is a high-performance HTTP downloader in Rust that aims to be a drop
 
 ---
 
+## Test Failure Analysis
+
+**Latest Test Results**: 2025-11-15 13:43:02
+**Pass Rate**: 61/169 (36.1%)
+- Perl: 44/87 (50.6%) ✅
+- Python: 17/82 (20.7%)
+
+Detailed analysis of all 108 failing tests is available in [`todo/README.md`](./todo/README.md).
+
+### Failure Categories Summary
+
+1. **missing_feature_metalink** (32 tests, 30%) - Deferred to v0.2.0+
+2. **unknown** (29 tests, 27%) - Needs detailed investigation
+3. **missing_feature_ftp** (14 tests, 13%) - Deferred to v0.2.0+
+4. **skipped_ssl_tls** (10 tests, 9%) - Deferred to v0.2.0+
+5. **test_framework_missing_file** (7 tests, 6%) - Implementation bugs
+6. **test_framework_content_mismatch** (6 tests, 6%) - Implementation bugs
+7. **test_framework_crawl_mismatch** (5 tests, 5%) - Implementation bugs
+8. **timeout** (3 tests, 3%) - Critical bugs (auth loops)
+9. **import_error** (1 test, 1%)
+10. **test_framework_other** (1 test, 1%)
+
+**Quick Win Opportunities** (20 tests, ~12% improvement potential):
+- test_framework_missing_file: 7 tests
+- test_framework_content_mismatch: 6 tests
+- test_framework_crawl_mismatch: 5 tests
+- timeout: 3 tests (if auth fixed)
+
 ## Quick Reference
 
-### Current Priorities (v0.0.9) - Updated 2025-11-14
+### Current Priorities (v0.0.9) - Updated 2025-11-15
 
 **⚠️ v0.0.8 PARTIAL - IMPLEMENTATIONS NOT WORKING AS EXPECTED**
 
