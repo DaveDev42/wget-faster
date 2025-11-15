@@ -129,12 +129,12 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Run benchmarks
-        run: cargo bench --all-features -- --output-format bencher | tee benchmark_results.txt
+        run: cargo bench --all-features
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          tool: 'cargo'
-          output-file-path: benchmark_results.txt
+          tool: 'criterion'
+          output-file-path: ./target/criterion/**/new/estimates.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: '150%'
