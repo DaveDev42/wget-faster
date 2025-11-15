@@ -4,6 +4,20 @@
 **Timestamp**: 2025-11-15T13:43:02.080732
 **Total Failed**: 108 / 169
 
+## CI/CD Issues 🔴
+
+**NEW (2025-11-15)**: CI/CD pipeline failing due to code quality issues
+
+**Critical**:
+- Security audit failing: Unmaintained dependency `fxhash` (via `scraper` 0.21.0)
+- Clippy warnings: Dead code, long literals, dependency duplicates
+
+See [`CI_Issues.md`](./CI_Issues.md) for complete analysis and fixes.
+
+**Action Required**: Fix CI issues before next test run
+
+---
+
 ## Summary by Category
 
 

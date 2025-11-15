@@ -103,8 +103,8 @@ fn test_format_bytes_per_sec() {
     assert_eq!(format_bytes_per_sec(500.0), "500B/s");
     assert_eq!(format_bytes_per_sec(1024.0), "1.00KB/s");
     assert_eq!(format_bytes_per_sec(1536.0), "1.50KB/s");
-    assert_eq!(format_bytes_per_sec(1048576.0), "1.00MB/s");
-    assert_eq!(format_bytes_per_sec(1073741824.0), "1.00GB/s");
+    assert_eq!(format_bytes_per_sec(1_048_576.0), "1.00MB/s");
+    assert_eq!(format_bytes_per_sec(1_073_741_824.0), "1.00GB/s");
 }
 
 #[test]

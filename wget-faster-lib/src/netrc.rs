@@ -255,8 +255,10 @@ mod tests {
             password mypass
         ";
 
-        let netrc = Netrc::from_string(content).unwrap();
-        let auth = netrc.get("example.com").unwrap();
+        let netrc = Netrc::from_string(content).expect("Failed to parse netrc");
+        let auth = netrc
+            .get("example.com")
+            .expect("Failed to get example.com auth");
         assert_eq!(auth.username, "myuser");
         assert_eq!(auth.password, "mypass");
     }
@@ -273,13 +275,15 @@ mod tests {
             password pass2
         ";
 
-        let netrc = Netrc::from_string(content).unwrap();
+        let netrc = Netrc::from_string(content).expect("Failed to parse netrc");
 
-        let auth1 = netrc.get("example.com").unwrap();
+        let auth1 = netrc
+            .get("example.com")
+            .expect("Failed to get example.com auth");
         assert_eq!(auth1.username, "user1");
         assert_eq!(auth1.password, "pass1");
 
-        let auth2 = netrc.get("test.com").unwrap();
+        let auth2 = netrc.get("test.com").expect("Failed to get test.com auth");
         assert_eq!(auth2.username, "user2");
         assert_eq!(auth2.password, "pass2");
     }
@@ -296,14 +300,18 @@ mod tests {
             password defaultpass
         ";
 
-        let netrc = Netrc::from_string(content).unwrap();
+        let netrc = Netrc::from_string(content).expect("Failed to parse netrc");
 
         // Specific machine
-        let auth1 = netrc.get("example.com").unwrap();
+        let auth1 = netrc
+            .get("example.com")
+            .expect("Failed to get example.com auth");
         assert_eq!(auth1.username, "user1");
 
         // Unknown machine should use default
-        let auth2 = netrc.get("unknown.com").unwrap();
+        let auth2 = netrc
+            .get("unknown.com")
+            .expect("Failed to get default auth");
         assert_eq!(auth2.username, "defaultuser");
         assert_eq!(auth2.password, "defaultpass");
     }
@@ -316,7 +324,7 @@ mod tests {
             password pass1
         ";
 
-        let netrc = Netrc::from_string(content).unwrap();
+        let netrc = Netrc::from_string(content).expect("Failed to parse netrc");
         assert!(netrc.get("unknown.com").is_none());
     }
 }

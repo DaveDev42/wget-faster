@@ -616,7 +616,7 @@ async fn test_if_modified_since_header() {
     let mut server = Server::new_async().await;
 
     // Create a time in the past
-    let past_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1420070400); // Jan 1, 2015
+    let past_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1_420_070_400); // Jan 1, 2015
     let http_date = httpdate::fmt_http_date(past_time);
 
     // Mock HEAD request that should receive If-Modified-Since header
@@ -665,11 +665,11 @@ async fn test_if_modified_since_with_newer_remote() {
     let mut server = Server::new_async().await;
 
     // Local file time (old)
-    let old_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1420070400); // Jan 1, 2015
+    let old_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1_420_070_400); // Jan 1, 2015
     let old_http_date = httpdate::fmt_http_date(old_time);
 
     // Remote file time (newer)
-    let new_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1483228800); // Jan 1, 2017
+    let new_time = SystemTime::UNIX_EPOCH + Duration::from_secs(1_483_228_800); // Jan 1, 2017
     let new_http_date = httpdate::fmt_http_date(new_time);
 
     // Mock HEAD request

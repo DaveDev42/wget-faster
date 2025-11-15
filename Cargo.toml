@@ -30,6 +30,7 @@ unimplemented = "warn"
 
 # Cargo lints
 cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"  # TODO: Fix with dependency updates
 
 # Complexity lints
 cognitive_complexity = "warn"
@@ -91,7 +92,7 @@ url = "2.5"
 percent-encoding = "2.3"
 
 # HTML parsing (for recursive download)
-scraper = "0.21"
+scraper = "0.24"
 html5ever = "0.29"
 
 # Cookie support

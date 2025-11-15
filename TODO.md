@@ -1115,6 +1115,45 @@ Detailed analysis of all 108 failing tests is available in [`todo/README.md`](./
 - test_framework_crawl_mismatch: 5 tests
 - timeout: 3 tests (if auth fixed)
 
+## CI/CD Issues - 2025-11-15 🔴
+
+**Status**: CI/CD pipeline implemented but failing
+**Workflows**: CI, Coverage (✅), Benchmark (running)
+**Priority**: HIGH - Blocks automated deployments
+
+### Critical Issues
+
+1. **Security Audit Failure** (🔴 HIGH PRIORITY)
+   - **Issue**: Unmaintained dependency `fxhash` via `scraper` 0.21.0
+   - **Advisory**: RUSTSEC-2025-0057
+   - **Impact**: CI blocks, security risk, no future updates
+   - **Solution**: Update `scraper` 0.21.0 → 0.24.0
+   - **Estimate**: 1-2 hours
+   - **See**: [`todo/CI_Issues.md`](./todo/CI_Issues.md) for details
+
+2. **Clippy Warnings** (🟡 MEDIUM PRIORITY)
+   - Dead code warnings in `response_handler.rs`
+   - Long literal warnings (missing number separators)
+   - Multiple dependency versions (getrandom, rand, thiserror)
+   - Floating point precision cast
+   - **Solution**: Clean up warnings, update dependencies
+   - **Estimate**: 2-3 hours
+
+### Action Plan
+
+**Immediate (This Week)**:
+1. ✅ Update scraper to 0.24.0 (fixes security audit)
+2. ✅ Remove dead code or add `#[allow(dead_code)]`
+3. ✅ Add numeric separators to long literals
+
+**Short Term (Next Sprint)**:
+4. ⏳ Resolve dependency duplicates via `cargo update`
+5. ⏳ Update major dependencies (criterion, thiserror)
+
+See [`todo/CI_Issues.md`](./todo/CI_Issues.md) for complete analysis and implementation details.
+
+---
+
 ## Quick Reference
 
 ### Current Priorities (v0.0.9) - Updated 2025-11-15

@@ -65,5 +65,5 @@ pub use progress::{
 };
 pub use recursive::{RecursiveConfig, RecursiveDownloader};
 
-// Export robots module for doctests
+/// robots.txt parsing and handling
 pub mod robots;

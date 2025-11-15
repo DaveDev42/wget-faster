@@ -62,6 +62,7 @@ impl ResponseStatus {
     }
 
     /// Check if status indicates success (including special success codes)
+    #[allow(dead_code)]
     pub fn is_success_or_special(&self) -> bool {
         matches!(
             self,
@@ -147,6 +148,7 @@ pub fn should_proceed_download(status_code: u16, config: &DownloadConfig) -> Res
 /// # Returns
 ///
 /// Returns `Some(action)` describing what to do, or `None` if normal processing
+#[allow(dead_code)]
 pub fn check_special_status(status_code: u16) -> Option<&'static str> {
     match status_code {
         204 => Some("no_content"),

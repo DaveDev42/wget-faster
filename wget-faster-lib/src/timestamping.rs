@@ -163,7 +163,9 @@ mod tests {
             headers: reqwest::header::HeaderMap::new(),
         };
 
-        let (action, _) = check_timestamp(path, &metadata).await.unwrap();
+        let (action, _) = check_timestamp(path, &metadata)
+            .await
+            .expect("Failed to check timestamp");
         assert_eq!(action, TimestampAction::Download);
     }
 

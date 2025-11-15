@@ -115,6 +115,7 @@ impl AdaptiveDownloader {
     }
 
     /// Adjust chunk size based on observed performance
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     fn adjust_chunk_size(&self, stats: &[ChunkStats], current_size: u64) -> u64 {
         if stats.len() < 2 {
             return current_size;
@@ -144,6 +145,7 @@ impl AdaptiveDownloader {
     }
 
     /// Adjust chunk count based on observed performance
+    #[allow(clippy::cast_precision_loss)]
     fn adjust_chunk_count(&self, stats: &[ChunkStats], current_count: usize) -> usize {
         if stats.len() < 3 {
             return current_count;
@@ -272,6 +274,7 @@ impl AdaptiveDownloader {
     }
 
     /// Calculate variance of a set of values
+    #[allow(clippy::cast_precision_loss)]
     fn calculate_variance(&self, values: Vec<f64>) -> f64 {
         if values.is_empty() {
             return 0.0;
