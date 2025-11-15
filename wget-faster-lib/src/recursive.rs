@@ -633,14 +633,38 @@ impl RecursiveDownloader {
 
     /// Check if URL points to HTML content (for spider mode)
     async fn is_html_url(&self, url: &str) -> bool {
-        // Get metadata to check content type
+        // Check URL extension first (fast path - avoids HEAD request)
+        // This matches GNU wget behavior: only send HEAD if content type is uncertain
+        if url.ends_with(".html") || url.ends_with(".htm") || url.ends_with('/') {
+            return true;
+        }
+
+        // Non-HTML extensions (skip HEAD request)
+        if url.ends_with(".jpg")
+            || url.ends_with(".jpeg")
+            || url.ends_with(".png")
+            || url.ends_with(".gif")
+            || url.ends_with(".webp")
+            || url.ends_with(".css")
+            || url.ends_with(".js")
+            || url.ends_with(".ico")
+            || url.ends_with(".pdf")
+            || url.ends_with(".zip")
+            || url.ends_with(".tar")
+            || url.ends_with(".gz")
+        {
+            return false;
+        }
+
+        // Uncertain - only NOW send HEAD request to check content type
         if let Ok(metadata) = self.downloader.get_client().get_metadata(url).await {
             if let Some(content_type) = metadata.content_type {
                 return content_type.contains("text/html");
             }
         }
-        // Default to checking URL extension
-        url.ends_with(".html") || url.ends_with(".htm") || url.ends_with('/')
+
+        // Default: treat as HTML if uncertain (matches wget behavior)
+        true
     }
 
     /// Check if HTML document has meta robots nofollow directive

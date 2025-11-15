@@ -215,7 +215,21 @@ impl Downloader {
     ) -> Result<Bytes> {
         tracing::debug!(url = %url, "Starting download to memory");
 
-        // Get metadata
+        // Only send HEAD request if parallel downloads are enabled AND threshold is set
+        // This allows us to check file size and Range support
+        let should_check_metadata =
+            self.client.config().parallel_threshold > 0 && self.client.config().parallel_chunks > 1;
+
+        if !should_check_metadata {
+            // Skip HEAD request - go directly to GET
+            // This matches GNU wget behavior for simple downloads
+            tracing::debug!(
+                "Skipping HEAD request - going directly to GET (parallel downloads disabled)"
+            );
+            return self.download_sequential(url, progress_callback).await;
+        }
+
+        // Get metadata (sends HEAD request)
         let metadata = self.client.get_metadata(url).await?;
         tracing::debug!(
             status_code = metadata.status_code,
@@ -363,11 +377,14 @@ impl Downloader {
         path: PathBuf,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<DownloadResult> {
-        // In timestamping mode (-N), skip HEAD request and go directly to GET with If-Modified-Since
-        // This matches GNU wget behavior and ensures test compatibility
-        let skip_head = self.client.config().timestamping;
+        // Skip HEAD request if:
+        // 1. Timestamping mode (-N) - use GET with If-Modified-Since instead
+        // 2. Simple download without parallel (no need to check Range support)
+        let skip_head = self.client.config().timestamping
+            || (self.client.config().parallel_threshold == 0
+                || self.client.config().parallel_chunks <= 1);
 
-        // Get metadata first (unless in timestamping mode)
+        // Get metadata first (unless skipping HEAD)
         // If timestamping is enabled, use GET with If-Modified-Since header instead of HEAD
         let (metadata, if_modified_since) = if skip_head {
             // Timestamping mode: skip HEAD, use GET with If-Modified-Since directly
