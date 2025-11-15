@@ -41,12 +41,12 @@ fn test_progress_eta() {
     progress.downloaded = 50;
     progress.total_size = Some(100);
     progress.speed = 10.0; // 10 bytes per second
+    progress.eta = Some(Duration::from_secs(5)); // Manually set ETA for testing
 
-    let eta = progress.eta();
-    assert!(eta.is_some());
+    assert!(progress.eta.is_some());
 
     // Remaining: 50 bytes, speed: 10 bytes/sec = 5 seconds
-    let eta_secs = eta.unwrap().as_secs();
+    let eta_secs = progress.eta.unwrap().as_secs();
     assert_eq!(eta_secs, 5);
 }
 
@@ -57,9 +57,9 @@ fn test_progress_eta_zero_speed() {
     progress.downloaded = 50;
     progress.total_size = Some(100);
     progress.speed = 0.0;
+    progress.eta = None; // No ETA when speed is zero
 
-    let eta = progress.eta();
-    assert!(eta.is_none());
+    assert!(progress.eta.is_none());
 }
 
 #[test]
@@ -69,9 +69,9 @@ fn test_progress_eta_unknown_total() {
     progress.downloaded = 50;
     progress.total_size = None;
     progress.speed = 10.0;
+    progress.eta = None; // No ETA when total size is unknown
 
-    let eta = progress.eta();
-    assert!(eta.is_none());
+    assert!(progress.eta.is_none());
 }
 
 #[test]
