@@ -228,6 +228,31 @@ pub struct RecursiveDownloader {
 }
 
 impl RecursiveDownloader {
+    /// Create a new recursive downloader
+    ///
+    /// # Arguments
+    ///
+    /// * `download_config` - Configuration for individual file downloads
+    /// * `recursive_config` - Configuration for recursive behavior (depth, filters, etc.)
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(RecursiveDownloader)` on success, or `Err` if the downloader
+    /// configuration fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use wget_faster_lib::{RecursiveDownloader, DownloadConfig, RecursiveConfig};
+    ///
+    /// let download_config = DownloadConfig::default();
+    /// let mut recursive_config = RecursiveConfig::default();
+    /// recursive_config.max_depth = 2;  // Only follow links 2 levels deep
+    /// recursive_config.page_requisites = true;  // Download CSS, images, JS
+    ///
+    /// let downloader = RecursiveDownloader::new(download_config, recursive_config)?;
+    /// # Ok::<(), wget_faster_lib::Error>(())
+    /// ```
     pub fn new(download_config: DownloadConfig, recursive_config: RecursiveConfig) -> Result<Self> {
         Ok(Self {
             downloader: Downloader::new(download_config)?,

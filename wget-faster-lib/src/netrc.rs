@@ -17,8 +17,11 @@ use std::path::{Path, PathBuf};
 /// Entry in .netrc file
 #[derive(Debug, Clone)]
 pub struct NetrcEntry {
+    /// Machine hostname (e.g., "example.com")
     pub machine: String,
+    /// Login username
     pub login: String,
+    /// Login password
     pub password: String,
 }
 

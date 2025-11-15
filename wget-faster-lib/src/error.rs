@@ -10,48 +10,95 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// displayed with user-friendly error messages.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// HTTP request failed (from reqwest)
+    ///
+    /// Includes connection errors, DNS failures, TLS errors, and HTTP protocol errors.
     #[error("HTTP request failed: {0}")]
     HttpError(#[from] reqwest::Error),
 
+    /// I/O error (from std::io)
+    ///
+    /// File system operations like reading, writing, or creating files.
     #[error("IO error: {0}")]
     IoError(#[from] io::Error),
 
+    /// Invalid URL format (from url crate)
+    ///
+    /// Malformed URLs that cannot be parsed.
     #[error("Invalid URL: {0}")]
     InvalidUrl(#[from] url::ParseError),
 
+    /// Invalid HTTP header value
+    ///
+    /// Header values that contain invalid characters or formatting.
     #[error("Invalid header value: {0}")]
     InvalidHeader(#[from] http::header::InvalidHeaderValue),
 
+    /// Invalid HTTP header name
+    ///
+    /// Header names that contain invalid characters or formatting.
     #[error("Invalid header name: {0}")]
     InvalidHeaderName(#[from] http::header::InvalidHeaderName),
 
+    /// Server does not support HTTP Range requests
+    ///
+    /// Returned when parallel downloads are requested but the server
+    /// doesn't advertise `Accept-Ranges: bytes` support.
     #[error("Server does not support range requests")]
     RangeNotSupported,
 
+    /// Content-Length header not available
+    ///
+    /// Required for resume and parallel downloads.
     #[error("Content length not available")]
     ContentLengthUnavailable,
 
+    /// Maximum retry attempts exceeded
+    ///
+    /// Download failed after exhausting all retry attempts with exponential backoff.
     #[error("Download failed after {0} retries")]
     MaxRetriesExceeded(usize),
 
+    /// Request timeout exceeded
+    ///
+    /// Connection or read timeout configured in DownloadConfig.
     #[error("Timeout exceeded")]
     Timeout,
 
+    /// HTTP response status indicates error
+    ///
+    /// 4xx client errors or 5xx server errors.
     #[error("Invalid response status: {0}")]
     InvalidStatus(u16),
 
+    /// Parallel chunk download failed
+    ///
+    /// One or more parallel chunks failed to download or assemble.
     #[error("Chunk download failed: {0}")]
     ChunkError(String),
 
+    /// Failed to create temporary file
+    ///
+    /// Temporary file creation for partial downloads or resume.
     #[error("Failed to create temporary file: {0}")]
     TempFileError(String),
 
+    /// Failed to write to output destination
+    ///
+    /// Could be file, memory buffer, or async writer.
     #[error("Failed to write to output: {0}")]
     WriteError(String),
 
+    /// Configuration validation error
+    ///
+    /// Invalid settings in DownloadConfig, such as malformed proxy URL
+    /// or invalid certificate paths.
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
+    /// Unclassified error
+    ///
+    /// Catch-all for errors that don't fit other categories.
     #[error("Unknown error: {0}")]
     Unknown(String),
 }

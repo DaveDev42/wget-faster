@@ -27,6 +27,25 @@ pub struct AdaptiveDownloader {
 }
 
 impl AdaptiveDownloader {
+    /// Create a new adaptive downloader
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - Arc-wrapped HttpClient for making HTTP requests
+    ///
+    /// # Default Parameters
+    ///
+    /// - `min_chunk_size`: 256 KB - Minimum chunk size to avoid overhead
+    /// - `max_chunk_size`: 10 MB - Maximum chunk size to avoid timeouts
+    /// - `initial_chunks`: 4 - Starting number of parallel connections
+    /// - `max_chunks`: 32 - Maximum parallel connections to avoid server overload
+    ///
+    /// # Performance Strategy
+    ///
+    /// The downloader starts conservatively (4 chunks) and adapts based on:
+    /// 1. **Speed variance** - Low variance → larger chunks, fewer connections
+    /// 2. **Slow chunks** - >30% slow chunks → smaller chunks, more connections
+    /// 3. **Performance trend** - Improving → add connections, degrading → reduce
     pub fn new(client: Arc<HttpClient>) -> Self {
         Self {
             client,

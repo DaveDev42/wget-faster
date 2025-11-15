@@ -2,6 +2,18 @@ use crate::{Error, Result, DownloadConfig};
 use reqwest::{Client, ClientBuilder, header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT, ACCEPT_ENCODING}};
 use std::time::Duration;
 
+/// HTTP client wrapper for download operations
+///
+/// Wraps reqwest::Client with wget-compatible configuration including:
+/// - Custom User-Agent and headers
+/// - Authentication (Basic, Digest, .netrc)
+/// - Proxy support with no_proxy filtering
+/// - Cookie management
+/// - SSL/TLS configuration
+/// - Compression (gzip, deflate, brotli)
+/// - Redirects with configurable limits
+///
+/// The client is clonable and thread-safe, designed for use in parallel downloads.
 #[derive(Clone)]
 pub struct HttpClient {
     client: Client,
@@ -9,6 +21,26 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
+    /// Create a new HTTP client with the given configuration
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Download configuration including timeouts, auth, proxy, etc.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(HttpClient)` on success, or `Err` if client configuration fails
+    /// (e.g., invalid proxy URL, malformed certificates).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use wget_faster_lib::{HttpClient, DownloadConfig};
+    ///
+    /// let config = DownloadConfig::default();
+    /// let client = HttpClient::new(config)?;
+    /// # Ok::<(), wget_faster_lib::Error>(())
+    /// ```
     pub fn new(config: DownloadConfig) -> Result<Self> {
         let mut headers = HeaderMap::new();
 
@@ -114,10 +146,16 @@ impl HttpClient {
         Ok(Self { client, config })
     }
 
+    /// Get a reference to the underlying reqwest::Client
+    ///
+    /// Useful for making custom HTTP requests with the same configuration.
     pub fn client(&self) -> &Client {
         &self.client
     }
 
+    /// Get a reference to the download configuration
+    ///
+    /// Returns the DownloadConfig used to create this client.
     pub fn config(&self) -> &DownloadConfig {
         &self.config
     }
