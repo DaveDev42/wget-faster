@@ -26,12 +26,18 @@ test_*.bin
 
 # Coverage reports
 cobertura.xml
+tarpaulin-report/
 tarpaulin-report.html
 *.profraw
 *.profdata
+lcov.info
+/target/llvm-cov/
+coverage_summary.txt
 
 # Benchmark results
 /benches/results/
+benchmark_results.txt
+/target/criterion/
 
 # Documentation build
 /target/doc/

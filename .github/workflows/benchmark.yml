@@ -1,0 +1,231 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run benchmarks
+        run: |
+          cargo bench --all-features -- --output-format bencher | tee benchmark_results.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark_results.txt
+            target/criterion/
+
+      - name: Store benchmark result (main branch only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark_results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@daveDev42'
+          benchmark-data-dir-path: 'dev/bench'
+
+      - name: Compare with main branch (PR only)
+        if: github.event_name == 'pull_request'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark_results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: false
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: false
+          benchmark-data-dir-path: 'dev/bench'
+
+  criterion-report:
+    name: Criterion Detailed Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-criterion
+        run: cargo install cargo-criterion || true
+
+      - name: Run criterion benchmarks
+        run: cargo criterion --all-features --message-format json > criterion_output.json || cargo bench --all-features
+
+      - name: Generate criterion HTML report
+        run: |
+          if [ -d "target/criterion" ]; then
+            echo "Criterion reports generated in target/criterion/"
+            ls -la target/criterion/
+          fi
+
+      - name: Upload criterion reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-reports
+          path: target/criterion/
+
+  performance-comparison:
+    name: Compare with GNU wget
+    runs-on: ubuntu-latest
+    # Only run on main branch pushes to avoid excessive resource usage
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget time
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Setup test environment
+        run: |
+          mkdir -p /tmp/wget-test
+          cd /tmp/wget-test
+
+          # Create test files of various sizes
+          dd if=/dev/urandom of=test_1mb.bin bs=1M count=1
+          dd if=/dev/urandom of=test_10mb.bin bs=1M count=10
+          dd if=/dev/urandom of=test_100mb.bin bs=1M count=100
+
+          # Start simple HTTP server
+          python3 -m http.server 8888 &
+          echo $! > server.pid
+          sleep 2
+
+      - name: Benchmark wget-faster
+        run: |
+          cd /tmp/wget-test
+
+          # Test 1MB file
+          /usr/bin/time -v target/release/wget-faster http://localhost:8888/test_1mb.bin -O /tmp/wgetf_1mb.bin 2>&1 | tee wgetf_1mb.log
+
+          # Test 10MB file
+          /usr/bin/time -v target/release/wget-faster http://localhost:8888/test_10mb.bin -O /tmp/wgetf_10mb.bin 2>&1 | tee wgetf_10mb.log
+
+          # Test 100MB file
+          /usr/bin/time -v target/release/wget-faster http://localhost:8888/test_100mb.bin -O /tmp/wgetf_100mb.bin 2>&1 | tee wgetf_100mb.log
+
+      - name: Benchmark GNU wget
+        run: |
+          cd /tmp/wget-test
+
+          # Test 1MB file
+          /usr/bin/time -v wget http://localhost:8888/test_1mb.bin -O /tmp/wget_1mb.bin 2>&1 | tee wget_1mb.log
+
+          # Test 10MB file
+          /usr/bin/time -v wget http://localhost:8888/test_10mb.bin -O /tmp/wget_10mb.bin 2>&1 | tee wget_10mb.log
+
+          # Test 100MB file
+          /usr/bin/time -v wget http://localhost:8888/test_100mb.bin -O /tmp/wget_100mb.bin 2>&1 | tee wget_100mb.log
+
+      - name: Compare results
+        run: |
+          cd /tmp/wget-test
+
+          echo "# Performance Comparison: wget-faster vs GNU wget" > comparison.md
+          echo "" >> comparison.md
+          echo "## Test Setup" >> comparison.md
+          echo "- Test files: 1MB, 10MB, 100MB" >> comparison.md
+          echo "- Server: Python HTTP server (localhost)" >> comparison.md
+          echo "- Date: $(date)" >> comparison.md
+          echo "" >> comparison.md
+
+          echo "## Results" >> comparison.md
+          echo "" >> comparison.md
+
+          for size in 1mb 10mb 100mb; do
+            echo "### ${size^^} File" >> comparison.md
+            echo "" >> comparison.md
+            echo "#### wget-faster" >> comparison.md
+            echo "\`\`\`" >> comparison.md
+            grep -E "(Elapsed|Maximum resident)" wgetf_${size}.log >> comparison.md
+            echo "\`\`\`" >> comparison.md
+            echo "" >> comparison.md
+            echo "#### GNU wget" >> comparison.md
+            echo "\`\`\`" >> comparison.md
+            grep -E "(Elapsed|Maximum resident)" wget_${size}.log >> comparison.md
+            echo "\`\`\`" >> comparison.md
+            echo "" >> comparison.md
+          done
+
+          cat comparison.md
+
+      - name: Cleanup
+        run: |
+          if [ -f /tmp/wget-test/server.pid ]; then
+            kill $(cat /tmp/wget-test/server.pid) || true
+          fi
+
+      - name: Upload comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-comparison
+          path: /tmp/wget-test/comparison.md

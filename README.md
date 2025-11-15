@@ -1,6 +1,10 @@
 # wget-faster
 
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![CI](https://github.com/wget-faster/wget-faster/actions/workflows/ci.yml/badge.svg)](https://github.com/wget-faster/wget-faster/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/wget-faster/wget-faster/branch/main/graph/badge.svg)](https://codecov.io/gh/wget-faster/wget-faster)
+[![Crates.io](https://img.shields.io/crates/v/wget-faster-cli.svg)](https://crates.io/crates/wget-faster-cli)
+[![Documentation](https://docs.rs/wget-faster-lib/badge.svg)](https://docs.rs/wget-faster-lib)
 
 A high-performance, drop-in replacement for GNU wget written in Rust with async support and parallel downloads.
 
@@ -408,6 +412,9 @@ See [CHANGELOG.md](CHANGELOG.md) for complete details and [TODO.md](TODO.md) for
 
 - [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
 - [TODO.md](TODO.md) - Development roadmap and future plans
+- [CI_CD.md](CI_CD.md) - CI/CD pipeline and tooling guide
+- [RELEASE.md](RELEASE.md) - Release process documentation
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [CLAUDE.md](CLAUDE.md) - Implementation details for AI/LLM context
 - [SPEC.md](SPEC.md) - Technical specifications and architecture
 

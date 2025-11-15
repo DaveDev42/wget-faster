@@ -17,21 +17,67 @@ Thank you for your interest in contributing to wget-faster! This document provid
 - Rust 1.91.1 or later (stable channel)
 - Cargo (comes with Rust)
 
-### Building the Project
+### Quick Setup
+
+Use our automated setup script to install all development tools:
 
 ```bash
 # Clone the repository
 git clone https://github.com/wget-faster/wget-faster.git
 cd wget-faster
 
+# Run the setup script
+./scripts/setup-dev-tools.sh
+```
+
+This will install:
+- Code coverage tools (`cargo-llvm-cov`, `cargo-tarpaulin`)
+- Security audit tools (`cargo-audit`)
+- Development utilities (`cargo-watch`, `cargo-outdated`, `cargo-deny`)
+- Benchmarking tools (`cargo-criterion`)
+- Task runner (`just`)
+- Git pre-commit hooks (optional)
+
+### Manual Setup
+
+If you prefer to set up manually:
+
+```bash
 # Build all workspace members
 cargo build --workspace --all-features
 
 # Run tests
 cargo test --workspace --all-features
 
-# Run a specific binary
-cargo run --bin wgetf -- --help
+# Install development tools
+cargo install cargo-llvm-cov cargo-tarpaulin cargo-audit cargo-watch just
+
+# Install Rust components
+rustup component add rustfmt clippy llvm-tools-preview
+```
+
+### Using just (Task Runner)
+
+The project includes a `justfile` with common development tasks:
+
+```bash
+# List all available commands
+just --list
+
+# Run CI checks locally
+just ci
+
+# Generate code coverage
+just coverage
+
+# Run benchmarks
+just bench
+
+# Run pre-commit checks
+just pre-commit
+
+# Setup development environment
+just setup
 ```
 
 ## Code Style and Linting
@@ -171,6 +217,44 @@ We aim for:
 - **Core functionality**: >80% coverage
 - **Error handling**: All error paths tested
 - **Edge cases**: Boundary conditions covered
+
+Generate coverage reports locally:
+
+```bash
+# Using cargo-llvm-cov (recommended)
+just coverage
+# Or manually:
+cargo llvm-cov --all-features --workspace --html
+open target/llvm-cov/html/index.html
+
+# Using cargo-tarpaulin (alternative)
+just coverage-tarpaulin
+# Or manually:
+cargo tarpaulin --all-features --workspace --out Html
+open tarpaulin-report/index.html
+```
+
+### CI/CD Integration
+
+The project uses GitHub Actions for continuous integration:
+
+- **CI Workflow** (`.github/workflows/ci.yml`): Runs on all PRs
+  - Tests, linting, building
+  - Code coverage with Codecov integration
+  - Benchmarks (main branch only)
+  - Security audits
+
+- **Coverage Workflow** (`.github/workflows/coverage.yml`): Detailed coverage reports
+  - Runs on PRs and weekly schedule
+  - Generates HTML reports (downloadable artifacts)
+  - Comments coverage summary on PRs
+
+- **Benchmark Workflow** (`.github/workflows/benchmark.yml`): Performance tracking
+  - Compares against main branch
+  - Tracks historical performance
+  - Alerts on >50% regression
+
+See [CI_CD.md](CI_CD.md) for detailed CI/CD documentation.
 
 ## Pull Request Process
 

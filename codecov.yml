@@ -1,0 +1,46 @@
+# Codecov configuration for wget-faster
+# Documentation: https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        target: 60%                    # Current goal: 60% coverage
+        threshold: 1%                  # Allow 1% drop
+        if_ci_failed: error
+
+    patch:
+      default:
+        target: 70%                    # New code should have higher coverage
+        threshold: 5%
+        if_ci_failed: error
+
+  precision: 2                         # Show 2 decimal places
+  round: down                          # Round down for conservative estimates
+
+comment:
+  layout: "header, diff, files, footer"
+  behavior: default                    # Comment on all PRs
+  require_changes: false               # Always comment
+
+flags:
+  unittests:
+    carryforward: true                 # Keep previous coverage if job fails
+    paths:
+      - wget-faster-lib/src/
+      - wget-faster-cli/src/
+
+  tarpaulin:
+    carryforward: true
+
+ignore:
+  - "benches/**/*"                     # Ignore benchmark code
+  - "wget-faster-lib/tests/**/*"       # Ignore test code
+  - "wget-faster-cli/src/args.rs"      # CLI arg parsing (hard to test)
+  - "**/*.rs.bk"                       # Backup files
+
+github_checks:
+  annotations: true                    # Show annotations in PR
+
+codecov:
+  require_ci_to_pass: true             # Wait for CI before processing
