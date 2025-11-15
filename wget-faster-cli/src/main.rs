@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use url::Url;
 use percent_encoding;
+use anyhow::{Context, Result, anyhow};
 
 #[tokio::main]
 async fn main() {
@@ -212,19 +213,22 @@ async fn download_url(
     downloader: &Downloader,
     url: &str,
     args: &Args,
-) -> Result<u64, Box<dyn std::error::Error>> {
+) -> Result<u64> {
     // Parse URL
-    let parsed_url = Url::parse(url)?;
+    let parsed_url = Url::parse(url)
+        .with_context(|| format!("Failed to parse URL: {}", url))?;
 
     // Get metadata first if content_disposition is enabled
     let metadata = if args.content_disposition {
-        Some(downloader.get_client().get_metadata(url).await?)
+        Some(downloader.get_client().get_metadata(url).await
+            .with_context(|| format!("Failed to get metadata from: {}", url))?)
     } else {
         None
     };
 
     // Determine output file name
-    let output_path = determine_output_path(&parsed_url, args, metadata.as_ref())?;
+    let output_path = determine_output_path(&parsed_url, args, metadata.as_ref())
+        .with_context(|| "Failed to determine output file path")?;
 
     // Create output formatter
     let mut output = if let Some(ref log_file) = args.output_file {
@@ -299,7 +303,7 @@ async fn download_url(
                     // HTTP 4xx/5xx errors
                     output.print_spider_result(url, status_code, false);
                     // Return an error with exit code 8
-                    return Err(Box::new(wget_faster_lib::Error::InvalidStatus(status_code)));
+                    return Err(wget_faster_lib::Error::InvalidStatus(status_code).into());
                 } else if status_code > 0 {
                     // Other status codes (1xx, 2xx, 3xx)
                     output.print_spider_result(url, status_code, true);
@@ -346,11 +350,13 @@ async fn download_url(
         // Download to stdout
         let bytes = downloader
             .download_to_memory_with_progress(url, Some(progress_callback))
-            .await?;
+            .await
+            .with_context(|| format!("Failed to download: {}", url))?;
 
         // Write to stdout
         use std::io::Write;
-        std::io::stdout().write_all(&bytes)?;
+        std::io::stdout().write_all(&bytes)
+            .context("Failed to write to stdout")?;
 
         return Ok(bytes.len() as u64);
     };
@@ -399,7 +405,7 @@ fn determine_output_path(
     url: &Url,
     args: &Args,
     metadata: Option<&wget_faster_lib::ResourceMetadata>,
-) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
+) -> Result<Option<PathBuf>> {
     // If -O is specified
     if let Some(ref output_doc) = args.output_document {
         // Special case: -O - means stdout
@@ -463,7 +469,7 @@ fn determine_output_path(
 
     // Handle no-clobber
     if args.no_clobber && path.exists() {
-        return Err(format!("File '{}' already exists.", path.display()).into());
+        return Err(anyhow!("File '{}' already exists.", path.display()));
     }
 
     // Handle duplicate filenames by adding .1, .2, .3 suffix
@@ -499,7 +505,7 @@ fn determine_output_path(
 
             // Safety check: prevent infinite loop
             if counter > 9999 {
-                return Err("Too many duplicate files".into());
+                return Err(anyhow!("Too many duplicate files"));
             }
         }
     }
@@ -577,7 +583,7 @@ fn process_execute_command(args: &mut Args, command: &str) -> Result<(), String>
     }
 }
 
-fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error>> {
+fn build_config(args: &Args) -> Result<DownloadConfig> {
     let mut config = DownloadConfig::default();
 
     // Set timeouts
@@ -670,7 +676,7 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     // Set HTTP method
     if let Some(ref method) = args.method {
         config.method = wget_faster_lib::HttpMethod::from_str(method)
-            .ok_or_else(|| format!("Invalid HTTP method: {}", method))?;
+            .ok_or_else(|| anyhow!("Invalid HTTP method: {}", method))?;
     }
 
     // Set POST data
@@ -806,7 +812,7 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
             if let Some(restriction) = wget_faster_lib::FilenameRestriction::from_str(mode) {
                 config.restrict_file_names.push(restriction);
             } else {
-                return Err(format!("Invalid restriction mode: {}", mode).into());
+                return Err(anyhow!("Invalid restriction mode: {}", mode));
             }
         }
     }
@@ -814,7 +820,7 @@ fn build_config(args: &Args) -> Result<DownloadConfig, Box<dyn std::error::Error
     Ok(config)
 }
 
-fn parse_quota(quota: &str) -> Result<Option<u64>, Box<dyn std::error::Error>> {
+fn parse_quota(quota: &str) -> Result<Option<u64>> {
     let quota = quota.trim().to_lowercase();
 
     // Parse quota with suffix (k, m, g)
@@ -834,7 +840,7 @@ fn parse_quota(quota: &str) -> Result<Option<u64>, Box<dyn std::error::Error>> {
     Ok(Some(bytes))
 }
 
-fn parse_rate(rate: &str) -> Result<Option<u64>, Box<dyn std::error::Error>> {
+fn parse_rate(rate: &str) -> Result<Option<u64>> {
     let rate = rate.trim().to_lowercase();
 
     // Parse rate with suffix (k, m, g)
@@ -858,13 +864,15 @@ async fn download_input_file_from_url(
     url: &str,
     force_html: bool,
     base_url: Option<&str>,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> Result<Vec<String>> {
     // Create a simple downloader to fetch the input file
     let config = DownloadConfig::default();
-    let downloader = Downloader::new(config)?;
+    let downloader = Downloader::new(config)
+        .context("Failed to create downloader for input file")?;
 
     // Determine the output filename from the URL
-    let parsed_url = Url::parse(url)?;
+    let parsed_url = Url::parse(url)
+        .with_context(|| format!("Failed to parse input file URL: {}", url))?;
     let filename = parsed_url
         .path_segments()
         .and_then(|segments| segments.last())
@@ -874,10 +882,12 @@ async fn download_input_file_from_url(
     let output_path = PathBuf::from(filename);
 
     // Download the input file to disk (matching wget behavior)
-    downloader.download_to_file(url, output_path.clone()).await?;
+    downloader.download_to_file(url, output_path.clone()).await
+        .with_context(|| format!("Failed to download input file from URL: {}", url))?;
 
     // Read the downloaded file to extract URLs
-    let content = tokio::fs::read_to_string(&output_path).await?;
+    let content = tokio::fs::read_to_string(&output_path).await
+        .with_context(|| format!("Failed to read downloaded input file: {}", output_path.display()))?;
 
     let mut urls = Vec::new();
 
@@ -912,18 +922,21 @@ async fn read_urls_from_file(
     path: &PathBuf,
     force_html: bool,
     base_url: Option<&str>,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> Result<Vec<String>> {
     use tokio::fs::File;
     use tokio::io::{AsyncBufReadExt, BufReader};
 
-    let file = File::open(path).await?;
+    let file = File::open(path).await
+        .with_context(|| format!("Failed to open input file: {}", path.display()))?;
     let reader = BufReader::new(file);
     let mut urls = Vec::new();
 
     if force_html {
         // Parse HTML and extract links
-        let content = tokio::fs::read_to_string(path).await?;
-        urls.extend(extract_urls_from_html(&content, base_url)?);
+        let content = tokio::fs::read_to_string(path).await
+            .with_context(|| format!("Failed to read HTML from file: {}", path.display()))?;
+        urls.extend(extract_urls_from_html(&content, base_url)
+            .with_context(|| format!("Failed to extract URLs from HTML file: {}", path.display()))?);
     } else {
         // Read URLs line by line
         let mut lines = reader.lines();
@@ -949,7 +962,7 @@ async fn read_urls_from_file(
     Ok(urls)
 }
 
-fn extract_urls_from_html(html: &str, base_url: Option<&str>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+fn extract_urls_from_html(html: &str, base_url: Option<&str>) -> Result<Vec<String>> {
     use scraper::{Html, Selector};
 
     let document = Html::parse_document(html);
@@ -1013,9 +1026,11 @@ fn extract_urls_from_html(html: &str, base_url: Option<&str>) -> Result<Vec<Stri
     Ok(urls)
 }
 
-fn resolve_url(base: &str, relative: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let base_url = Url::parse(base)?;
-    let resolved = base_url.join(relative)?;
+fn resolve_url(base: &str, relative: &str) -> Result<String> {
+    let base_url = Url::parse(base)
+        .with_context(|| format!("Failed to parse base URL: {}", base))?;
+    let resolved = base_url.join(relative)
+        .with_context(|| format!("Failed to resolve relative URL '{}' against base '{}'", relative, base))?;
     Ok(resolved.to_string())
 }
 
