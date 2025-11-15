@@ -205,7 +205,7 @@ impl WgetOutput {
     pub fn print_complete(&self, filename: &str, downloaded: u64, elapsed: Duration) {
         if !self.quiet {
             let elapsed_secs = elapsed.as_secs_f64();
-            let speed = if elapsed_secs > 0.0 {
+            let _speed = if elapsed_secs > 0.0 {
                 downloaded as f64 / elapsed_secs
             } else {
                 0.0
@@ -316,7 +316,7 @@ impl WgetOutput {
     }
 
     /// Print redirected message
-    pub fn print_redirect(&self, from: &str, to: &str) {
+    pub fn print_redirect(&self, _from: &str, to: &str) {
         if self.verbose && !self.quiet {
             self.write_log(&format!("Location: {to} [following]"));
         }
