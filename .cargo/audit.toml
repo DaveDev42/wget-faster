@@ -2,16 +2,33 @@
 # https://github.com/RustSec/rustsec/tree/main/cargo-audit
 
 [advisories]
-# Ignore unmaintained fxhash warning from scraper's dependency (selectors)
-# This is a transitive dependency that we cannot control until scraper updates
-# Tracking issue: https://github.com/causal-agent/scraper/issues/200
+# Ignore unmaintained fxhash warning from transitive dependency
 ignore = [
     "RUSTSEC-2025-0057",  # fxhash unmaintained - via scraper → selectors → fxhash
 ]
 
-# Explanation:
-# - scraper 0.24.0 (latest) depends on selectors 0.31.0
-# - selectors 0.31.0 uses fxhash 0.2.1 (unmaintained)
-# - This is a low-risk advisory (performance hash, not security)
-# - Will be resolved when scraper/selectors updates their dependencies
-# - Alternative: Replace scraper with different HTML parser (high effort)
+# Justification for ignoring RUSTSEC-2025-0057:
+#
+# 1. **Transitive dependency**: We don't use fxhash directly
+#    - scraper 0.24.0 (latest as of 2025-11) → selectors 0.31.0 → fxhash 0.2.1
+#
+# 2. **Low security risk**: fxhash is a non-cryptographic hash function
+#    - Used only for performance optimization in CSS selector matching
+#    - The "unmaintained" advisory is about code maintenance, not security
+#    - No known vulnerabilities, just lack of active development
+#
+# 3. **No control**: Cannot be fixed without upstream changes
+#    - scraper maintainers would need to update selectors dependency
+#    - selectors maintainers would need to replace fxhash
+#    - Both projects are actively maintained, but haven't prioritized this
+#
+# 4. **Alternatives evaluated**:
+#    - Replace scraper: High effort, scraper is best-in-class Rust HTML parser
+#    - Use different selector engine: Would require forking scraper
+#    - Wait for upstream: Most practical approach
+#
+# This ignore will be removed when:
+# - scraper/selectors updates to maintained hash library (e.g., rustc-hash)
+# - Alternative HTML parser with CSS selectors becomes available
+#
+# Last reviewed: 2025-11-15
