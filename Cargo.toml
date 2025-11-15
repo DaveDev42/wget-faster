@@ -21,6 +21,22 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 module_name_repetitions = "allow"
 
+# Allow noisy pedantic lints that don't improve code quality
+format_push_string = "allow"              # write! isn't always better than format!
+struct_excessive_bools = "allow"          # Config structs naturally have many bools
+match_same_arms = "allow"                 # Sometimes explicit is clearer
+items_after_statements = "allow"          # use statements are fine mid-function
+assigning_clones = "allow"                # clone() is often clearer than clone_from()
+unused_self = "allow"                     # Trait methods may not use self yet
+case_sensitive_file_extension_comparisons = "allow"  # URLs aren't file paths
+comparison_chain = "allow"                # if-else chains are often clearer
+trivially_copy_pass_by_ref = "allow"      # &self is idiomatic for methods
+unnecessary_wraps = "allow"               # Future-proofing with Result is fine
+cast_precision_loss = "allow"             # Handled with inline #[allow] where appropriate
+cast_sign_loss = "allow"                  # Handled with inline #[allow] where appropriate
+cast_possible_truncation = "allow"        # Handled with inline #[allow] where appropriate
+field_reassign_with_default = "allow"     # Common pattern in test setup code
+
 # Restriction lints (potentially dangerous patterns)
 unwrap_used = "warn"
 expect_used = "warn"
