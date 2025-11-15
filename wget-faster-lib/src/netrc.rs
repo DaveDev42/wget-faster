@@ -9,7 +9,6 @@
 /// ```
 ///
 /// Default location: `~/.netrc` on Unix-like systems, `~/_netrc` on Windows
-
 use crate::{AuthConfig, AuthType, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -92,7 +91,7 @@ impl Netrc {
         let mut tokens: Vec<String> = content
             .split_whitespace()
             .filter(|s| !s.is_empty())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         // Remove comments (lines starting with #)
@@ -121,7 +120,7 @@ impl Netrc {
                                 } else {
                                     i += 1;
                                 }
-                            }
+                            },
                             "password" => {
                                 if i + 1 < tokens.len() {
                                     password = tokens[i + 1].clone();
@@ -129,14 +128,14 @@ impl Netrc {
                                 } else {
                                     i += 1;
                                 }
-                            }
+                            },
                             "account" | "macdef" => {
                                 // Skip account and macdef (not supported)
                                 i += 2;
-                            }
+                            },
                             _ => {
                                 i += 1;
-                            }
+                            },
                         }
                     }
 
@@ -150,7 +149,7 @@ impl Netrc {
                             },
                         );
                     }
-                }
+                },
                 "default" => {
                     i += 1;
 
@@ -167,7 +166,7 @@ impl Netrc {
                                 } else {
                                     i += 1;
                                 }
-                            }
+                            },
                             "password" => {
                                 if i + 1 < tokens.len() {
                                     password = tokens[i + 1].clone();
@@ -175,14 +174,14 @@ impl Netrc {
                                 } else {
                                     i += 1;
                                 }
-                            }
+                            },
                             "account" | "macdef" => {
                                 // Skip account and macdef (not supported)
                                 i += 2;
-                            }
+                            },
                             _ => {
                                 i += 1;
-                            }
+                            },
                         }
                     }
 
@@ -193,10 +192,10 @@ impl Netrc {
                             password,
                         });
                     }
-                }
+                },
                 _ => {
                     i += 1;
-                }
+                },
             }
         }
 
@@ -250,11 +249,11 @@ mod tests {
 
     #[test]
     fn test_parse_simple() {
-        let content = r#"
+        let content = r"
             machine example.com
             login myuser
             password mypass
-        "#;
+        ";
 
         let netrc = Netrc::from_string(content).unwrap();
         let auth = netrc.get("example.com").unwrap();
@@ -264,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_parse_multiple() {
-        let content = r#"
+        let content = r"
             machine example.com
             login user1
             password pass1
@@ -272,7 +271,7 @@ mod tests {
             machine test.com
             login user2
             password pass2
-        "#;
+        ";
 
         let netrc = Netrc::from_string(content).unwrap();
 
@@ -287,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_parse_default() {
-        let content = r#"
+        let content = r"
             machine example.com
             login user1
             password pass1
@@ -295,7 +294,7 @@ mod tests {
             default
             login defaultuser
             password defaultpass
-        "#;
+        ";
 
         let netrc = Netrc::from_string(content).unwrap();
 
@@ -311,11 +310,11 @@ mod tests {
 
     #[test]
     fn test_no_match() {
-        let content = r#"
+        let content = r"
             machine example.com
             login user1
             password pass1
-        "#;
+        ";
 
         let netrc = Netrc::from_string(content).unwrap();
         assert!(netrc.get("unknown.com").is_none());

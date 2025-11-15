@@ -1,0 +1,82 @@
+# Clippy configuration for wget-faster
+# https://doc.rust-lang.org/clippy/lint_configuration.html
+
+# Cognitive complexity threshold
+# Default is 25, we set it lower for better code quality
+cognitive-complexity-threshold = 20
+
+# Maximum number of lines for a function
+# Default is 100, we allow slightly more for complex async functions
+too-many-lines-threshold = 80
+
+# Maximum number of arguments for a function
+# Default is 7, we keep it strict
+too-many-arguments-threshold = 6
+
+# Type complexity threshold
+# Default is 250, we make it stricter
+type-complexity-threshold = 200
+
+# Maximum size of arrays to lint
+# Default is 512_000 bytes
+array-size-threshold = 524_288
+
+# Maximum size of vectors to check for initialization
+vec-box-size-threshold = 4096
+
+# Maximum allowed size for stack-allocated structures
+# If a structure is larger than this, suggest using Box
+large-error-threshold = 128
+
+# Minimum number of enum variants to trigger the enum_variant_names lint
+enum-variant-name-threshold = 3
+
+# Maximum number of single char bindings in scope
+single-char-binding-names-threshold = 4
+
+# Minimum size of a literal to trigger the literal-representation lints
+literal-representation-threshold = 16384
+
+# Avoid certain prefixes for private module declarations
+# (empty means no restrictions)
+allowed-prefixes = []
+
+# Modules to ignore for missing documentation
+doc-valid-idents = [
+    "HTTP",
+    "HTTPS",
+    "FTP",
+    "FTPS",
+    "URL",
+    "URLs",
+    "HTML",
+    "CSS",
+    "JavaScript",
+    "JSON",
+    "XML",
+    "TLS",
+    "SSL",
+    "TCP",
+    "UDP",
+    "IP",
+    "IPv4",
+    "IPv6",
+    "DNS",
+    "GNU",
+    "BSD",
+    "UTF",
+    "ASCII",
+    "I/O",
+    "API",
+    "APIs",
+    "CLI",
+    "QUIC",
+]
+
+# Standard library functions to allow despite complexity warnings
+# (useful for initialization functions, builders, etc)
+too-large-for-stack = 512
+
+# Suppress certain lints in test code
+# Note: This is handled via #[cfg_attr(test, allow(...))] in code
+# or at the workspace level in Cargo.toml

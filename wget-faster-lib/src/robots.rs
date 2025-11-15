@@ -6,7 +6,6 @@
 /// - Allow and Disallow directives
 /// - Wildcard matching (*) in user-agent
 /// - Most specific path matching
-
 use std::collections::HashMap;
 
 /// robots.txt parser
@@ -34,7 +33,7 @@ impl RobotsTxt {
     ///
     /// # Returns
     ///
-    /// Returns a parsed RobotsTxt instance
+    /// Returns a parsed `RobotsTxt` instance
     ///
     /// # Examples
     ///
@@ -80,34 +79,28 @@ impl RobotsTxt {
                         if !current_agents.contains(&agent) {
                             current_agents.push(agent);
                         }
-                    }
+                    },
                     "disallow" => {
                         // Add Disallow rule to all current agents
                         for agent in &current_agents {
-                            rules
-                                .entry(agent.clone())
-                                .or_default()
-                                .push(RobotRule {
-                                    path: value.to_string(),
-                                    allow: false,
-                                });
+                            rules.entry(agent.clone()).or_default().push(RobotRule {
+                                path: value.to_string(),
+                                allow: false,
+                            });
                         }
-                    }
+                    },
                     "allow" => {
                         // Add Allow rule to all current agents
                         for agent in &current_agents {
-                            rules
-                                .entry(agent.clone())
-                                .or_default()
-                                .push(RobotRule {
-                                    path: value.to_string(),
-                                    allow: true,
-                                });
+                            rules.entry(agent.clone()).or_default().push(RobotRule {
+                                path: value.to_string(),
+                                allow: true,
+                            });
                         }
-                    }
+                    },
                     _ => {
                         // Ignore other fields (Crawl-delay, Sitemap, etc.)
-                    }
+                    },
                 }
             }
         }
@@ -191,11 +184,11 @@ mod tests {
 
     #[test]
     fn test_parse_basic() {
-        let content = r#"
+        let content = r"
 User-agent: *
 Disallow: /private/
 Allow: /public/
-"#;
+";
         let robots = RobotsTxt::parse(content);
 
         assert!(!robots.is_allowed("/private/file.html", "TestBot"));
@@ -205,13 +198,13 @@ Allow: /public/
 
     #[test]
     fn test_specific_user_agent() {
-        let content = r#"
+        let content = r"
 User-agent: BadBot
 Disallow: /
 
 User-agent: GoodBot
 Allow: /
-"#;
+";
         let robots = RobotsTxt::parse(content);
 
         assert!(!robots.is_allowed("/anything", "badbot"));
@@ -221,10 +214,10 @@ Allow: /
 
     #[test]
     fn test_empty_disallow() {
-        let content = r#"
+        let content = r"
 User-agent: *
 Disallow:
-"#;
+";
         let robots = RobotsTxt::parse(content);
 
         // Empty Disallow means allow everything
@@ -233,11 +226,11 @@ Disallow:
 
     #[test]
     fn test_most_specific_match() {
-        let content = r#"
+        let content = r"
 User-agent: *
 Disallow: /admin/
 Allow: /admin/public/
-"#;
+";
         let robots = RobotsTxt::parse(content);
 
         assert!(!robots.is_allowed("/admin/secret", "TestBot"));
@@ -246,12 +239,12 @@ Allow: /admin/public/
 
     #[test]
     fn test_comments_and_whitespace() {
-        let content = r#"
+        let content = r"
 # This is a comment
 User-agent: *  # Inline comment
 Disallow: /test/   # Another comment
 
-"#;
+";
         let robots = RobotsTxt::parse(content);
 
         assert!(!robots.is_allowed("/test/file", "TestBot"));
@@ -266,10 +259,10 @@ Disallow: /test/   # Another comment
 
     #[test]
     fn test_case_insensitive_user_agent() {
-        let content = r#"
+        let content = r"
 User-agent: MyBot
 Disallow: /private/
-"#;
+";
         let robots = RobotsTxt::parse(content);
 
         assert!(!robots.is_allowed("/private/file", "mybot"));

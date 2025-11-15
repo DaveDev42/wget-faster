@@ -3,9 +3,8 @@
 /// This module implements the wget -k (--convert-links) functionality:
 /// - Converts absolute URLs to relative URLs in HTML and CSS files
 /// - Updates href/src attributes in HTML
-/// - Updates @import and url() in CSS
+/// - Updates @import and `url()` in CSS
 /// - Handles backup of original files with -K flag
-
 use crate::{Error, Result};
 use scraper::{Html, Selector};
 use std::collections::HashMap;
@@ -86,16 +85,14 @@ impl LinkConverter {
             return Ok(());
         }
 
-        let backup_path = path.with_extension(
-            format!("{}.orig",
-                path.extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("")
-            )
-        );
+        let backup_path = path.with_extension(format!(
+            "{}.orig",
+            path.extension().and_then(|e| e.to_str()).unwrap_or("")
+        ));
 
-        tokio::fs::copy(path, backup_path).await
-            .map_err(|e| Error::IoError(e))?;
+        tokio::fs::copy(path, backup_path)
+            .await
+            .map_err(Error::IoError)?;
 
         Ok(())
     }
@@ -106,15 +103,17 @@ impl LinkConverter {
         self.backup_file(path).await?;
 
         // Read HTML content
-        let content = tokio::fs::read_to_string(path).await
-            .map_err(|e| Error::IoError(e))?;
+        let content = tokio::fs::read_to_string(path)
+            .await
+            .map_err(Error::IoError)?;
 
         // Convert links
         let converted = self.convert_html_content(&content, base_url)?;
 
         // Write converted content back
-        tokio::fs::write(path, converted).await
-            .map_err(|e| Error::IoError(e))?;
+        tokio::fs::write(path, converted)
+            .await
+            .map_err(Error::IoError)?;
 
         Ok(())
     }
@@ -126,17 +125,15 @@ impl LinkConverter {
 
         // Parse base URL for resolving relative URLs
         let base = Url::parse(base_url)
-            .map_err(|e| Error::ConfigError(format!("Invalid base URL: {}", e)))?;
+            .map_err(|e| Error::ConfigError(format!("Invalid base URL: {e}")))?;
 
         // Convert <a href="...">
         if let Ok(selector) = Selector::parse("a[href]") {
             for element in document.select(&selector) {
                 if let Some(href) = element.value().attr("href") {
                     if let Some(new_href) = self.convert_url_to_relative(&base, href) {
-                        result = result.replace(
-                            &format!("href=\"{}\"", href),
-                            &format!("href=\"{}\"", new_href)
-                        );
+                        result = result
+                            .replace(&format!("href=\"{href}\""), &format!("href=\"{new_href}\""));
                     }
                 }
             }
@@ -147,10 +144,8 @@ impl LinkConverter {
             for element in document.select(&selector) {
                 if let Some(src) = element.value().attr("src") {
                     if let Some(new_src) = self.convert_url_to_relative(&base, src) {
-                        result = result.replace(
-                            &format!("src=\"{}\"", src),
-                            &format!("src=\"{}\"", new_src)
-                        );
+                        result = result
+                            .replace(&format!("src=\"{src}\""), &format!("src=\"{new_src}\""));
                     }
                 }
             }
@@ -161,10 +156,8 @@ impl LinkConverter {
             for element in document.select(&selector) {
                 if let Some(href) = element.value().attr("href") {
                     if let Some(new_href) = self.convert_url_to_relative(&base, href) {
-                        result = result.replace(
-                            &format!("href=\"{}\"", href),
-                            &format!("href=\"{}\"", new_href)
-                        );
+                        result = result
+                            .replace(&format!("href=\"{href}\""), &format!("href=\"{new_href}\""));
                     }
                 }
             }
@@ -175,10 +168,8 @@ impl LinkConverter {
             for element in document.select(&selector) {
                 if let Some(src) = element.value().attr("src") {
                     if let Some(new_src) = self.convert_url_to_relative(&base, src) {
-                        result = result.replace(
-                            &format!("src=\"{}\"", src),
-                            &format!("src=\"{}\"", new_src)
-                        );
+                        result = result
+                            .replace(&format!("src=\"{src}\""), &format!("src=\"{new_src}\""));
                     }
                 }
             }
@@ -193,66 +184,64 @@ impl LinkConverter {
         self.backup_file(path).await?;
 
         // Read CSS content
-        let content = tokio::fs::read_to_string(path).await
-            .map_err(|e| Error::IoError(e))?;
+        let content = tokio::fs::read_to_string(path)
+            .await
+            .map_err(Error::IoError)?;
 
         // Convert links
         let converted = self.convert_css_content(&content, base_url)?;
 
         // Write converted content back
-        tokio::fs::write(path, converted).await
-            .map_err(|e| Error::IoError(e))?;
+        tokio::fs::write(path, converted)
+            .await
+            .map_err(Error::IoError)?;
 
         Ok(())
     }
 
-    /// Convert links in CSS content (url() and @import)
+    /// Convert links in CSS content (`url()` and @import)
     fn convert_css_content(&self, css: &str, base_url: &str) -> Result<String> {
         let base = Url::parse(base_url)
-            .map_err(|e| Error::ConfigError(format!("Invalid base URL: {}", e)))?;
+            .map_err(|e| Error::ConfigError(format!("Invalid base URL: {e}")))?;
 
         let mut result = css.to_string();
 
         // Find all url() references
         // Match url("..."), url('...'), and url(...)
         let url_regex = regex::Regex::new(r#"url\s*\(\s*['"]?([^'")]+)['"]?\s*\)"#)
-            .map_err(|e| Error::ConfigError(format!("Regex error: {}", e)))?;
+            .map_err(|e| Error::ConfigError(format!("Regex error: {e}")))?;
 
         for cap in url_regex.captures_iter(css) {
             if let Some(url_match) = cap.get(1) {
                 let original_url = url_match.as_str();
                 if let Some(new_url) = self.convert_url_to_relative(&base, original_url) {
+                    result =
+                        result.replace(&format!("url({original_url})"), &format!("url({new_url})"));
                     result = result.replace(
-                        &format!("url({})", original_url),
-                        &format!("url({})", new_url)
+                        &format!("url(\"{original_url}\")"),
+                        &format!("url(\"{new_url}\")"),
                     );
-                    result = result.replace(
-                        &format!("url(\"{}\")", original_url),
-                        &format!("url(\"{}\")", new_url)
-                    );
-                    result = result.replace(
-                        &format!("url('{}')", original_url),
-                        &format!("url('{}')", new_url)
-                    );
+                    result = result
+                        .replace(&format!("url('{original_url}')"), &format!("url('{new_url}')"));
                 }
             }
         }
 
         // Find all @import references
         let import_regex = regex::Regex::new(r#"@import\s+['"]([^'"]+)['"]"#)
-            .map_err(|e| Error::ConfigError(format!("Regex error: {}", e)))?;
+            .map_err(|e| Error::ConfigError(format!("Regex error: {e}")))?;
 
         for cap in import_regex.captures_iter(css) {
             if let Some(url_match) = cap.get(1) {
                 let original_url = url_match.as_str();
                 if let Some(new_url) = self.convert_url_to_relative(&base, original_url) {
                     result = result.replace(
-                        &format!("@import \"{}\"", original_url),
-                        &format!("@import \"{}\"", new_url)
+                        &format!("@import \"{original_url}\""),
+                        &format!("@import \"{new_url}\""),
                     );
                     result = result.replace(
-                        &format!("@import '{}'", original_url),
-                        &format!("@import '{}'", new_url)
+                        &format!("@import '{original_url}'"),
+                        &format!("@import '{new_url}'"),
                     );
                 }
             }
@@ -267,7 +256,7 @@ impl LinkConverter {
         if url_str.starts_with("data:")
             || url_str.starts_with("javascript:")
             || url_str.starts_with("mailto:")
-            || url_str.starts_with("#")
+            || url_str.starts_with('#')
         {
             return None;
         }

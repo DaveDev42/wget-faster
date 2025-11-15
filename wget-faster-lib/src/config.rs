@@ -1,6 +1,6 @@
-use std::time::Duration;
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::time::Duration;
 
 /// Configuration for the downloader
 #[derive(Debug, Clone)]
@@ -83,7 +83,7 @@ pub struct DownloadConfig {
     /// Wait time between requests (seconds)
     pub wait_time: Option<Duration>,
 
-    /// Random wait range multiplier (0.5-1.5x wait_time)
+    /// Random wait range multiplier (0.5-1.5x `wait_time`)
     pub random_wait: bool,
 
     /// Wait time between retries (seconds)
@@ -195,10 +195,10 @@ impl Default for DownloadConfig {
             auth_no_challenge: false,
             content_on_error: false,
             parallel_threshold: 10 * 1024 * 1024, // 10MB
-            pretty_output: false, // wget-compatible by default
-            restrict_file_names: Vec::new(), // No restrictions by default
-            start_pos: None, // No start position by default
-            https_only: false, // Accept both HTTP and HTTPS by default
+            pretty_output: false,                 // wget-compatible by default
+            restrict_file_names: Vec::new(),      // No restrictions by default
+            start_pos: None,                      // No start position by default
+            https_only: false,                    // Accept both HTTP and HTTPS by default
         }
     }
 }
@@ -276,14 +276,14 @@ pub struct ProxyConfig {
     /// Proxy authentication
     pub auth: Option<(String, String)>,
 
-    /// Domains to bypass proxy for (no_proxy list)
+    /// Domains to bypass proxy for (`no_proxy` list)
     pub no_proxy: Vec<String>,
 }
 
 impl ProxyConfig {
-    /// Check if a URL should bypass the proxy based on no_proxy list
+    /// Check if a URL should bypass the proxy based on `no_proxy` list
     ///
-    /// Implements wget's no_proxy matching logic:
+    /// Implements wget's `no_proxy` matching logic:
     /// - "domain.com" matches "domain.com" and "*.domain.com"
     /// - ".domain.com" matches only "*.domain.com" (not "domain.com" itself)
     pub fn should_bypass(&self, url: &str) -> bool {
@@ -295,7 +295,7 @@ impl ProxyConfig {
                 } else {
                     return false;
                 }
-            }
+            },
             Err(_) => return false,
         };
 
@@ -306,16 +306,16 @@ impl ProxyConfig {
                 continue;
             }
 
-            if pattern.starts_with('.') {
+            if let Some(domain) = pattern.strip_prefix('.') {
                 // ".domain.com" matches only subdomains (e.g., "www.domain.com")
                 // NOT the domain itself
-                let domain = &pattern[1..]; // Remove leading dot
+                // Remove leading dot
                 if host.ends_with(&pattern) || host.ends_with(domain) && host != domain {
                     return true;
                 }
             } else {
                 // "domain.com" matches the domain AND subdomains
-                if host == pattern || host.ends_with(&format!(".{}", pattern)) {
+                if host == pattern || host.ends_with(&format!(".{pattern}")) {
                     return true;
                 }
             }
@@ -395,7 +395,7 @@ impl FilenameRestriction {
                         byte >= 0x20 && byte != 0x7F
                     })
                     .collect()
-            }
+            },
             FilenameRestriction::Ascii => {
                 filename
                     .chars()
@@ -408,7 +408,7 @@ impl FilenameRestriction {
                         }
                     })
                     .collect()
-            }
+            },
             FilenameRestriction::Unix => {
                 filename
                     .chars()
@@ -420,7 +420,7 @@ impl FilenameRestriction {
                         }
                     })
                     .collect()
-            }
+            },
             FilenameRestriction::Windows => {
                 filename
                     .chars()
@@ -432,7 +432,7 @@ impl FilenameRestriction {
                         }
                     })
                     .collect()
-            }
+            },
         }
     }
 }
@@ -441,7 +441,5 @@ impl FilenameRestriction {
 pub fn apply_filename_restrictions(filename: &str, restrictions: &[FilenameRestriction]) -> String {
     restrictions
         .iter()
-        .fold(filename.to_string(), |name, restriction| {
-            restriction.apply(&name)
-        })
+        .fold(filename.to_string(), |name, restriction| restriction.apply(&name))
 }

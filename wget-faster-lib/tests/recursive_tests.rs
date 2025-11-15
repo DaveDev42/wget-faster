@@ -1,7 +1,6 @@
-use wget_faster_lib::{DownloadConfig, RecursiveDownloader, RecursiveConfig};
 use mockito::Server;
 use tempfile::TempDir;
-use std::path::Path;
+use wget_faster_lib::{DownloadConfig, RecursiveConfig, RecursiveDownloader};
 
 #[tokio::test]
 async fn test_recursive_config_defaults() {
@@ -61,13 +60,13 @@ async fn test_recursive_downloader_creation() {
 async fn test_recursive_download_single_page() {
     let mut server = Server::new_async().await;
 
-    let html = r#"
+    let html = r"
         <!DOCTYPE html>
         <html>
         <head><title>Test</title></head>
         <body><h1>Hello</h1></body>
         </html>
-    "#;
+    ";
 
     // Add HEAD request mock (downloader checks metadata first)
     let head_mock = server
@@ -93,7 +92,9 @@ async fn test_recursive_download_single_page() {
     let mut downloader = RecursiveDownloader::new(download_config, recursive_config).unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    let result = downloader.download_recursive(&server.url(), temp_dir.path()).await;
+    let result = downloader
+        .download_recursive(&server.url(), temp_dir.path())
+        .await;
 
     // Should successfully download at least the root page
     assert!(result.is_ok() || result.is_err()); // Accept either result for now
@@ -201,8 +202,10 @@ async fn test_fragment_removal() {
     let parsed2 = url::Url::parse(url2).unwrap();
 
     // Both should resolve to the same page
-    let without_fragment1 = format!("{}://{}{}", parsed1.scheme(), parsed1.host_str().unwrap(), parsed1.path());
-    let without_fragment2 = format!("{}://{}{}", parsed2.scheme(), parsed2.host_str().unwrap(), parsed2.path());
+    let without_fragment1 =
+        format!("{}://{}{}", parsed1.scheme(), parsed1.host_str().unwrap(), parsed1.path());
+    let without_fragment2 =
+        format!("{}://{}{}", parsed2.scheme(), parsed2.host_str().unwrap(), parsed2.path());
 
     assert_eq!(without_fragment1, without_fragment2);
 }
@@ -220,7 +223,8 @@ async fn test_query_string_preservation() {
 async fn test_recursive_with_links() {
     let mut server = Server::new_async().await;
 
-    let index_html = format!(r#"
+    let index_html = format!(
+        r#"
         <!DOCTYPE html>
         <html>
         <body>
@@ -228,14 +232,17 @@ async fn test_recursive_with_links() {
             <a href="{}/page2.html">Page 2</a>
         </body>
         </html>
-    "#, server.url(), server.url());
+    "#,
+        server.url(),
+        server.url()
+    );
 
-    let page1_html = r#"
+    let page1_html = r"
         <!DOCTYPE html>
         <html>
         <body><h1>Page 1</h1></body>
         </html>
-    "#;
+    ";
 
     // Add HEAD request mock for index
     let index_head_mock = server
@@ -280,7 +287,9 @@ async fn test_recursive_with_links() {
     let mut downloader = RecursiveDownloader::new(download_config, recursive_config).unwrap();
 
     let temp_dir = TempDir::new().unwrap();
-    let _result = downloader.download_recursive(&server.url(), temp_dir.path()).await;
+    let _result = downloader
+        .download_recursive(&server.url(), temp_dir.path())
+        .await;
 
     // At minimum, the index should be downloaded
     index_head_mock.assert_async().await;

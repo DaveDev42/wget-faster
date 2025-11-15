@@ -1,5 +1,5 @@
-use std::time::{Duration, Instant};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 /// Progress information for a download
 #[derive(Debug, Clone)]
@@ -95,7 +95,7 @@ impl ProgressInfo {
 
         // Percentage
         if let Some(pct) = self.percentage() {
-            output.push_str(&format!("{:>3.0}%", pct));
+            output.push_str(&format!("{pct:>3.0}%"));
         } else {
             output.push_str(" ---%");
         }
@@ -128,7 +128,7 @@ impl ProgressInfo {
 
         // ETA
         if let Some(eta_str) = self.format_eta() {
-            output.push_str(&format!("    eta {}", eta_str));
+            output.push_str(&format!("    eta {eta_str}"));
         }
 
         output
@@ -142,7 +142,7 @@ impl ProgressInfo {
 
         // Percentage in brackets
         if let Some(pct) = self.percentage() {
-            output.push_str(&format!("[{:>3.0}%] ", pct));
+            output.push_str(&format!("[{pct:>3.0}%] "));
         } else {
             output.push_str("[---] ");
         }
@@ -159,7 +159,7 @@ impl ProgressInfo {
 
         // ETA
         if let Some(eta) = self.format_eta() {
-            output.push_str(&format!(" ETA: {}", eta));
+            output.push_str(&format!(" ETA: {eta}"));
         }
 
         output
@@ -181,7 +181,7 @@ pub fn format_bytes(bytes: u64) -> String {
     }
 
     if unit_idx == 0 {
-        format!("{}B", bytes)
+        format!("{bytes}B")
     } else {
         format!("{:.2}{}", size, UNITS[unit_idx])
     }
@@ -210,25 +210,25 @@ pub fn format_duration(duration: Duration) -> String {
     let total_secs = duration.as_secs();
 
     if total_secs < 60 {
-        format!("{}s", total_secs)
+        format!("{total_secs}s")
     } else if total_secs < 3600 {
         let mins = total_secs / 60;
         let secs = total_secs % 60;
         if secs == 0 {
-            format!("{}m", mins)
+            format!("{mins}m")
         } else {
-            format!("{}m {}s", mins, secs)
+            format!("{mins}m {secs}s")
         }
     } else {
         let hours = total_secs / 3600;
         let mins = (total_secs % 3600) / 60;
         let secs = total_secs % 60;
         if mins == 0 && secs == 0 {
-            format!("{}h", hours)
+            format!("{hours}h")
         } else if secs == 0 {
-            format!("{}h {}m", hours, mins)
+            format!("{hours}h {mins}m")
         } else {
-            format!("{}h {}m {}s", hours, mins, secs)
+            format!("{hours}h {mins}m {secs}s")
         }
     }
 }
@@ -266,11 +266,11 @@ mod tests {
         progress.eta = Some(Duration::from_secs(3));
 
         let output = progress.format_wget_style();
-        assert!(output.contains(" 50%"), "Expected 50%, got: {}", output);
-        assert!(output.contains("=========="), "Expected progress bar, got: {}", output);
-        assert!(output.contains("5.00MB"), "Expected 5.00MB, got: {}", output);
-        assert!(output.contains("1.50MB/s"), "Expected 1.50MB/s, got: {}", output);
-        assert!(output.contains("eta 3s"), "Expected eta 3s, got: {}", output);
+        assert!(output.contains(" 50%"), "Expected 50%, got: {output}");
+        assert!(output.contains("=========="), "Expected progress bar, got: {output}");
+        assert!(output.contains("5.00MB"), "Expected 5.00MB, got: {output}");
+        assert!(output.contains("1.50MB/s"), "Expected 1.50MB/s, got: {output}");
+        assert!(output.contains("eta 3s"), "Expected eta 3s, got: {output}");
     }
 
     #[test]
@@ -282,10 +282,16 @@ mod tests {
         progress.eta = Some(Duration::from_secs(3));
 
         let output = progress.format_compact();
-        eprintln!("compact output: '{}'", output);
-        assert!(output.contains("[ 50%]") || output.contains("[50%]"), "Expected [50%], got: {}", output);
-        assert!(output.contains("5.00MB/10.00MB"), "Expected 5.00MB/10.00MB, got: {}", output);
-        assert!(output.contains("@ 1.50MB/s") || output.contains("@1.50MB/s"), "Expected @ 1.50MB/s, got: {}", output);
-        assert!(output.contains("ETA: 3s"), "Expected ETA: 3s, got: {}", output);
+        eprintln!("compact output: '{output}'");
+        assert!(
+            output.contains("[ 50%]") || output.contains("[50%]"),
+            "Expected [50%], got: {output}"
+        );
+        assert!(output.contains("5.00MB/10.00MB"), "Expected 5.00MB/10.00MB, got: {output}");
+        assert!(
+            output.contains("@ 1.50MB/s") || output.contains("@1.50MB/s"),
+            "Expected @ 1.50MB/s, got: {output}"
+        );
+        assert!(output.contains("ETA: 3s"), "Expected ETA: 3s, got: {output}");
     }
 }

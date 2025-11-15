@@ -1,4 +1,4 @@
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -114,7 +114,12 @@ pub struct Args {
     pub no_netrc: bool,
 
     /// Resume getting a partially-downloaded file
-    #[arg(short = 'c', long, alias = "continue", overrides_with = "continue_download")]
+    #[arg(
+        short = 'c',
+        long,
+        alias = "continue",
+        overrides_with = "continue_download"
+    )]
     pub continue_download: bool,
 
     /// Start downloading from zero-based position OFFSET
@@ -363,7 +368,7 @@ pub struct Args {
     #[arg(long, value_name = "FILE")]
     pub post_file: Option<PathBuf>,
 
-    /// Use method "HTTPMethod" in the request
+    /// Use method "`HTTPMethod`" in the request
     #[arg(long, value_name = "HTTPMethod")]
     pub method: Option<String>,
 
@@ -616,7 +621,8 @@ impl Args {
 
         // -k only makes sense with -O when downloading a single document
         if self.convert_links && self.output_document.is_some() && self.urls.len() > 1 {
-            return Err("-k (convert-links) with -O (output-document) only works with single URL".to_string());
+            return Err("-k (convert-links) with -O (output-document) only works with single URL"
+                .to_string());
         }
 
         // Spider mode doesn't need output

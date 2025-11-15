@@ -16,7 +16,7 @@ pub enum Error {
     #[error("HTTP request failed: {0}")]
     HttpError(#[from] reqwest::Error),
 
-    /// I/O error (from std::io)
+    /// I/O error (from `std::io`)
     ///
     /// File system operations like reading, writing, or creating files.
     #[error("IO error: {0}")]
@@ -61,7 +61,7 @@ pub enum Error {
 
     /// Request timeout exceeded
     ///
-    /// Connection or read timeout configured in DownloadConfig.
+    /// Connection or read timeout configured in `DownloadConfig`.
     #[error("Timeout exceeded")]
     Timeout,
 
@@ -91,7 +91,7 @@ pub enum Error {
 
     /// Configuration validation error
     ///
-    /// Invalid settings in DownloadConfig, such as malformed proxy URL
+    /// Invalid settings in `DownloadConfig`, such as malformed proxy URL
     /// or invalid certificate paths.
     #[error("Configuration error: {0}")]
     ConfigError(String),
@@ -132,12 +132,16 @@ impl Error {
             Error::HttpError(e) if e.is_timeout() || e.is_connect() => 4,
 
             // SSL verification failure -> 5
-            Error::HttpError(e) if e.to_string().contains("certificate")
-                                || e.to_string().contains("tls")
-                                || e.to_string().contains("ssl") => 5,
+            Error::HttpError(e)
+                if e.to_string().contains("certificate")
+                    || e.to_string().contains("tls")
+                    || e.to_string().contains("ssl") =>
+            {
+                5
+            },
 
             // Authentication failure -> 6
-            Error::InvalidStatus(401) | Error::InvalidStatus(407) => 6,
+            Error::InvalidStatus(401 | 407) => 6,
 
             // Client errors (4xx) -> 8
             Error::InvalidStatus(code) if *code >= 400 && *code < 500 => 8,
@@ -166,18 +170,18 @@ impl Error {
                 if e.is_timeout() {
                     "Read error (Connection timed out).".to_string()
                 } else if e.is_connect() {
-                    format!("Unable to establish connection: {}", e)
+                    format!("Unable to establish connection: {e}")
                 } else {
-                    format!("HTTP error: {}", e)
+                    format!("HTTP error: {e}")
                 }
-            }
-            Error::IoError(e) => format!("File write error: {}", e),
+            },
+            Error::IoError(e) => format!("File write error: {e}"),
             Error::InvalidUrl(_) => "Invalid URL format.".to_string(),
             Error::RangeNotSupported => "Server does not support byte ranges.".to_string(),
             Error::ContentLengthUnavailable => "Content-Length header missing.".to_string(),
             Error::MaxRetriesExceeded(n) => {
-                format!("Giving up after {} retries.", n)
-            }
+                format!("Giving up after {n} retries.")
+            },
             Error::Timeout => "Read error (Connection timed out).".to_string(),
             Error::InvalidStatus(code) => {
                 let status_text = match *code {
@@ -190,20 +194,20 @@ impl Error {
                     503 => "Service Unavailable",
                     _ => "Error",
                 };
-                format!("{}: {} {}", code, status_text, self)
-            }
-            Error::ChunkError(msg) => format!("Download failed: {}", msg),
-            Error::TempFileError(msg) => format!("Cannot create temp file: {}", msg),
-            Error::WriteError(msg) => format!("File write error: {}", msg),
-            Error::ConfigError(msg) => format!("Configuration error: {}", msg),
-            Error::Unknown(msg) => format!("Error: {}", msg),
+                format!("{code}: {status_text} {self}")
+            },
+            Error::ChunkError(msg) => format!("Download failed: {msg}"),
+            Error::TempFileError(msg) => format!("Cannot create temp file: {msg}"),
+            Error::WriteError(msg) => format!("File write error: {msg}"),
+            Error::ConfigError(msg) => format!("Configuration error: {msg}"),
+            Error::Unknown(msg) => format!("Error: {msg}"),
             _ => self.to_string(),
         }
     }
 
     /// Format error with URL context (wget-style)
     ///
-    /// Example: "wget: https://example.com/file.txt: failed: Connection refused."
+    /// Example: "wget: <https://example.com/file.txt>: failed: Connection refused."
     pub fn format_with_url(&self, url: &str) -> String {
         format!("{}: {}", url, self.format_wget_style())
     }

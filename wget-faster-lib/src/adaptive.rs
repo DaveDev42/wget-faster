@@ -1,7 +1,6 @@
 /// Adaptive download strategy that automatically adjusts chunk size and connection count
 /// based on network conditions and observed performance.
-
-use crate::{Error, Result, HttpClient, ProgressInfo, ProgressCallback};
+use crate::{Error, HttpClient, ProgressCallback, ProgressInfo, Result};
 use bytes::Bytes;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -31,7 +30,7 @@ impl AdaptiveDownloader {
     ///
     /// # Arguments
     ///
-    /// * `client` - Arc-wrapped HttpClient for making HTTP requests
+    /// * `client` - Arc-wrapped `HttpClient` for making HTTP requests
     ///
     /// # Default Parameters
     ///
@@ -49,7 +48,7 @@ impl AdaptiveDownloader {
     pub fn new(client: Arc<HttpClient>) -> Self {
         Self {
             client,
-            min_chunk_size: 256 * 1024,      // 256 KB
+            min_chunk_size: 256 * 1024,       // 256 KB
             max_chunk_size: 10 * 1024 * 1024, // 10 MB
             initial_chunks: 4,
             max_chunks: 32,
@@ -87,7 +86,15 @@ impl AdaptiveDownloader {
             let batch_chunks = self.create_chunks(position, batch_end, chunk_size);
 
             let batch_results = self
-                .download_chunks(url, batch_chunks, &downloaded, &stats, start_time, total_size, progress_callback.clone())
+                .download_chunks(
+                    url,
+                    batch_chunks,
+                    &downloaded,
+                    &stats,
+                    start_time,
+                    total_size,
+                    progress_callback.clone(),
+                )
                 .await?;
 
             // Merge results
@@ -205,7 +212,7 @@ impl AdaptiveDownloader {
                 let size = end - start + 1;
 
                 // Download chunk
-                let range_header = format!("bytes={}-{}", start, end);
+                let range_header = format!("bytes={start}-{end}");
                 let response = client
                     .client()
                     .get(&url)
@@ -252,8 +259,8 @@ impl AdaptiveDownloader {
         for task in tasks {
             let result = task
                 .await
-                .map_err(|e| Error::ChunkError(format!("Task join error: {}", e)))?
-                .map_err(|e| Error::ChunkError(format!("Chunk download failed: {}", e)))?;
+                .map_err(|e| Error::ChunkError(format!("Task join error: {e}")))?
+                .map_err(|e| Error::ChunkError(format!("Chunk download failed: {e}")))?;
             results.push(result);
         }
 
@@ -271,11 +278,7 @@ impl AdaptiveDownloader {
         }
 
         let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let variance = values
-            .iter()
-            .map(|v| (v - mean).powi(2))
-            .sum::<f64>()
-            / values.len() as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
 
         variance.sqrt()
     }

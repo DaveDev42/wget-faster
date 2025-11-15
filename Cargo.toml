@@ -14,7 +14,8 @@ dead_code = "warn"
 
 [workspace.lints.clippy]
 # Pedantic lints (but allow some common patterns)
-pedantic = "warn"
+# Use lower priority so individual lints can override
+pedantic = { level = "warn", priority = -1 }
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
@@ -28,7 +29,7 @@ todo = "warn"
 unimplemented = "warn"
 
 # Cargo lints
-cargo = "warn"
+cargo = { level = "warn", priority = -1 }
 
 # Complexity lints
 cognitive_complexity = "warn"
@@ -37,10 +38,10 @@ too_many_lines = "warn"
 type_complexity = "warn"
 
 # Performance lints
-perf = "warn"
+perf = { level = "warn", priority = -1 }
 
 # Correctness lints (errors by default, but being explicit)
-correctness = "deny"
+correctness = { level = "deny", priority = -1 }
 
 [workspace.package]
 version = "0.0.1"

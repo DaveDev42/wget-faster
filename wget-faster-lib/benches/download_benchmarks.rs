@@ -1,7 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use wget_faster_lib::{Downloader, DownloadConfig};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use mockito::Server;
 use tokio::runtime::Runtime;
+use wget_faster_lib::{DownloadConfig, Downloader};
 
 /// Benchmark sequential downloads of different file sizes
 fn bench_sequential_downloads(c: &mut Criterion) {
@@ -54,10 +54,7 @@ fn bench_parallel_downloads(c: &mut Criterion) {
     let mut group = c.benchmark_group("parallel_downloads");
 
     // Only test sizes that would trigger parallel downloads (> 10MB)
-    let sizes = vec![
-        ("10MB", 10 * 1024 * 1024),
-        ("20MB", 20 * 1024 * 1024),
-    ];
+    let sizes = vec![("10MB", 10 * 1024 * 1024), ("20MB", 20 * 1024 * 1024)];
 
     for (name, size) in sizes {
         group.bench_with_input(BenchmarkId::from_parameter(name), &size, |b, &size| {
@@ -179,7 +176,7 @@ fn bench_chunk_sizes(c: &mut Criterion) {
 
     for chunks in chunk_configs {
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("{}chunks", chunks)),
+            BenchmarkId::from_parameter(format!("{chunks}chunks")),
             &chunks,
             |b, &chunks| {
                 b.to_async(&rt).iter(|| async move {

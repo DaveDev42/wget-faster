@@ -1,6 +1,6 @@
 use crate::{
-    Error, Result, DownloadConfig, HttpClient, Output, ProgressCallback,
-    ProgressInfo, output::DownloadedData, parallel,
+    output::DownloadedData, parallel, DownloadConfig, Error, HttpClient, Output, ProgressCallback,
+    ProgressInfo, Result,
 };
 use bytes::Bytes;
 use futures_util::StreamExt;
@@ -52,7 +52,12 @@ impl Downloader {
     }
 
     /// Build a request with the configured method, headers, and body
-    fn build_request(&self, url: &str, range: Option<&str>, if_modified_since: Option<std::time::SystemTime>) -> Result<reqwest::RequestBuilder> {
+    fn build_request(
+        &self,
+        url: &str,
+        range: Option<&str>,
+        if_modified_since: Option<std::time::SystemTime>,
+    ) -> Result<reqwest::RequestBuilder> {
         let config = self.client.config();
 
         tracing::debug!(
@@ -72,7 +77,7 @@ impl Downloader {
             crate::config::HttpMethod::Patch => self.client.client().patch(url),
             crate::config::HttpMethod::Options => {
                 self.client.client().request(reqwest::Method::OPTIONS, url)
-            }
+            },
         };
 
         // Add body data for POST/PUT/PATCH
@@ -82,9 +87,15 @@ impl Downloader {
             // Add Content-Type if specified
             if let Some(ref content_type) = config.content_type {
                 request = request.header(reqwest::header::CONTENT_TYPE, content_type);
-            } else if matches!(config.method, crate::config::HttpMethod::Post | crate::config::HttpMethod::Put | crate::config::HttpMethod::Patch) {
+            } else if matches!(
+                config.method,
+                crate::config::HttpMethod::Post
+                    | crate::config::HttpMethod::Put
+                    | crate::config::HttpMethod::Patch
+            ) {
                 // Default to application/x-www-form-urlencoded for POST
-                request = request.header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded");
+                request = request
+                    .header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded");
             }
         }
 
@@ -243,13 +254,12 @@ impl Downloader {
                         progress_callback,
                     )
                     .await;
-                } else {
-                    tracing::debug!(
-                        total_size,
-                        threshold = self.client.config().parallel_threshold,
-                        "Using sequential download (file size below threshold)"
-                    );
                 }
+                tracing::debug!(
+                    total_size,
+                    threshold = self.client.config().parallel_threshold,
+                    "Using sequential download (file size below threshold)"
+                );
             } else {
                 tracing::debug!("Using sequential download (no content length)");
             }
@@ -361,7 +371,12 @@ impl Downloader {
             let local_time = local_metadata.modified()?;
 
             // Fetch metadata with If-Modified-Since header
-            (self.client.get_metadata_conditional(url, Some(local_time)).await?, Some(local_time))
+            (
+                self.client
+                    .get_metadata_conditional(url, Some(local_time))
+                    .await?,
+                Some(local_time),
+            )
         } else {
             // Normal metadata fetch without If-Modified-Since
             (self.client.get_metadata(url).await?, None)
@@ -384,7 +399,7 @@ impl Downloader {
                     url: url.to_string(),
                     metadata,
                 });
-            }
+            },
             ResponseStatus::NotModified => {
                 tracing::info!(path = %path.display(), "HTTP 304 Not Modified - file is up to date");
                 // If file exists, return it as-is
@@ -404,7 +419,7 @@ impl Downloader {
                     url: url.to_string(),
                     metadata,
                 });
-            }
+            },
             ResponseStatus::RangeNotSatisfiable => {
                 tracing::info!(path = %path.display(), "HTTP 416 Range Not Satisfiable - file already complete");
                 // If file exists, return it as-is (already complete)
@@ -420,7 +435,7 @@ impl Downloader {
                 // If file doesn't exist, this is an error
                 tracing::error!("HTTP 416 but file doesn't exist - this is an error");
                 return Err(Error::InvalidStatus(416));
-            }
+            },
             ResponseStatus::ClientError | ResponseStatus::ServerError => {
                 // Check content_on_error setting
                 // If false, return error immediately (don't create file)
@@ -429,15 +444,15 @@ impl Downloader {
                     return Err(Error::InvalidStatus(metadata.status_code));
                 }
                 // Continue to GET request to download error page
-            }
+            },
             ResponseStatus::AuthChallenge => {
                 // Auth challenges should have been handled in get_metadata
                 // If we're here, auth failed
                 return Err(Error::InvalidStatus(metadata.status_code));
-            }
+            },
             _ => {
                 // Success or other - continue normally
-            }
+            },
         }
 
         // Check timestamping - skip if local file is newer or delete if we need to re-download
@@ -445,7 +460,8 @@ impl Downloader {
         if self.client.config().timestamping {
             tracing::debug!(path = %path.display(), "Timestamping enabled - checking local vs remote timestamps");
 
-            let (action, result_data) = crate::timestamping::check_timestamp(&path, &metadata).await?;
+            let (action, result_data) =
+                crate::timestamping::check_timestamp(&path, &metadata).await?;
 
             use crate::timestamping::TimestampAction;
             match action {
@@ -456,14 +472,14 @@ impl Downloader {
                         url: url.to_string(),
                         metadata,
                     });
-                }
+                },
                 TimestampAction::DeleteAndDownload => {
                     // Need to delete and re-download
                     should_delete_existing = true;
-                }
+                },
                 TimestampAction::Download => {
                     // Just download (file doesn't exist)
-                }
+                },
             }
         }
 
@@ -518,21 +534,43 @@ impl Downloader {
                     .await?;
                     total_size
                 } else {
-                    self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from, if_modified_since)
-                        .await?
+                    self.download_sequential_to_writer(
+                        url,
+                        &mut file,
+                        progress_callback,
+                        resume_from,
+                        if_modified_since,
+                    )
+                    .await?
                 }
             } else {
-                self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from, if_modified_since)
-                    .await?
+                self.download_sequential_to_writer(
+                    url,
+                    &mut file,
+                    progress_callback,
+                    resume_from,
+                    if_modified_since,
+                )
+                .await?
             }
         } else {
-            self.download_sequential_to_writer(url, &mut file, progress_callback, resume_from, if_modified_since)
-                .await?
+            self.download_sequential_to_writer(
+                url,
+                &mut file,
+                progress_callback,
+                resume_from,
+                if_modified_since,
+            )
+            .await?
         };
 
         // Check if we should create/keep the file
         // Remove empty files for 204 No Content or 0 bytes without resume
-        if !crate::response_handler::should_create_file(metadata.status_code, total_bytes, resume_from) {
+        if !crate::response_handler::should_create_file(
+            metadata.status_code,
+            total_bytes,
+            resume_from,
+        ) {
             tracing::info!(path = %path.display(), "Removing empty file (should not create)");
             // Drop the file handle before deleting
             drop(file);
@@ -542,7 +580,7 @@ impl Downloader {
                 // Log error but don't fail if file doesn't exist
                 tracing::warn!(path = %path.display(), error = %e, "Failed to remove empty file");
                 if self.client.config().verbose {
-                    eprintln!("Warning: Failed to remove empty file: {}", e);
+                    eprintln!("Warning: Failed to remove empty file: {e}");
                 }
             }
 
@@ -556,7 +594,11 @@ impl Downloader {
 
         // Set file modification time from server if configured and available
         if self.client.config().use_server_timestamps {
-            crate::timestamping::set_file_timestamp(&path, &metadata, self.client.config().verbose)?;
+            crate::timestamping::set_file_timestamp(
+                &path,
+                &metadata,
+                self.client.config().verbose,
+            )?;
         }
 
         Ok(DownloadResult {
@@ -574,7 +616,7 @@ impl Downloader {
     /// # Arguments
     ///
     /// * `url` - The URL to download
-    /// * `output` - The output destination (Memory, File, or AsyncWrite)
+    /// * `output` - The output destination (Memory, File, or `AsyncWrite`)
     /// * `progress_callback` - Optional callback function for progress updates
     ///
     /// # Returns
@@ -631,12 +673,12 @@ impl Downloader {
                     url: url.to_string(),
                     metadata,
                 })
-            }
+            },
 
             Output::File(path) => {
                 self.download_to_file_with_progress(url, path, progress_callback)
                     .await
-            }
+            },
         }
     }
 
@@ -656,13 +698,19 @@ impl Downloader {
         // Handle authentication challenges (401/407)
         // If we have credentials but didn't send them preemptively, retry with auth
         if crate::auth_handler::should_retry_auth(status_code, self.client.config()) {
-            tracing::info!(status_code, "Authentication challenge received - retrying with credentials");
+            tracing::info!(
+                status_code,
+                "Authentication challenge received - retrying with credentials"
+            );
 
             // Get credentials (configured auth or .netrc)
             if let Some(auth) = crate::auth_handler::get_credentials(url, self.client.config()) {
                 tracing::debug!(username = %auth.username, "Retrying with authentication");
                 // Retry with authentication
-                let retry_request = self.client.client().get(url)
+                let retry_request = self
+                    .client
+                    .client()
+                    .get(url)
                     .basic_auth(&auth.username, Some(&auth.password));
 
                 let retry_response = retry_request.send().await?;
@@ -677,28 +725,30 @@ impl Downloader {
 
                 // Success! Continue with retry_response
                 tracing::info!("Authentication successful");
-                return self.process_sequential_response(retry_response, url, progress_callback).await;
-            } else {
-                // No credentials available
-                tracing::warn!("No credentials available for authentication");
-                return Err(Error::InvalidStatus(status_code));
+                return self
+                    .process_sequential_response(retry_response, url, progress_callback)
+                    .await;
             }
+            // No credentials available
+            tracing::warn!("No credentials available for authentication");
+            return Err(Error::InvalidStatus(status_code));
         }
 
         // Check if we should proceed based on status code
         match crate::response_handler::should_proceed_download(status_code, self.client.config()) {
             Ok(true) => {
                 // Proceed with download
-                self.process_sequential_response(response, url, progress_callback).await
-            }
+                self.process_sequential_response(response, url, progress_callback)
+                    .await
+            },
             Ok(false) => {
                 // Skip download (304/416 - should not reach here in sequential download)
                 Ok(Bytes::new())
-            }
+            },
             Err(err_status) => {
                 // Return error
                 Err(Error::InvalidStatus(err_status))
-            }
+            },
         }
     }
 
@@ -716,14 +766,14 @@ impl Downloader {
             Ok(false) => {
                 // Skip download (empty response)
                 return Ok(Bytes::new());
-            }
+            },
             Err(err_status) => {
                 // Return error
                 return Err(Error::InvalidStatus(err_status));
-            }
+            },
             Ok(true) => {
                 // Proceed with download
-            }
+            },
         }
 
         let total_size = response.content_length();
@@ -742,7 +792,8 @@ impl Downloader {
             // Apply speed limiting if configured
             if let Some(speed_limit) = self.client.config().speed_limit {
                 let chunk_size = chunk.len() as u64;
-                let expected_duration = Duration::from_secs_f64(chunk_size as f64 / speed_limit as f64);
+                let expected_duration =
+                    Duration::from_secs_f64(chunk_size as f64 / speed_limit as f64);
                 let actual_duration = last_chunk_time.elapsed();
 
                 if actual_duration < expected_duration {
@@ -776,7 +827,7 @@ impl Downloader {
         W: AsyncWriteExt + Unpin + Send,
     {
         let range_header = if resume_from > 0 {
-            Some(format!("bytes={}-", resume_from))
+            Some(format!("bytes={resume_from}-"))
         } else {
             None
         };
@@ -792,7 +843,10 @@ impl Downloader {
             // Get credentials (configured auth or .netrc)
             if let Some(auth) = crate::auth_handler::get_credentials(url, self.client.config()) {
                 // Retry with authentication (preserving range header if needed)
-                let mut retry_request = self.client.client().get(url)
+                let mut retry_request = self
+                    .client
+                    .client()
+                    .get(url)
                     .basic_auth(&auth.username, Some(&auth.password));
 
                 if let Some(ref range) = range_header {
@@ -808,11 +862,18 @@ impl Downloader {
                 }
 
                 // Success! Continue with retry_response
-                return self.process_writer_response(retry_response, url, writer, progress_callback, resume_from).await;
-            } else {
-                // No credentials available
-                return Err(Error::InvalidStatus(status_code));
+                return self
+                    .process_writer_response(
+                        retry_response,
+                        url,
+                        writer,
+                        progress_callback,
+                        resume_from,
+                    )
+                    .await;
             }
+            // No credentials available
+            return Err(Error::InvalidStatus(status_code));
         }
 
         // Handle special status codes
@@ -823,28 +884,29 @@ impl Downloader {
             ResponseStatus::NoContent => {
                 // 204 No Content - don't create file
                 return Ok(0);
-            }
+            },
             ResponseStatus::RangeNotSatisfiable => {
                 // 416 Range Not Satisfiable - file is already complete
                 return Ok(resume_from);
-            }
+            },
             ResponseStatus::Success => {
                 // 200 OK or 206 Partial Content - proceed
-            }
+            },
             ResponseStatus::ClientError | ResponseStatus::ServerError => {
                 // Check content_on_error
                 if !self.client.config().content_on_error {
                     return Err(Error::InvalidStatus(status_code));
                 }
                 // Proceed to download error page
-            }
+            },
             _ => {
                 // Other non-success status codes
                 return Err(Error::InvalidStatus(status_code));
-            }
+            },
         }
 
-        self.process_writer_response(response, url, writer, progress_callback, resume_from).await
+        self.process_writer_response(response, url, writer, progress_callback, resume_from)
+            .await
     }
 
     /// Helper to process response body for sequential downloads to writer
@@ -869,25 +931,25 @@ impl Downloader {
             ResponseStatus::NoContent => {
                 // 204 No Content - don't create file
                 return Ok(0);
-            }
+            },
             ResponseStatus::RangeNotSatisfiable => {
                 // 416 Range Not Satisfiable - file is already complete
                 return Ok(resume_from);
-            }
+            },
             ResponseStatus::Success => {
                 // 200 OK or 206 Partial Content - proceed
-            }
+            },
             ResponseStatus::ClientError | ResponseStatus::ServerError => {
                 // Check content_on_error
                 if !self.client.config().content_on_error {
                     return Err(Error::InvalidStatus(status_code));
                 }
                 // Proceed to download error page
-            }
+            },
             _ => {
                 // Other non-success status codes
                 return Err(Error::InvalidStatus(status_code));
-            }
+            },
         }
 
         let total_size = response.content_length().map(|s| s + resume_from);
@@ -905,7 +967,8 @@ impl Downloader {
             // Apply speed limiting if configured
             if let Some(speed_limit) = self.client.config().speed_limit {
                 let chunk_size = chunk.len() as u64;
-                let expected_duration = Duration::from_secs_f64(chunk_size as f64 / speed_limit as f64);
+                let expected_duration =
+                    Duration::from_secs_f64(chunk_size as f64 / speed_limit as f64);
                 let actual_duration = last_chunk_time.elapsed();
 
                 if actual_duration < expected_duration {

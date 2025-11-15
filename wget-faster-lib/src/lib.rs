@@ -4,7 +4,7 @@
 //!
 //! This library provides:
 //! - Full async/non-blocking API
-//! - Multiple output modes: memory, file, or custom AsyncWrite
+//! - Multiple output modes: memory, file, or custom `AsyncWrite`
 //! - Parallel downloads using HTTP Range requests
 //! - Progress tracking with callbacks
 //! - Resume support for partial downloads
@@ -32,33 +32,38 @@
 //! }
 //! ```
 
-mod error;
-mod config;
+mod adaptive;
+mod auth_handler;
 mod client;
-mod progress;
+mod config;
+mod cookies;
+mod downloader;
+mod error;
+mod link_converter;
+mod netrc;
 mod output;
 mod parallel;
-mod downloader;
-mod cookies;
-mod adaptive;
+mod progress;
 mod recursive;
-mod netrc;
-mod auth_handler;
 mod response_handler;
 mod timestamping;
-mod link_converter;
 
-pub use error::{Error, Result};
-pub use config::{DownloadConfig, RetryConfig, ProxyConfig, AuthConfig, AuthType, HttpMethod, FilenameRestriction, apply_filename_restrictions};
-pub use client::{HttpClient, ResourceMetadata};
-pub use downloader::{Downloader, DownloadResult};
-pub use progress::{ProgressInfo, ProgressCallback, format_bytes, format_bytes_per_sec, format_duration};
-pub use output::{Output, DownloadedData};
-pub use cookies::{Cookie, CookieJar};
 pub use adaptive::AdaptiveDownloader;
-pub use recursive::{RecursiveDownloader, RecursiveConfig};
-pub use netrc::{Netrc, NetrcEntry};
+pub use client::{HttpClient, ResourceMetadata};
+pub use config::{
+    apply_filename_restrictions, AuthConfig, AuthType, DownloadConfig, FilenameRestriction,
+    HttpMethod, ProxyConfig, RetryConfig,
+};
+pub use cookies::{Cookie, CookieJar};
+pub use downloader::{DownloadResult, Downloader};
+pub use error::{Error, Result};
 pub use link_converter::LinkConverter;
+pub use netrc::{Netrc, NetrcEntry};
+pub use output::{DownloadedData, Output};
+pub use progress::{
+    format_bytes, format_bytes_per_sec, format_duration, ProgressCallback, ProgressInfo,
+};
+pub use recursive::{RecursiveConfig, RecursiveDownloader};
 
 // Export robots module for doctests
 pub mod robots;

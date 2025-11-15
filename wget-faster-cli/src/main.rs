@@ -1,16 +1,15 @@
 mod args;
 mod output;
 
+use anyhow::{anyhow, Context, Result};
 use args::Args;
-use output::WgetOutput;
 use clap::Parser;
-use wget_faster_lib::{Downloader, DownloadConfig, ProgressInfo};
+use output::WgetOutput;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use url::Url;
-use percent_encoding;
-use anyhow::{Context, Result, anyhow};
+use wget_faster_lib::{DownloadConfig, Downloader, ProgressInfo};
 
 #[tokio::main]
 async fn main() {
@@ -20,7 +19,7 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn"))
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
         )
         .with_target(false) // Don't print module paths
         .with_thread_ids(false) // Don't print thread IDs
@@ -42,14 +41,14 @@ async fn main() {
     // Process -e/--execute commands
     if let Some(execute_cmd) = args.execute.clone() {
         if let Err(e) = process_execute_command(&mut args, &execute_cmd) {
-            eprintln!("wgetf: {}", e);
+            eprintln!("wgetf: {e}");
             std::process::exit(1);
         }
     }
 
     // Validate arguments
     if let Err(e) = args.validate() {
-        eprintln!("wgetf: {}", e);
+        eprintln!("wgetf: {e}");
         std::process::exit(1);
     }
 
@@ -61,24 +60,31 @@ async fn main() {
         // Check if input_file is a URL or a local file path
         let input_str = input_file.to_str().unwrap_or("");
 
-        if input_str.starts_with("http://") || input_str.starts_with("https://") || input_str.starts_with("ftp://") {
+        if input_str.starts_with("http://")
+            || input_str.starts_with("https://")
+            || input_str.starts_with("ftp://")
+        {
             // Input file is a URL - download it first
-            match download_input_file_from_url(input_str, args.force_html, args.base.as_deref()).await {
+            match download_input_file_from_url(input_str, args.force_html, args.base.as_deref())
+                .await
+            {
                 Ok(file_urls) => urls.extend(file_urls),
                 Err(e) => {
-                    eprintln!("wgetf: failed to read input file from URL: {}", e);
+                    eprintln!("wgetf: failed to read input file from URL: {e}");
                     std::process::exit(1);
-                }
+                },
             }
         } else {
             // Input file is a local file path
             let resolved_input_file = resolve_file_path(input_file);
-            match read_urls_from_file(&resolved_input_file, args.force_html, args.base.as_deref()).await {
+            match read_urls_from_file(&resolved_input_file, args.force_html, args.base.as_deref())
+                .await
+            {
                 Ok(file_urls) => urls.extend(file_urls),
                 Err(e) => {
-                    eprintln!("wgetf: failed to read input file: {}", e);
+                    eprintln!("wgetf: failed to read input file: {e}");
                     std::process::exit(1);
-                }
+                },
             }
         }
     }
@@ -96,9 +102,9 @@ async fn main() {
     let config = match build_config(&args) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("wgetf: {}", e);
+            eprintln!("wgetf: {e}");
             std::process::exit(1);
-        }
+        },
     };
 
     // Extract values before moving config
@@ -110,18 +116,19 @@ async fn main() {
     if args.recursive {
         // Recursive download mode
         let recursive_config = build_recursive_config(&args);
-        let mut recursive_downloader = match wget_faster_lib::RecursiveDownloader::new(config, recursive_config) {
-            Ok(d) => d,
-            Err(e) => {
-                eprintln!("wgetf: failed to create recursive downloader: {}", e);
-                std::process::exit(1);
-            }
-        };
+        let mut recursive_downloader =
+            match wget_faster_lib::RecursiveDownloader::new(config, recursive_config) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("wgetf: failed to create recursive downloader: {e}");
+                    std::process::exit(1);
+                },
+            };
 
         let mut exit_code = 0;
 
         // Process each URL recursively
-        for url in urls.iter() {
+        for url in &urls {
             // Determine output directory
             let output_dir = if let Some(ref prefix) = args.directory_prefix {
                 PathBuf::from(prefix)
@@ -129,7 +136,10 @@ async fn main() {
                 PathBuf::from(".")
             };
 
-            match recursive_downloader.download_recursive(url, &output_dir).await {
+            match recursive_downloader
+                .download_recursive(url, &output_dir)
+                .await
+            {
                 Ok(_files) => {
                     // Check if there were broken links in spider mode
                     if args.spider {
@@ -138,11 +148,11 @@ async fn main() {
                             exit_code = 8; // wget exit code for broken links
                         }
                     }
-                }
+                },
                 Err(e) => {
-                    eprintln!("wgetf: recursive download failed: {}", e);
+                    eprintln!("wgetf: recursive download failed: {e}");
                     exit_code = 1;
-                }
+                },
             }
         }
 
@@ -153,9 +163,9 @@ async fn main() {
     let downloader = match Downloader::new(config) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("wgetf: failed to create downloader: {}", e);
+            eprintln!("wgetf: failed to create downloader: {e}");
             std::process::exit(1);
-        }
+        },
     };
 
     // Download all URLs (non-recursive mode)
@@ -166,7 +176,7 @@ async fn main() {
         // Check quota before download
         if let Some(q) = quota {
             if total_downloaded >= q {
-                eprintln!("wgetf: quota of {} bytes exceeded", q);
+                eprintln!("wgetf: quota of {q} bytes exceeded");
                 break;
             }
         }
@@ -190,9 +200,9 @@ async fn main() {
         match download_url(&downloader, url, &args).await {
             Ok(bytes) => {
                 total_downloaded += bytes;
-            }
+            },
             Err(e) => {
-                eprintln!("wgetf: {}", e);
+                eprintln!("wgetf: {e}");
 
                 // Get exit code from error - check if it's a library error first
                 if let Some(lib_err) = e.downcast_ref::<wget_faster_lib::Error>() {
@@ -202,26 +212,26 @@ async fn main() {
                     // For other errors, use generic exit code 1
                     exit_code = 1;
                 }
-            }
+            },
         }
     }
 
     std::process::exit(exit_code);
 }
 
-async fn download_url(
-    downloader: &Downloader,
-    url: &str,
-    args: &Args,
-) -> Result<u64> {
+async fn download_url(downloader: &Downloader, url: &str, args: &Args) -> Result<u64> {
     // Parse URL
-    let parsed_url = Url::parse(url)
-        .with_context(|| format!("Failed to parse URL: {}", url))?;
+    let parsed_url = Url::parse(url).with_context(|| format!("Failed to parse URL: {url}"))?;
 
     // Get metadata first if content_disposition is enabled
     let metadata = if args.content_disposition {
-        Some(downloader.get_client().get_metadata(url).await
-            .with_context(|| format!("Failed to get metadata from: {}", url))?)
+        Some(
+            downloader
+                .get_client()
+                .get_metadata(url)
+                .await
+                .with_context(|| format!("Failed to get metadata from: {url}"))?,
+        )
     } else {
         None
     };
@@ -231,7 +241,7 @@ async fn download_url(
         .with_context(|| "Failed to determine output file path")?;
 
     // Create output formatter
-    let mut output = if let Some(ref log_file) = args.output_file {
+    let output = if let Some(ref log_file) = args.output_file {
         // Use -o (truncate mode)
         match WgetOutput::with_log_file(
             args.quiet,
@@ -244,7 +254,7 @@ async fn download_url(
             Err(e) => {
                 eprintln!("wgetf: failed to open log file '{}': {}", log_file.display(), e);
                 std::process::exit(3); // File I/O error
-            }
+            },
         }
     } else if let Some(ref log_file) = args.append_output {
         // Use -a (append mode)
@@ -259,7 +269,7 @@ async fn download_url(
             Err(e) => {
                 eprintln!("wgetf: failed to open log file '{}': {}", log_file.display(), e);
                 std::process::exit(3); // File I/O error
-            }
+            },
         }
     } else {
         // Default to terminal output
@@ -287,12 +297,14 @@ async fn download_url(
             Ok(_) => {
                 output.print_spider_result(url, 200, true);
                 return Ok(0);
-            }
+            },
             Err(e) => {
                 // In spider mode, HTTP errors should return exit code 8
                 // Extract status code from error
                 let status_code = if let Some(pos) = e.to_string().find("Invalid status: ") {
-                    e.to_string()[pos + 16..].split_whitespace().next()
+                    e.to_string()[pos + 16..]
+                        .split_whitespace()
+                        .next()
                         .and_then(|s| s.parse::<u16>().ok())
                         .unwrap_or(0)
                 } else {
@@ -311,9 +323,9 @@ async fn download_url(
                 }
 
                 // Non-HTTP errors
-                output.print_error(&format!("spider check failed: {}", e));
+                output.print_error(&format!("spider check failed: {e}"));
                 return Err(e.into());
-            }
+            },
         }
     }
 
@@ -330,7 +342,7 @@ async fn download_url(
     let output_clone = output_for_progress.clone();
 
     let progress_callback = Arc::new(move |progress: ProgressInfo| {
-        if let Ok(mut out) = output_clone.try_lock() {
+        if let Ok(out) = output_clone.try_lock() {
             out.update_progress(&progress);
         }
     });
@@ -351,11 +363,12 @@ async fn download_url(
         let bytes = downloader
             .download_to_memory_with_progress(url, Some(progress_callback))
             .await
-            .with_context(|| format!("Failed to download: {}", url))?;
+            .with_context(|| format!("Failed to download: {url}"))?;
 
         // Write to stdout
         use std::io::Write;
-        std::io::stdout().write_all(&bytes)
+        std::io::stdout()
+            .write_all(&bytes)
             .context("Failed to write to stdout")?;
 
         return Ok(bytes.len() as u64);
@@ -370,7 +383,7 @@ async fn download_url(
     match result {
         Ok(download_result) => {
             let elapsed = start_time.elapsed();
-            let mut out = output_for_progress.lock().await;
+            let out = output_for_progress.lock().await;
 
             // Print HTTP response
             out.print_http_response(200, "OK");
@@ -386,18 +399,17 @@ async fn download_url(
                 .data
                 .file_path
                 .as_ref()
-                .map(|p| p.display().to_string())
-                .unwrap_or_else(|| "unknown".to_string());
+                .map_or_else(|| "unknown".to_string(), |p| p.display().to_string());
 
             out.print_complete(&filename, download_result.data.total_bytes, elapsed);
 
             Ok(download_result.data.total_bytes)
-        }
+        },
         Err(e) => {
-            let mut out = output_for_progress.lock().await;
-            out.print_error(&format!("download failed: {}", e));
+            let out = output_for_progress.lock().await;
+            out.print_error(&format!("download failed: {e}"));
             Err(e.into())
-        }
+        },
     }
 }
 
@@ -423,15 +435,15 @@ fn determine_output_path(
             .or_else(|| {
                 // Fall back to URL if Content-Disposition not available
                 url.path_segments()
-                    .and_then(|segments| segments.last())
+                    .and_then(|mut segments| segments.next_back())
                     .filter(|name| !name.is_empty())
-                    .map(|s| s.to_string())
+                    .map(std::string::ToString::to_string)
             })
             .unwrap_or_else(|| "index.html".to_string())
     } else {
         // Extract filename from URL
         url.path_segments()
-            .and_then(|segments| segments.last())
+            .and_then(|mut segments| segments.next_back())
             .filter(|name| !name.is_empty())
             .unwrap_or("index.html")
             .to_string()
@@ -476,8 +488,10 @@ fn determine_output_path(
     // This matches wget behavior for Content-Disposition filenames
     // Skip this for timestamping (-N) or continue (-c) mode where we want to use the same file
     // EXCEPT: If --start-pos is used with --continue, we still create a numbered file
-    let should_number_file = path.exists() && !args.no_clobber && !args.timestamping &&
-                              (!args.continue_download || args.start_pos.is_some());
+    let should_number_file = path.exists()
+        && !args.no_clobber
+        && !args.timestamping
+        && (!args.continue_download || args.start_pos.is_some());
 
     if should_number_file {
         let mut counter = 1;
@@ -494,7 +508,7 @@ fn determine_output_path(
             }
 
             // Add filename with counter suffix
-            new_path.push(format!("{}.{}", filename, counter));
+            new_path.push(format!("{filename}.{counter}"));
 
             if !new_path.exists() {
                 path = new_path;
@@ -560,26 +574,24 @@ fn process_execute_command(args: &mut Args, command: &str) -> Result<(), String>
         let value = value.trim().to_lowercase();
 
         match key.as_str() {
-            "contentdisposition" => {
-                match value.as_str() {
-                    "on" | "1" | "true" => {
-                        args.content_disposition = true;
-                        Ok(())
-                    }
-                    "off" | "0" | "false" => {
-                        args.content_disposition = false;
-                        Ok(())
-                    }
-                    _ => Err(format!("Invalid value for contentdisposition: {}", value)),
-                }
-            }
+            "contentdisposition" => match value.as_str() {
+                "on" | "1" | "true" => {
+                    args.content_disposition = true;
+                    Ok(())
+                },
+                "off" | "0" | "false" => {
+                    args.content_disposition = false;
+                    Ok(())
+                },
+                _ => Err(format!("Invalid value for contentdisposition: {value}")),
+            },
             _ => {
                 // For unknown commands, silently ignore (wget behavior)
                 Ok(())
-            }
+            },
         }
     } else {
-        Err(format!("Invalid execute command format: {}", command))
+        Err(format!("Invalid execute command format: {command}"))
     }
 }
 
@@ -611,10 +623,9 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
     // Set custom headers
     for header in &args.header {
         if let Some((key, value)) = header.split_once(':') {
-            config.headers.insert(
-                key.trim().to_string(),
-                value.trim().to_string(),
-            );
+            config
+                .headers
+                .insert(key.trim().to_string(), value.trim().to_string());
         }
     }
 
@@ -676,7 +687,7 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
     // Set HTTP method
     if let Some(ref method) = args.method {
         config.method = wget_faster_lib::HttpMethod::from_str(method)
-            .ok_or_else(|| anyhow!("Invalid HTTP method: {}", method))?;
+            .ok_or_else(|| anyhow!("Invalid HTTP method: {method}"))?;
     }
 
     // Set POST data
@@ -690,9 +701,13 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
             Ok(d) => d,
             Err(e) => {
                 // File I/O error - exit with code 3
-                eprintln!("wgetf: Failed to read POST file '{}': {}", resolved_post_file.display(), e);
+                eprintln!(
+                    "wgetf: Failed to read POST file '{}': {}",
+                    resolved_post_file.display(),
+                    e
+                );
                 std::process::exit(3);
-            }
+            },
         };
         config.body_data = Some(data);
     }
@@ -706,9 +721,13 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
             Ok(d) => d,
             Err(e) => {
                 // File I/O error - exit with code 3
-                eprintln!("wgetf: Failed to read body file '{}': {}", resolved_body_file.display(), e);
+                eprintln!(
+                    "wgetf: Failed to read body file '{}': {}",
+                    resolved_body_file.display(),
+                    e
+                );
                 std::process::exit(3);
-            }
+            },
         };
         config.body_data = Some(data);
     }
@@ -721,7 +740,8 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
     // Set proxy configuration
     // Check for proxy URL from environment variables (unless --no-proxy is set)
     if !args.no_proxy {
-        if let Some(proxy_url) = std::env::var("http_proxy").ok()
+        if let Some(proxy_url) = std::env::var("http_proxy")
+            .ok()
             .or_else(|| std::env::var("https_proxy").ok())
             .or_else(|| std::env::var("HTTP_PROXY").ok())
             .or_else(|| std::env::var("HTTPS_PROXY").ok())
@@ -812,7 +832,7 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
             if let Some(restriction) = wget_faster_lib::FilenameRestriction::from_str(mode) {
                 config.restrict_file_names.push(restriction);
             } else {
-                return Err(anyhow!("Invalid restriction mode: {}", mode));
+                return Err(anyhow!("Invalid restriction mode: {mode}"));
             }
         }
     }
@@ -835,7 +855,7 @@ fn parse_quota(quota: &str) -> Result<Option<u64>> {
     };
 
     let num: f64 = num_str.parse()?;
-    let bytes = (num * multiplier as f64) as u64;
+    let bytes = (num * f64::from(multiplier)) as u64;
 
     Ok(Some(bytes))
 }
@@ -855,7 +875,7 @@ fn parse_rate(rate: &str) -> Result<Option<u64>> {
     };
 
     let num: f64 = num_str.parse()?;
-    let bytes_per_sec = (num * multiplier as f64) as u64;
+    let bytes_per_sec = (num * f64::from(multiplier)) as u64;
 
     Ok(Some(bytes_per_sec))
 }
@@ -867,27 +887,32 @@ async fn download_input_file_from_url(
 ) -> Result<Vec<String>> {
     // Create a simple downloader to fetch the input file
     let config = DownloadConfig::default();
-    let downloader = Downloader::new(config)
-        .context("Failed to create downloader for input file")?;
+    let downloader =
+        Downloader::new(config).context("Failed to create downloader for input file")?;
 
     // Determine the output filename from the URL
-    let parsed_url = Url::parse(url)
-        .with_context(|| format!("Failed to parse input file URL: {}", url))?;
+    let parsed_url =
+        Url::parse(url).with_context(|| format!("Failed to parse input file URL: {url}"))?;
     let filename = parsed_url
         .path_segments()
-        .and_then(|segments| segments.last())
+        .and_then(|mut segments| segments.next_back())
         .filter(|name| !name.is_empty())
         .unwrap_or("index.html");
 
     let output_path = PathBuf::from(filename);
 
     // Download the input file to disk (matching wget behavior)
-    downloader.download_to_file(url, output_path.clone()).await
-        .with_context(|| format!("Failed to download input file from URL: {}", url))?;
+    downloader
+        .download_to_file(url, output_path.clone())
+        .await
+        .with_context(|| format!("Failed to download input file from URL: {url}"))?;
 
     // Read the downloaded file to extract URLs
-    let content = tokio::fs::read_to_string(&output_path).await
-        .with_context(|| format!("Failed to read downloaded input file: {}", output_path.display()))?;
+    let content = tokio::fs::read_to_string(&output_path)
+        .await
+        .with_context(|| {
+            format!("Failed to read downloaded input file: {}", output_path.display())
+        })?;
 
     let mut urls = Vec::new();
 
@@ -926,17 +951,20 @@ async fn read_urls_from_file(
     use tokio::fs::File;
     use tokio::io::{AsyncBufReadExt, BufReader};
 
-    let file = File::open(path).await
+    let file = File::open(path)
+        .await
         .with_context(|| format!("Failed to open input file: {}", path.display()))?;
     let reader = BufReader::new(file);
     let mut urls = Vec::new();
 
     if force_html {
         // Parse HTML and extract links
-        let content = tokio::fs::read_to_string(path).await
+        let content = tokio::fs::read_to_string(path)
+            .await
             .with_context(|| format!("Failed to read HTML from file: {}", path.display()))?;
-        urls.extend(extract_urls_from_html(&content, base_url)
-            .with_context(|| format!("Failed to extract URLs from HTML file: {}", path.display()))?);
+        urls.extend(extract_urls_from_html(&content, base_url).with_context(|| {
+            format!("Failed to extract URLs from HTML file: {}", path.display())
+        })?);
     } else {
         // Read URLs line by line
         let mut lines = reader.lines();
@@ -1027,10 +1055,10 @@ fn extract_urls_from_html(html: &str, base_url: Option<&str>) -> Result<Vec<Stri
 }
 
 fn resolve_url(base: &str, relative: &str) -> Result<String> {
-    let base_url = Url::parse(base)
-        .with_context(|| format!("Failed to parse base URL: {}", base))?;
-    let resolved = base_url.join(relative)
-        .with_context(|| format!("Failed to resolve relative URL '{}' against base '{}'", relative, base))?;
+    let base_url = Url::parse(base).with_context(|| format!("Failed to parse base URL: {base}"))?;
+    let resolved = base_url.join(relative).with_context(|| {
+        format!("Failed to resolve relative URL '{relative}' against base '{base}'")
+    })?;
     Ok(resolved.to_string())
 }
 
@@ -1107,18 +1135,18 @@ fn preprocess_args(args: Vec<String>) -> Vec<String> {
             match arg.as_str() {
                 "-nH" => {
                     result.push("--no-host-directories".to_string());
-                }
+                },
                 "-np" => {
                     result.push("--no-parent".to_string());
-                }
+                },
                 "-nv" => {
                     result.push("--no-verbose".to_string());
-                }
+                },
                 _ => {
                     // For other combinations, try to split into individual flags
                     // This handles cases like "-qO" -> "-q -O"
                     result.push(arg);
-                }
+                },
             }
         } else {
             result.push(arg);

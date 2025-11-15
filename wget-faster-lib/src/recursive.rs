@@ -1,8 +1,7 @@
 /// Recursive download functionality for downloading entire websites
-
-use crate::{Error, Result, Downloader, DownloadConfig, LinkConverter};
+use crate::{DownloadConfig, Downloader, Error, LinkConverter, Result};
 use scraper::{Html, Selector};
-use std::collections::{HashSet, VecDeque, HashMap};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -89,17 +88,16 @@ impl Default for RecursiveConfig {
     }
 }
 
-
 /// Recursive downloader
 pub struct RecursiveDownloader {
     downloader: Downloader,
     config: RecursiveConfig,
     visited: HashSet<String>,
-    queue: VecDeque<(String, usize)>, // (URL, depth)
-    base_url: Option<String>, // Base URL for no_parent check
-    broken_links: Vec<(String, u16)>, // (URL, status_code) for tracking broken links
+    queue: VecDeque<(String, usize)>,      // (URL, depth)
+    base_url: Option<String>,              // Base URL for no_parent check
+    broken_links: Vec<(String, u16)>,      // (URL, status_code) for tracking broken links
     link_converter: Option<LinkConverter>, // Link converter for -k flag
-    rejected_urls: Vec<(String, String)>, // (URL, reason) for tracking rejected URLs
+    rejected_urls: Vec<(String, String)>,  // (URL, reason) for tracking rejected URLs
     robots_cache: HashMap<String, Option<crate::robots::RobotsTxt>>, // Cache of robots.txt per host (None if not found/failed)
 }
 
@@ -158,10 +156,8 @@ impl RecursiveDownloader {
 
         // Initialize link converter if convert_links is enabled
         if self.config.convert_links {
-            self.link_converter = Some(LinkConverter::new(
-                output_dir.to_path_buf(),
-                self.config.backup_converted,
-            ));
+            self.link_converter =
+                Some(LinkConverter::new(output_dir.to_path_buf(), self.config.backup_converted));
         }
 
         // Set base URL for no_parent check
@@ -187,11 +183,11 @@ impl RecursiveDownloader {
             match self.should_download(&url, depth, output_dir).await {
                 Ok(true) => {
                     // URL passed all filters
-                }
+                },
                 Ok(false) => {
                     // URL was rejected - the reason was already logged
                     continue;
-                }
+                },
                 Err(e) => return Err(e),
             }
 
@@ -242,7 +238,8 @@ impl RecursiveDownloader {
                 use tokio::io::AsyncWriteExt;
                 let mut file = tokio::fs::File::create(log_path).await?;
                 for (url, reason) in &self.rejected_urls {
-                    file.write_all(format!("{}: {}\n", url, reason).as_bytes()).await?;
+                    file.write_all(format!("{url}: {reason}\n").as_bytes())
+                        .await?;
                 }
             }
         }
@@ -251,10 +248,16 @@ impl RecursiveDownloader {
     }
 
     /// Fetch and parse robots.txt for a given host
-    async fn fetch_robots_txt(&mut self, host: &str, scheme: &str, port: Option<u16>, output_dir: &Path) -> Option<crate::robots::RobotsTxt> {
+    async fn fetch_robots_txt(
+        &mut self,
+        host: &str,
+        scheme: &str,
+        port: Option<u16>,
+        output_dir: &Path,
+    ) -> Option<crate::robots::RobotsTxt> {
         // Check cache first
-        let cache_key = format!("{}://{}{}", scheme, host,
-            port.map(|p| format!(":{}", p)).unwrap_or_default());
+        let cache_key =
+            format!("{}://{}{}", scheme, host, port.map(|p| format!(":{p}")).unwrap_or_default());
 
         if let Some(cached) = self.robots_cache.get(&cache_key) {
             return cached.clone();
@@ -262,9 +265,9 @@ impl RecursiveDownloader {
 
         // Build robots.txt URL
         let robots_url = if let Some(p) = port {
-            format!("{}://{}:{}/robots.txt", scheme, host, p)
+            format!("{scheme}://{host}:{p}/robots.txt")
         } else {
-            format!("{}://{}/robots.txt", scheme, host)
+            format!("{scheme}://{host}/robots.txt")
         };
 
         // Try to fetch robots.txt
@@ -286,11 +289,11 @@ impl RecursiveDownloader {
                 }
 
                 Some(crate::robots::RobotsTxt::parse(&content))
-            }
+            },
             Err(_) => {
                 // robots.txt not found or error - allow everything
                 None
-            }
+            },
         };
 
         // Cache the result
@@ -299,18 +302,24 @@ impl RecursiveDownloader {
     }
 
     /// Check if URL should be downloaded
-    async fn should_download(&mut self, url: &str, depth: usize, output_dir: &Path) -> Result<bool> {
-        let parsed_url = Url::parse(url)
-            .map_err(|e| Error::ConfigError(format!("Invalid URL: {}", e)))?;
+    async fn should_download(
+        &mut self,
+        url: &str,
+        depth: usize,
+        output_dir: &Path,
+    ) -> Result<bool> {
+        let parsed_url =
+            Url::parse(url).map_err(|e| Error::ConfigError(format!("Invalid URL: {e}")))?;
 
         // Check HTTPS-only mode
         // Note: --https-only only applies to extracted links (depth > 0), not the starting URL
         // This matches GNU wget behavior: you can start with HTTP but only follow HTTPS links
-        if self.downloader.get_client().config().https_only && depth > 0 {
-            if parsed_url.scheme() != "https" {
-                self.log_rejected_url(url, "Non-HTTPS URL rejected (HTTPS-only mode)");
-                return Ok(false);
-            }
+        if self.downloader.get_client().config().https_only
+            && depth > 0
+            && parsed_url.scheme() != "https"
+        {
+            self.log_rejected_url(url, "Non-HTTPS URL rejected (HTTPS-only mode)");
+            return Ok(false);
         }
 
         let domain = parsed_url
@@ -323,7 +332,10 @@ impl RecursiveDownloader {
             let port = parsed_url.port();
 
             // Fetch robots.txt for this host
-            if let Some(robots) = self.fetch_robots_txt(domain, scheme, port, output_dir).await {
+            if let Some(robots) = self
+                .fetch_robots_txt(domain, scheme, port, output_dir)
+                .await
+            {
                 let path = parsed_url.path();
                 let user_agent = &self.downloader.get_client().config().user_agent;
 
@@ -335,15 +347,24 @@ impl RecursiveDownloader {
         }
 
         // Check domain filters
-        if !self.config.accepted_domains.is_empty() {
-            if !self.config.accepted_domains.iter().any(|d| domain.contains(d)) {
-                self.log_rejected_url(url, &format!("Domain not in accepted list: {}", domain));
-                return Ok(false);
-            }
+        if !self.config.accepted_domains.is_empty()
+            && !self
+                .config
+                .accepted_domains
+                .iter()
+                .any(|d| domain.contains(d))
+        {
+            self.log_rejected_url(url, &format!("Domain not in accepted list: {domain}"));
+            return Ok(false);
         }
 
-        if self.config.rejected_domains.iter().any(|d| domain.contains(d)) {
-            self.log_rejected_url(url, &format!("Domain in rejected list: {}", domain));
+        if self
+            .config
+            .rejected_domains
+            .iter()
+            .any(|d| domain.contains(d))
+        {
+            self.log_rejected_url(url, &format!("Domain in rejected list: {domain}"));
             return Ok(false);
         }
 
@@ -352,29 +373,38 @@ impl RecursiveDownloader {
         if let Some(extension) = Path::new(path).extension() {
             let ext = extension.to_string_lossy().to_lowercase();
 
-            if !self.config.accept_extensions.is_empty() {
-                if !self.config.accept_extensions.contains(&ext) {
-                    self.log_rejected_url(url, &format!("Extension not in accepted list: {}", ext));
-                    return Ok(false);
-                }
+            if !self.config.accept_extensions.is_empty()
+                && !self.config.accept_extensions.contains(&ext)
+            {
+                self.log_rejected_url(url, &format!("Extension not in accepted list: {ext}"));
+                return Ok(false);
             }
 
             if self.config.reject_extensions.contains(&ext) {
-                self.log_rejected_url(url, &format!("Extension in rejected list: {}", ext));
+                self.log_rejected_url(url, &format!("Extension in rejected list: {ext}"));
                 return Ok(false);
             }
         }
 
         // Check directory filters
-        if !self.config.include_directories.is_empty() {
-            if !self.config.include_directories.iter().any(|d| path.contains(d)) {
-                self.log_rejected_url(url, &format!("Directory not in include list: {}", path));
-                return Ok(false);
-            }
+        if !self.config.include_directories.is_empty()
+            && !self
+                .config
+                .include_directories
+                .iter()
+                .any(|d| path.contains(d))
+        {
+            self.log_rejected_url(url, &format!("Directory not in include list: {path}"));
+            return Ok(false);
         }
 
-        if self.config.exclude_directories.iter().any(|d| path.contains(d)) {
-            self.log_rejected_url(url, &format!("Directory in exclude list: {}", path));
+        if self
+            .config
+            .exclude_directories
+            .iter()
+            .any(|d| path.contains(d))
+        {
+            self.log_rejected_url(url, &format!("Directory in exclude list: {path}"));
             return Ok(false);
         }
 
@@ -382,7 +412,7 @@ impl RecursiveDownloader {
         if self.config.no_parent {
             if let Some(ref base_url_str) = self.base_url {
                 let base_parsed = Url::parse(base_url_str)
-                    .map_err(|e| Error::ConfigError(format!("Invalid base URL: {}", e)))?;
+                    .map_err(|e| Error::ConfigError(format!("Invalid base URL: {e}")))?;
 
                 // Check if URL ascends to parent directory
                 // Both URLs must be on the same host
@@ -399,7 +429,7 @@ impl RecursiveDownloader {
                         // Get parent directory (everything up to and including last '/')
                         match base_path.rfind('/') {
                             Some(pos) => &base_path[..=pos], // Include the trailing '/'
-                            None => "/", // Root directory
+                            None => "/",                     // Root directory
                         }
                     };
 
@@ -415,10 +445,11 @@ impl RecursiveDownloader {
         Ok(true)
     }
 
-    /// Log a rejected URL with a reason (if rejected_log is enabled)
+    /// Log a rejected URL with a reason (if `rejected_log` is enabled)
     fn log_rejected_url(&mut self, url: &str, reason: &str) {
         if self.config.rejected_log.is_some() {
-            self.rejected_urls.push((url.to_string(), reason.to_string()));
+            self.rejected_urls
+                .push((url.to_string(), reason.to_string()));
         }
     }
 
@@ -436,7 +467,7 @@ impl RecursiveDownloader {
                 Ok(_) => {
                     // URL is accessible - return a dummy path
                     Ok(PathBuf::from("/dev/null"))
-                }
+                },
                 Err(e) => {
                     // Check if it's an HTTP error
                     if let crate::Error::InvalidStatus(status_code) = &e {
@@ -445,7 +476,7 @@ impl RecursiveDownloader {
                     }
                     // In spider mode, we don't fail on errors - just track them
                     Ok(PathBuf::from("/dev/null"))
-                }
+                },
             }
         } else {
             // Normal mode - download and save
@@ -468,8 +499,8 @@ impl RecursiveDownloader {
 
     /// Convert URL to local file path
     fn url_to_local_path(&self, url: &str, output_dir: &Path) -> Result<PathBuf> {
-        let parsed = Url::parse(url)
-            .map_err(|e| Error::ConfigError(format!("Invalid URL: {}", e)))?;
+        let parsed =
+            Url::parse(url).map_err(|e| Error::ConfigError(format!("Invalid URL: {e}")))?;
 
         let mut path = output_dir.to_path_buf();
 
@@ -478,7 +509,7 @@ impl RecursiveDownloader {
             // Extract just the filename from the URL
             let filename = parsed
                 .path_segments()
-                .and_then(|segments| segments.last())
+                .and_then(|mut segments| segments.next_back())
                 .filter(|name| !name.is_empty())
                 .unwrap_or("index.html");
 
@@ -516,8 +547,11 @@ impl RecursiveDownloader {
             if !current_ext.is_empty() && current_ext != "html" && current_ext != "htm" {
                 // Only add .html if it looks like server-side script or no extension
                 // Common server-side extensions: php, asp, aspx, jsp, cgi, pl
-                if matches!(current_ext, "php" | "asp" | "aspx" | "jsp" | "cgi" | "pl" | "py" | "rb") {
-                    path.set_extension(format!("{}.html", current_ext));
+                if matches!(
+                    current_ext,
+                    "php" | "asp" | "aspx" | "jsp" | "cgi" | "pl" | "py" | "rb"
+                ) {
+                    path.set_extension(format!("{current_ext}.html"));
                 }
             }
         }
@@ -544,7 +578,7 @@ impl RecursiveDownloader {
             }
         }
         // Default to checking URL extension
-        url.ends_with(".html") || url.ends_with(".htm") || url.ends_with("/")
+        url.ends_with(".html") || url.ends_with(".htm") || url.ends_with('/')
     }
 
     /// Check if HTML document has meta robots nofollow directive
@@ -558,10 +592,7 @@ impl RecursiveDownloader {
                         if let Some(content) = element.value().attr("content") {
                             // Parse comma-separated values in content attribute
                             // Check for "nofollow" (case-insensitive)
-                            let directives: Vec<&str> = content
-                                .split(',')
-                                .map(|s| s.trim())
-                                .collect();
+                            let directives: Vec<&str> = content.split(',').map(str::trim).collect();
 
                             for directive in directives {
                                 if directive.eq_ignore_ascii_case("nofollow") {
@@ -651,8 +682,8 @@ impl RecursiveDownloader {
 
     /// Resolve relative URL to absolute
     fn resolve_url(&self, base: &str, relative: &str) -> Result<String> {
-        let base_url = Url::parse(base)
-            .map_err(|e| Error::ConfigError(format!("Invalid base URL: {}", e)))?;
+        let base_url =
+            Url::parse(base).map_err(|e| Error::ConfigError(format!("Invalid base URL: {e}")))?;
 
         // Skip data: URLs and javascript: URLs
         if relative.starts_with("data:") || relative.starts_with("javascript:") {
@@ -661,7 +692,7 @@ impl RecursiveDownloader {
 
         let absolute = base_url
             .join(relative)
-            .map_err(|e| Error::ConfigError(format!("Failed to resolve URL: {}", e)))?;
+            .map_err(|e| Error::ConfigError(format!("Failed to resolve URL: {e}")))?;
 
         // Check if we should follow this link
         if self.config.relative_only {

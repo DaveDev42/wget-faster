@@ -1,13 +1,16 @@
-use crate::{Error, Result, DownloadConfig};
-use reqwest::{Client, ClientBuilder, header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT, ACCEPT_ENCODING}};
+use crate::{DownloadConfig, Error, Result};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue, ACCEPT_ENCODING, USER_AGENT},
+    Client, ClientBuilder,
+};
 use std::time::Duration;
 
 /// HTTP client wrapper for download operations
 ///
-/// Wraps reqwest::Client with wget-compatible configuration including:
+/// Wraps `reqwest::Client` with wget-compatible configuration including:
 /// - Custom User-Agent and headers
 /// - Authentication (Basic, Digest, .netrc)
-/// - Proxy support with no_proxy filtering
+/// - Proxy support with `no_proxy` filtering
 /// - Cookie management
 /// - SSL/TLS configuration
 /// - Compression (gzip, deflate, brotli)
@@ -45,17 +48,11 @@ impl HttpClient {
         let mut headers = HeaderMap::new();
 
         // Set user agent
-        headers.insert(
-            USER_AGENT,
-            HeaderValue::from_str(&config.user_agent)?
-        );
+        headers.insert(USER_AGENT, HeaderValue::from_str(&config.user_agent)?);
 
         // Set compression if enabled
         if config.enable_compression {
-            headers.insert(
-                ACCEPT_ENCODING,
-                HeaderValue::from_static("gzip, deflate, br")
-            );
+            headers.insert(ACCEPT_ENCODING, HeaderValue::from_static("gzip, deflate, br"));
         }
 
         // Add custom headers
@@ -88,7 +85,7 @@ impl HttpClient {
         // and handle no_proxy logic in the request builder
         if let Some(proxy_config) = &config.proxy {
             let mut proxy = reqwest::Proxy::all(&proxy_config.url)
-                .map_err(|e| Error::ConfigError(format!("Invalid proxy URL: {}", e)))?;
+                .map_err(|e| Error::ConfigError(format!("Invalid proxy URL: {e}")))?;
 
             if let Some((username, password)) = &proxy_config.auth {
                 proxy = proxy.basic_auth(username, password);
@@ -98,9 +95,7 @@ impl HttpClient {
             if !proxy_config.no_proxy.is_empty() {
                 // reqwest supports NO_PROXY via environment variable parsing
                 // But we need to handle it manually for consistency with wget
-                let no_proxy = reqwest::NoProxy::from_string(
-                    &proxy_config.no_proxy.join(",")
-                );
+                let no_proxy = reqwest::NoProxy::from_string(&proxy_config.no_proxy.join(","));
                 proxy = proxy.no_proxy(no_proxy);
             }
 
@@ -128,25 +123,25 @@ impl HttpClient {
         if let Some(ca_cert_path) = &config.ca_cert {
             let cert = std::fs::read(ca_cert_path)?;
             let cert = reqwest::Certificate::from_pem(&cert)
-                .map_err(|e| Error::ConfigError(format!("Invalid CA certificate: {}", e)))?;
+                .map_err(|e| Error::ConfigError(format!("Invalid CA certificate: {e}")))?;
             builder = builder.add_root_certificate(cert);
         }
 
         if let Some(client_cert_path) = &config.client_cert {
             let cert = std::fs::read(client_cert_path)?;
             let identity = reqwest::Identity::from_pem(&cert)
-                .map_err(|e| Error::ConfigError(format!("Invalid client certificate: {}", e)))?;
+                .map_err(|e| Error::ConfigError(format!("Invalid client certificate: {e}")))?;
             builder = builder.identity(identity);
         }
 
         let client = builder
             .build()
-            .map_err(|e| Error::ConfigError(format!("Failed to build HTTP client: {}", e)))?;
+            .map_err(|e| Error::ConfigError(format!("Failed to build HTTP client: {e}")))?;
 
         Ok(Self { client, config })
     }
 
-    /// Get a reference to the underlying reqwest::Client
+    /// Get a reference to the underlying `reqwest::Client`
     ///
     /// Useful for making custom HTTP requests with the same configuration.
     pub fn client(&self) -> &Client {
@@ -155,7 +150,7 @@ impl HttpClient {
 
     /// Get a reference to the download configuration
     ///
-    /// Returns the DownloadConfig used to create this client.
+    /// Returns the `DownloadConfig` used to create this client.
     pub fn config(&self) -> &DownloadConfig {
         &self.config
     }
@@ -168,8 +163,7 @@ impl HttpClient {
             .headers()
             .get(reqwest::header::ACCEPT_RANGES)
             .and_then(|v| v.to_str().ok())
-            .map(|v| v != "none")
-            .unwrap_or(false))
+            .is_some_and(|v| v != "none"))
     }
 
     /// Get content length from HEAD request
@@ -234,13 +228,16 @@ impl HttpClient {
             // Get credentials (configured auth or .netrc)
             if let Some(auth) = crate::auth_handler::get_credentials(url, &self.config) {
                 // Retry HEAD request with authentication
-                let mut retry_request = self.client.head(url)
+                let mut retry_request = self
+                    .client
+                    .head(url)
                     .basic_auth(&auth.username, Some(&auth.password));
 
                 // Re-add If-Modified-Since header if it was present
                 if let Some(time) = if_modified_since {
                     let http_date = httpdate::fmt_http_date(time);
-                    retry_request = retry_request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
+                    retry_request =
+                        retry_request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
                 }
 
                 let retry_response = retry_request.send().await?;
@@ -260,8 +257,7 @@ impl HttpClient {
             .headers()
             .get(reqwest::header::ACCEPT_RANGES)
             .and_then(|v| v.to_str().ok())
-            .map(|v| v != "none")
-            .unwrap_or(false);
+            .is_some_and(|v| v != "none");
 
         let content_length = response
             .headers()
@@ -273,25 +269,25 @@ impl HttpClient {
             .headers()
             .get(reqwest::header::LAST_MODIFIED)
             .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         let etag = response
             .headers()
             .get(reqwest::header::ETAG)
             .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         let content_type = response
             .headers()
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         let content_disposition = response
             .headers()
             .get(reqwest::header::CONTENT_DISPOSITION)
             .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         let status_code = response.status().as_u16();
         let headers = response.headers().clone();
@@ -324,7 +320,7 @@ pub struct ResourceMetadata {
     /// Last-Modified header value
     pub last_modified: Option<String>,
 
-    /// ETag header value
+    /// `ETag` header value
     pub etag: Option<String>,
 
     /// Content-Type header value
@@ -345,14 +341,12 @@ impl ResourceMetadata {
     ///
     /// Returns a string with all HTTP headers formatted as "Header-Name: value"
     pub fn format_headers(&self) -> String {
-        let mut output = format!("HTTP/1.1 {} {}\n",
-            self.status_code,
-            status_text(self.status_code)
-        );
+        let mut output =
+            format!("HTTP/1.1 {} {}\n", self.status_code, status_text(self.status_code));
 
         for (name, value) in &self.headers {
             if let Ok(value_str) = value.to_str() {
-                output.push_str(&format!("  {}: {}\n", name, value_str));
+                output.push_str(&format!("  {name}: {value_str}\n"));
             }
         }
 

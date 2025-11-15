@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use bytes::Bytes;
+use std::path::PathBuf;
 
 /// Output destination for downloaded content
 ///
@@ -27,7 +27,6 @@ pub enum Output {
     /// Write downloaded content to a file at the specified path
     File(PathBuf),
 }
-
 
 /// Container for downloaded data
 ///

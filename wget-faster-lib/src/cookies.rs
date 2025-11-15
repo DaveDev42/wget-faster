@@ -89,10 +89,7 @@ impl CookieJar {
     /// Add a cookie to the jar
     pub fn add_cookie(&mut self, cookie: Cookie) {
         let domain_key = cookie.domain.to_lowercase();
-        self.cookies
-            .entry(domain_key)
-            .or_insert_with(Vec::new)
-            .push(cookie);
+        self.cookies.entry(domain_key).or_default().push(cookie);
     }
 
     /// Get cookies for a domain
@@ -358,7 +355,10 @@ impl CookieJar {
 
                 // Split by comma and spaces to extract components
                 // Example: "Sun, 06 Nov 2001 12:32:43 GMT"
-                let parts_vec: Vec<&str> = date_str.split(&[',', ' '][..]).filter(|s| !s.is_empty()).collect();
+                let parts_vec: Vec<&str> = date_str
+                    .split(&[',', ' '][..])
+                    .filter(|s| !s.is_empty())
+                    .collect();
 
                 if parts_vec.len() >= 6 {
                     // parts_vec[0] = day name (ignored)
@@ -382,8 +382,9 @@ impl CookieJar {
                                 time_parts[2].parse::<u32>(),
                             ) {
                                 // Create a NaiveDateTime without validating day-of-week
-                                if let Some(naive_dt) = chrono::NaiveDate::from_ymd_opt(year, month_num, day)
-                                    .and_then(|d| d.and_hms_opt(hour, min, sec))
+                                if let Some(naive_dt) =
+                                    chrono::NaiveDate::from_ymd_opt(year, month_num, day)
+                                        .and_then(|d| d.and_hms_opt(hour, min, sec))
                                 {
                                     let timestamp = naive_dt.and_utc().timestamp() as u64;
                                     cookie.expiration = Some(timestamp);
@@ -480,20 +481,17 @@ mod tests {
         // Test future expiry date (should be kept)
         jar.add_from_set_cookie(
             "example.com",
-            "future=value; Expires=Wed, 21 Oct 2099 07:28:00 GMT"
+            "future=value; Expires=Wed, 21 Oct 2099 07:28:00 GMT",
         );
 
         // Test past expiry date (should be stored but filtered out when retrieved)
         jar.add_from_set_cookie(
             "example.com",
-            "expired=value; Expires=Sun, 06 Nov 2001 12:32:43 GMT"
+            "expired=value; Expires=Sun, 06 Nov 2001 12:32:43 GMT",
         );
 
         // Test no expiry (session cookie, should be kept)
-        jar.add_from_set_cookie(
-            "example.com",
-            "session=value"
-        );
+        jar.add_from_set_cookie("example.com", "session=value");
 
         // get_cookies_for_domain filters out expired cookies
         let cookies = jar.get_cookies_for_domain("example.com");
@@ -517,10 +515,7 @@ mod tests {
         let mut jar = CookieJar::new();
 
         // Add unexpired cookie
-        jar.add_from_set_cookie(
-            "localhost",
-            "sess-id=0213; path=/"
-        );
+        jar.add_from_set_cookie("localhost", "sess-id=0213; path=/");
 
         // Should be included in header
         let header = jar.to_cookie_header("localhost", "/", false);
@@ -529,21 +524,27 @@ mod tests {
         // Now add an expired cookie with same name (simulating server overwriting)
         jar.add_from_set_cookie(
             "localhost",
-            "sess-id=0213; path=/; Expires=Sun, 06 Nov 2001 12:32:43 GMT"
+            "sess-id=0213; path=/; Expires=Sun, 06 Nov 2001 12:32:43 GMT",
         );
 
         // The expired cookie should not be included
         // Since we're adding, not replacing, we'll have both. The jar needs deduplication logic.
         // For now, let's just test that expired cookies are filtered
         let cookies = jar.get_cookies_for_domain("localhost");
-        let active_cookies: Vec<_> = cookies.iter().filter(|c| {
-            if let Some(exp) = c.expiration {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-                exp > now
-            } else {
-                true
-            }
-        }).collect();
+        let active_cookies: Vec<_> = cookies
+            .iter()
+            .filter(|c| {
+                if let Some(exp) = c.expiration {
+                    let now = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs();
+                    exp > now
+                } else {
+                    true
+                }
+            })
+            .collect();
 
         // Should have only the non-expired one
         assert_eq!(active_cookies.len(), 1);

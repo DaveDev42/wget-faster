@@ -3,8 +3,7 @@
 /// Consolidates HTTP response logic including:
 /// - Status code validation and classification
 /// - Special status handling (204, 304, 416)
-/// - Error response handling with content_on_error support
-
+/// - Error response handling with `content_on_error` support
 use crate::DownloadConfig;
 
 /// Response status category for decision making
@@ -18,9 +17,9 @@ pub enum ResponseStatus {
     NotModified,
     /// Range not satisfiable - file already complete (416)
     RangeNotSatisfiable,
-    /// Client error (4xx) - may save content if content_on_error is true
+    /// Client error (4xx) - may save content if `content_on_error` is true
     ClientError,
-    /// Server error (5xx) - may save content if content_on_error is true
+    /// Server error (5xx) - may save content if `content_on_error` is true
     ServerError,
     /// Authentication challenge (401/407) - handled separately
     AuthChallenge,
@@ -132,7 +131,7 @@ pub fn should_proceed_download(status_code: u16, config: &DownloadConfig) -> Res
                 // Don't download error content
                 Err(status_code)
             }
-        }
+        },
 
         // Other - error
         ResponseStatus::Other => Err(status_code),

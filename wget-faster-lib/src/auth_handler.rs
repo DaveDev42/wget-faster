@@ -4,7 +4,6 @@
 /// - Credential resolution (configured auth + .netrc fallback)
 /// - Authentication challenge handling (401/407)
 /// - Retry logic with credentials
-
 use crate::{AuthConfig, DownloadConfig};
 
 /// Get authentication credentials for a URL
@@ -36,18 +35,17 @@ pub fn get_credentials(url: &str, config: &DownloadConfig) -> Option<AuthConfig>
                     if let Some(entry) = netrc.get(host) {
                         tracing::debug!(host = %host, username = %entry.username, "Found .netrc entry for host");
                         return Some(entry);
-                    } else {
-                        tracing::debug!(host = %host, "No .netrc entry found for host");
                     }
+                    tracing::debug!(host = %host, "No .netrc entry found for host");
                 }
             }
-        }
+        },
         Ok(None) => {
             tracing::debug!("No .netrc file found");
-        }
+        },
         Err(e) => {
             tracing::warn!(error = %e, "Failed to read .netrc file");
-        }
+        },
     }
 
     None
@@ -71,7 +69,7 @@ pub fn is_auth_challenge(status_code: u16) -> bool {
 ///
 /// Returns true if:
 /// - Status is 401 or 407 (auth challenge)
-/// - We didn't send preemptive auth (auth_no_challenge is false)
+/// - We didn't send preemptive auth (`auth_no_challenge` is false)
 ///
 /// # Arguments
 ///

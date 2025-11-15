@@ -1,18 +1,13 @@
-use crate::{Error, Result, HttpClient, ProgressInfo, ProgressCallback};
+use crate::{Error, HttpClient, ProgressCallback, ProgressInfo, Result};
 use bytes::{Bytes, BytesMut};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::Mutex;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
 
 /// Download a chunk of data using HTTP Range request
-pub async fn download_chunk(
-    client: &HttpClient,
-    url: &str,
-    start: u64,
-    end: u64,
-) -> Result<Bytes> {
-    let range_header = format!("bytes={}-{}", start, end);
+pub async fn download_chunk(client: &HttpClient, url: &str, start: u64, end: u64) -> Result<Bytes> {
+    let range_header = format!("bytes={start}-{end}");
 
     let response = client
         .client()
@@ -94,9 +89,10 @@ pub async fn download_parallel(
     // Wait for all chunks to complete
     let mut results = Vec::new();
     for task in tasks {
-        let result = task.await
-            .map_err(|e| Error::ChunkError(format!("Task join error: {}", e)))?
-            .map_err(|e| Error::ChunkError(format!("Chunk download failed: {}", e)))?;
+        let result = task
+            .await
+            .map_err(|e| Error::ChunkError(format!("Task join error: {e}")))?
+            .map_err(|e| Error::ChunkError(format!("Chunk download failed: {e}")))?;
         results.push(result);
     }
 

@@ -1,5 +1,4 @@
 use wget_faster_lib::{Cookie, CookieJar};
-use std::path::PathBuf;
 
 #[test]
 fn test_cookie_creation() {
@@ -177,10 +176,7 @@ fn test_cookie_secure_flag() {
 fn test_parse_set_cookie() {
     let mut jar = CookieJar::new();
 
-    jar.add_from_set_cookie(
-        "example.com",
-        "session=abc123; Path=/; Secure; Max-Age=3600",
-    );
+    jar.add_from_set_cookie("example.com", "session=abc123; Path=/; Secure; Max-Age=3600");
 
     let cookies = jar.get_cookies_for_domain("example.com");
     assert_eq!(cookies.len(), 1);
@@ -195,10 +191,7 @@ fn test_parse_set_cookie() {
 fn test_parse_set_cookie_with_domain() {
     let mut jar = CookieJar::new();
 
-    jar.add_from_set_cookie(
-        "example.com",
-        "session=xyz789; Domain=.example.com; Path=/admin",
-    );
+    jar.add_from_set_cookie("example.com", "session=xyz789; Domain=.example.com; Path=/admin");
 
     let cookies = jar.get_cookies_for_domain(".example.com");
     assert_eq!(cookies.len(), 1);

@@ -1,6 +1,6 @@
-use wget_faster_lib::{Downloader, DownloadConfig, Error};
 use mockito::Server;
 use std::time::Duration;
+use wget_faster_lib::{DownloadConfig, Downloader};
 
 #[tokio::test]
 async fn test_network_timeout() {
@@ -10,7 +10,9 @@ async fn test_network_timeout() {
     let downloader = Downloader::new(config).unwrap();
 
     // Try to connect to a non-routable IP that will timeout
-    let result = downloader.download_to_memory("http://10.255.255.1/timeout").await;
+    let result = downloader
+        .download_to_memory("http://10.255.255.1/timeout")
+        .await;
 
     assert!(result.is_err());
 }
@@ -97,7 +99,9 @@ async fn test_connection_refused() {
     let downloader = Downloader::new(config).unwrap();
 
     // Try to connect to a port that's likely not listening
-    let result = downloader.download_to_memory("http://localhost:1/refused").await;
+    let result = downloader
+        .download_to_memory("http://localhost:1/refused")
+        .await;
 
     assert!(result.is_err());
 }

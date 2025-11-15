@@ -1,5 +1,5 @@
-use wget_faster_lib::{ProgressInfo, format_bytes, format_bytes_per_sec, format_duration};
 use std::time::{Duration, Instant};
+use wget_faster_lib::{format_bytes, format_bytes_per_sec, format_duration, ProgressInfo};
 
 #[test]
 fn test_progress_info_creation() {

@@ -1,11 +1,11 @@
+use chrono::Local;
 use indicatif::{ProgressBar, ProgressStyle};
-use wget_faster_lib::{ProgressInfo, format_bytes, format_bytes_per_sec};
-use std::time::Duration;
-use std::path::PathBuf;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use chrono::Local;
+use std::time::Duration;
+use wget_faster_lib::{format_bytes, format_bytes_per_sec, ProgressInfo};
 
 /// Output destination for log messages
 #[derive(Clone)]
@@ -35,8 +35,14 @@ impl WgetOutput {
         }
     }
 
-    /// Create a new WgetOutput with file logging
-    pub fn with_log_file(quiet: bool, verbose: bool, show_progress: bool, log_file: PathBuf, append: bool) -> Result<Self, std::io::Error> {
+    /// Create a new `WgetOutput` with file logging
+    pub fn with_log_file(
+        quiet: bool,
+        verbose: bool,
+        show_progress: bool,
+        log_file: PathBuf,
+        append: bool,
+    ) -> Result<Self, std::io::Error> {
         let file = if append {
             OpenOptions::new()
                 .create(true)
@@ -63,13 +69,13 @@ impl WgetOutput {
     fn write_log(&self, message: &str) {
         match &self.log_dest {
             LogDestination::Terminal => {
-                println!("{}", message);
-            }
+                println!("{message}");
+            },
             LogDestination::File(file) => {
                 if let Ok(mut f) = file.lock() {
-                    let _ = writeln!(f, "{}", message);
+                    let _ = writeln!(f, "{message}");
                 }
-            }
+            },
         }
     }
 
@@ -77,13 +83,13 @@ impl WgetOutput {
     fn write_log_no_newline(&self, message: &str) {
         match &self.log_dest {
             LogDestination::Terminal => {
-                print!("{}", message);
-            }
+                print!("{message}");
+            },
             LogDestination::File(file) => {
                 if let Ok(mut f) = file.lock() {
-                    let _ = write!(f, "{}", message);
+                    let _ = write!(f, "{message}");
                 }
-            }
+            },
         }
     }
 
@@ -91,9 +97,9 @@ impl WgetOutput {
     pub fn print_connecting(&self, url: &str, host: &str, port: u16) {
         if !self.quiet {
             let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-            self.write_log(&format!("--{}--  {}", timestamp, url));
-            self.write_log(&format!("Resolving {}... ", host));
-            self.write_log(&format!("Connecting to {}:{}... connected.", host, port));
+            self.write_log(&format!("--{timestamp}--  {url}"));
+            self.write_log(&format!("Resolving {host}... "));
+            self.write_log(&format!("Connecting to {host}:{port}... connected."));
         }
     }
 
@@ -108,9 +114,9 @@ impl WgetOutput {
     pub fn print_http_response(&self, status: u16, status_text: &str) {
         if !self.quiet {
             if status == 200 {
-                self.write_log(&format!("{} {}", status, status_text));
+                self.write_log(&format!("{status} {status_text}"));
             } else {
-                self.write_log(&format!("{} {}", status, status_text));
+                self.write_log(&format!("{status} {status_text}"));
             }
         }
     }
@@ -125,7 +131,7 @@ impl WgetOutput {
             };
 
             if let Some(ct) = content_type {
-                msg.push_str(&format!(" [{}]", ct));
+                msg.push_str(&format!(" [{ct}]"));
             }
 
             self.write_log(&msg);
@@ -135,7 +141,7 @@ impl WgetOutput {
     /// Print saving to file message
     pub fn print_saving_to(&self, filename: &str) {
         if !self.quiet {
-            self.write_log(&format!("Saving to: '{}'", filename));
+            self.write_log(&format!("Saving to: '{filename}'"));
             self.write_log("");
         }
     }
@@ -183,7 +189,7 @@ impl WgetOutput {
                     progress.format_eta().unwrap_or_else(|| "--:--".to_string())
                 ));
             } else {
-                pb.set_message(format!("{}", format_bytes_per_sec(progress.speed)));
+                pb.set_message(format_bytes_per_sec(progress.speed).clone());
             }
         }
     }
@@ -218,13 +224,13 @@ impl WgetOutput {
 
     /// Print error message
     pub fn print_error(&self, error: &str) {
-        eprintln!("wget-faster: {}", error);
+        eprintln!("wget-faster: {error}");
     }
 
     /// Print warning message
     pub fn print_warning(&self, warning: &str) {
         if !self.quiet {
-            eprintln!("wget-faster: {}", warning);
+            eprintln!("wget-faster: {warning}");
         }
     }
 
@@ -239,7 +245,7 @@ impl WgetOutput {
     pub fn print_server_headers(&self, headers: &[(String, String)]) {
         if !self.quiet {
             for (name, value) in headers {
-                self.write_log(&format!("  {}: {}", name, value));
+                self.write_log(&format!("  {name}: {value}"));
             }
         }
     }
@@ -249,13 +255,21 @@ impl WgetOutput {
         if !self.quiet {
             if exists {
                 self.write_log("Spider mode enabled. Check if remote file exists.");
-                self.write_log(&format!("--{}--  {}", Local::now().format("%Y-%m-%d %H:%M:%S"), url));
-                self.write_log(&format!("  HTTP {} OK", status));
+                self.write_log(&format!(
+                    "--{}--  {}",
+                    Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    url
+                ));
+                self.write_log(&format!("  HTTP {status} OK"));
                 self.write_log("Remote file exists.");
             } else {
                 self.write_log("Spider mode enabled. Check if remote file exists.");
-                self.write_log(&format!("--{}--  {}", Local::now().format("%Y-%m-%d %H:%M:%S"), url));
-                self.write_log(&format!("  HTTP {} Not Found", status));
+                self.write_log(&format!(
+                    "--{}--  {}",
+                    Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    url
+                ));
+                self.write_log(&format!("  HTTP {status} Not Found"));
                 self.write_log("Remote file does not exist -- broken link!!!");
             }
         }
@@ -265,8 +279,7 @@ impl WgetOutput {
     pub fn print_retry(&self, attempt: usize, max_attempts: usize, wait_secs: u64) {
         if !self.quiet {
             self.write_log(&format!(
-                "Retrying ({}/{})... waiting {} seconds...",
-                attempt, max_attempts, wait_secs
+                "Retrying ({attempt}/{max_attempts})... waiting {wait_secs} seconds..."
             ));
         }
     }
@@ -276,13 +289,11 @@ impl WgetOutput {
         if !self.quiet {
             if local_newer {
                 self.write_log(&format!(
-                    "Server file no newer than local file '{}' -- not retrieving.",
-                    filename
+                    "Server file no newer than local file '{filename}' -- not retrieving."
                 ));
             } else {
                 self.write_log(&format!(
-                    "Server file is newer than local file '{}' -- retrieving.",
-                    filename
+                    "Server file is newer than local file '{filename}' -- retrieving."
                 ));
             }
         }
@@ -292,26 +303,22 @@ impl WgetOutput {
     pub fn print_resume(&self, filename: &str, resume_from: u64) {
         if !self.quiet {
             self.write_log(&format!(
-                "Continuing in background. Output will be written to '{}'.",
-                filename
+                "Continuing in background. Output will be written to '{filename}'."
             ));
-            self.write_log(&format!(
-                "Resuming download. Starting at byte position: {}",
-                resume_from
-            ));
+            self.write_log(&format!("Resuming download. Starting at byte position: {resume_from}"));
         }
     }
 
     /// Print quota exceeded message
     pub fn print_quota_exceeded(&self, quota: u64) {
         // Always show quota exceeded errors (even in quiet mode)
-        eprintln!("Download quota of {} bytes EXCEEDED!", quota);
+        eprintln!("Download quota of {quota} bytes EXCEEDED!");
     }
 
     /// Print redirected message
     pub fn print_redirect(&self, from: &str, to: &str) {
         if self.verbose && !self.quiet {
-            self.write_log(&format!("Location: {} [following]", to));
+            self.write_log(&format!("Location: {to} [following]"));
         }
     }
 }
@@ -331,13 +338,13 @@ pub fn format_duration_wget(duration: Duration) -> String {
     let mut parts = Vec::new();
 
     if hours > 0 {
-        parts.push(format!("{}h", hours));
+        parts.push(format!("{hours}h"));
     }
     if minutes > 0 {
-        parts.push(format!("{}m", minutes));
+        parts.push(format!("{minutes}m"));
     }
     if seconds > 0 || parts.is_empty() {
-        parts.push(format!("{}s", seconds));
+        parts.push(format!("{seconds}s"));
     }
 
     parts.join(" ")

@@ -5,8 +5,7 @@
 /// - Skip download if local file is newer or same
 /// - Re-download if remote file is newer
 /// - Handle edge cases (missing timestamps, size mismatches)
-
-use crate::{Result, client::ResourceMetadata, output::DownloadedData};
+use crate::{client::ResourceMetadata, output::DownloadedData, Result};
 use std::path::Path;
 
 /// Result of timestamp comparison
@@ -72,13 +71,13 @@ pub async fn check_timestamp(
             // Local file is older, delete and re-download
             tracing::info!("Local file is older than remote - will re-download");
             Ok((TimestampAction::DeleteAndDownload, None))
-        }
+        },
         std::cmp::Ordering::Greater => {
             // Local file is newer, skip download
             tracing::info!("Local file is newer than remote - skipping download");
             let result = DownloadedData::new_file(path.to_path_buf(), local_size, false);
             Ok((TimestampAction::Skip, Some(result)))
-        }
+        },
         std::cmp::Ordering::Equal => {
             // Same timestamp - check file size
             tracing::debug!("Same timestamp - checking file size");
@@ -99,7 +98,7 @@ pub async fn check_timestamp(
                 let result = DownloadedData::new_file(path.to_path_buf(), local_size, false);
                 Ok((TimestampAction::Skip, Some(result)))
             }
-        }
+        },
     }
 }
 
@@ -114,11 +113,7 @@ pub async fn check_timestamp(
 /// # Returns
 ///
 /// Returns Ok(()) on success, or Ok(()) with warning log on parse/set failure
-pub fn set_file_timestamp(
-    path: &Path,
-    metadata: &ResourceMetadata,
-    verbose: bool,
-) -> Result<()> {
+pub fn set_file_timestamp(path: &Path, metadata: &ResourceMetadata, verbose: bool) -> Result<()> {
     let Some(ref last_modified_str) = metadata.last_modified else {
         tracing::debug!("No Last-Modified header - skipping file timestamp setting");
         return Ok(());
@@ -143,7 +138,7 @@ pub fn set_file_timestamp(
         // Log error but don't fail the download
         tracing::warn!(path = %path.display(), error = %e, "Failed to set file modification time");
         if verbose {
-            eprintln!("Warning: Failed to set file modification time: {}", e);
+            eprintln!("Warning: Failed to set file modification time: {e}");
         }
     }
 

@@ -1,7 +1,9 @@
-use wget_faster_lib::{Downloader, DownloadConfig, ProgressInfo, HttpMethod, AuthConfig, AuthType, HttpClient};
+use mockito::Server;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use mockito::Server;
+use wget_faster_lib::{
+    AuthConfig, AuthType, DownloadConfig, Downloader, HttpClient, HttpMethod, ProgressInfo,
+};
 
 #[tokio::test]
 async fn test_basic_http_download() {
@@ -80,7 +82,9 @@ async fn test_progress_callback() {
     });
 
     let url = format!("{}/progress.txt", server.url());
-    let result = downloader.download_to_memory_with_progress(&url, Some(callback)).await;
+    let result = downloader
+        .download_to_memory_with_progress(&url, Some(callback))
+        .await;
 
     assert!(result.is_ok());
     assert!(*progress_called.lock().unwrap(), "Progress callback should have been called");
@@ -155,7 +159,9 @@ async fn test_custom_headers() {
         .await;
 
     let mut config = DownloadConfig::default();
-    config.headers.insert("X-Custom-Header".to_string(), "test-value".to_string());
+    config
+        .headers
+        .insert("X-Custom-Header".to_string(), "test-value".to_string());
 
     let downloader = Downloader::new(config).unwrap();
 
@@ -368,7 +374,7 @@ async fn test_download_to_file() {
     let result = downloader.download_to_file(&url, file_path.clone()).await;
 
     if let Err(e) = &result {
-        eprintln!("Download to file failed: {:?}", e);
+        eprintln!("Download to file failed: {e:?}");
     }
     assert!(result.is_ok(), "Download failed: {:?}", result.err());
     assert!(file_path.exists());
@@ -457,7 +463,6 @@ async fn test_500_server_error() {
     mock.assert_async().await;
 }
 
-
 #[tokio::test]
 async fn test_server_response_display() {
     let mut server = Server::new_async().await;
@@ -530,7 +535,6 @@ async fn test_metadata_contains_headers() {
     mock.assert_async().await;
 }
 
-
 #[tokio::test]
 async fn test_speed_limiting() {
     let mut server = Server::new_async().await;
@@ -567,7 +571,7 @@ async fn test_speed_limiting() {
 
     // Should take at least 2 seconds (100KB at 50KB/s)
     // Allow some margin for overhead
-    assert!(duration.as_secs_f64() >= 1.8, "Download was too fast: {:?}", duration);
+    assert!(duration.as_secs_f64() >= 1.8, "Download was too fast: {duration:?}");
 
     mock.assert_async().await;
 }
