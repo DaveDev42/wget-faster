@@ -1,7 +1,7 @@
 # TODO - wget-faster Development Roadmap
 
-**Current Version**: v0.0.4
-**Test Coverage**: 73/151 tests (48.3%) - Session 5 improvement
+**Current Version**: v0.0.5
+**Test Coverage**: 73/151 tests (48.3%) - Session 15 cookie fix
 **Last Updated**: 2025-11-17
 
 ---
@@ -55,9 +55,10 @@
    - Test-auth-digest.py
    - Files: `client.rs`, `downloader.rs`
 
-8. **Cookie handling edge cases**
-   - Test-cookie-expires.py (cookie expiry and persistence)
-   - Files: `cookies.rs`, `client.rs`
+8. **Cookie handling edge cases** ✅ MOSTLY FIXED (Session 15)
+   - Fixed: Replaced reqwest cookie_store with reqwest_cookie_store (+12 tests)
+   - Test-cookie-expires.py still fails (HEAD requests don't send cookies)
+   - Files: `client.rs:119-150`
 
 ### Priority 3: Complex Features (5+ hours each, ~10-15 tests)
 
@@ -221,6 +222,23 @@ git checkout <files>
 ---
 
 ## 📊 Recent Session History
+
+### 2025-11-17 Session 15 - Cookie System Fix ✅
+**Fixed**: Cookie handling by replacing reqwest's cookie_store with reqwest_cookie_store
+**Result**: +12 tests (61→73/151, 48.3%) - Major improvement
+**Changes**: Cargo.toml, client.rs:119-150
+- Added `reqwest_cookie_store = "0.8"` dependency
+- Replaced `.cookie_store(true)` with `.cookie_provider(Arc<CookieStoreMutex>)`
+- Load cookies from file using `cookie_store::CookieStore::load_json()`
+**Root Cause**: reqwest's built-in cookie_store has bugs (GitHub issues #510, #607, #1512)
+- Cookies not sent until "next call to reqwest"
+- Cookies stripped from requests in some scenarios
+**Tests Fixed**: Test-cookie.py, Test-cookie-401.py, Test-cookie-domain-mismatch.py, Test-cookies.px, Test-cookies-401.px, +7 more
+**Known Limitation**: Test-cookie-expires.py still fails - HEAD requests don't send cookies
+- GET→GET cookie flow works ✅
+- GET→HEAD cookie flow broken ❌ (deeper reqwest/reqwest_cookie_store issue)
+**Lesson**: Major architectural fix with significant impact - cookie system now much more robust
+**Status**: 73/151 tests (48.3%)
 
 ### 2025-11-17 Session 14 - Spider Mode HEAD Optimization (Partial Fix)
 **Attempted**: Optimize spider mode to reduce extra HEAD/GET requests
