@@ -311,6 +311,41 @@ After fixing 3-5 individual tests, identify common patterns:
 
 ## 📊 Session Results Log
 
+### 2025-11-16 Session 3 (Continuation)
+
+**Attempted**: Test-Proto.py + auth handling
+**Result**: REVERTED - regression to 64/151 (-4 auth tests)
+**Lesson**: Auth logic is complex, interacts with HEAD requests
+**Baseline**: 68/151 restored ✅
+
+**Tests analyzed** (all too complex for simple fixes):
+1. **Test-504.py** - HEAD requests interfere with retry logic (architectural issue)
+2. **Test-Proto.py** - Test server bug + complex Digest auth on HEAD requests
+3. **Test-no_proxy-env.py** - Complex proxy bypass with dot-prefixed domains
+4. **Test-cookie-expires.py** - Cookie expiry management edge cases
+
+**Key findings**:
+- Attempted to handle auth failures on HEAD by continuing to GET
+- Broke 4 tests expecting auth to FAIL: Test-cookies-401.px, Test-auth-basic-fail.py, Test-auth-basic-no-netrc-fail.py, Test-cookie-401.py
+- Auth logic needs careful design: tests expect BOTH success and failure scenarios
+- HEAD request changes affect: auth flow, cookie handling, proxy detection
+
+**Remaining test categories**:
+- test_framework_error (16 tests) - All analyzed, all complex
+- Requires: link conversion (-k), proxy improvements, cookie management, URL encoding
+- Quick wins exhausted - remaining fixes require multi-hour feature development
+
+**Reality check**:
+- Current: 68/151 tests (45.0%)
+- Maximum realistic: ~113/169 (66.9%) after FTP/Metalink/SSL exclusions
+- Remaining ~45 fixable tests require significant implementation effort
+- Each fix: ~2-6 hours of analysis + implementation + testing
+
+**Next session strategy**:
+- Accept that remaining improvements require larger features
+- Consider: Link conversion (-k flag), proxy improvements, cookie enhancements
+- Or: Focus on performance/HTTP/3 instead of test compatibility
+
 ### 2025-11-16 Session 2
 
 **Attempted**: robots.txt disable by default
@@ -323,12 +358,6 @@ After fixing 3-5 individual tests, identify common patterns:
 - Test-recursive-include.py DOES NOT expect robots.txt
 - Need to understand WHEN GNU wget fetches robots.txt
 - Broad assumptions cause regressions
-
-**Next session strategy**:
-- Pick ONE simple test (Test-504.py recommended)
-- Understand exact failure
-- Make minimal fix
-- Test immediately
 
 ### 2025-11-15 Session 1
 
