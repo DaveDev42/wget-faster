@@ -202,7 +202,7 @@ impl Default for DownloadConfig {
             restrict_file_names: Vec::new(),      // No restrictions by default
             start_pos: None,                      // No start position by default
             https_only: false,                    // Accept both HTTP and HTTPS by default
-            gnu_wget_compat: false,               // Default to modern behavior
+            gnu_wget_compat: false,               // Disabled by default for performance
         }
     }
 }

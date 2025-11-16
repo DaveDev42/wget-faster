@@ -1,8 +1,8 @@
 # TODO - wget-faster Development Roadmap
 
 **Current Version**: v0.0.4
-**Test Coverage**: 68/169 tests (40.2%)
-**Last Updated**: 2025-11-16
+**Test Coverage**: 73/151 tests (48.3%) - Session 5 improvement
+**Last Updated**: 2025-11-17
 
 ---
 
@@ -11,19 +11,26 @@
 **Goal**: Incremental test improvements (target: 75-85 tests, 44-50%)
 **Strategy**: Fix one test at a time, verify immediately, commit only if no regression
 
-### Priority 1: Quick Wins (1-2 hours each, ~5-10 tests)
+### Priority 1: Architectural Changes Required (5-10 hours each)
+
+**⚠️ All Priority 1 items require structural changes - not quick wins**
 
 1. **Test-504.py** - HTTP 504 Gateway Timeout
-   - Need proper 5xx retry logic with exit code 4
-   - Files: `downloader.rs`
+   - **Status**: Passes with `gnu_wget_compat=true` BUT breaks 5 auth tests
+   - **Issue**: HEAD request behavior conflicts with auth state tracking
+   - **Requires**: Refactor auth state management (see docs/SESSION_4_FINDINGS.md)
+   - Files: `client.rs:338`, `downloader.rs:815-849`
 
 2. **Test--spider-r.py** - Extra HEAD requests in spider mode
-   - FilesCrawled mismatch due to unnecessary HEAD requests
+   - **Issue**: Spider mode sends extra HEAD requests vs GNU wget
+   - **Requires**: Fine-tuned HEAD request logic in spider mode
    - Files: `recursive.rs`, `downloader.rs`
 
 3. **Test-no_proxy-env.py** - Proxy bypass patterns
-   - Respect no_proxy environment variable patterns
-   - Files: `client.rs`, `config.rs`
+   - **Status**: Returns 0 instead of 4 (bypassing proxy incorrectly)
+   - **Issue**: reqwest's NoProxy != GNU wget's no_proxy logic
+   - **Requires**: Custom proxy implementation per-request (not ClientBuilder)
+   - Files: `client.rs:88-111`, `config.rs:297-335`
 
 4. **Test-reserved-chars.py** - URL encoding in recursive mode
    - Reserved character handling in URLs
@@ -36,8 +43,8 @@
 ### Priority 2: Medium Effort (3-5 hours each, ~10-15 tests)
 
 6. **Recursive download improvements**
-   - Test-recursive-include.py
-   - Test-recursive-pathmax.py
+   - ~~Test-recursive-include.py~~ ✅ (Session 3)
+   - ~~Test-recursive-pathmax.py~~ ✅ (Session 5)
    - Test-recursive-redirect.py
    - Files: `recursive.rs`
 
@@ -215,22 +222,44 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
-### 2025-11-16 Session 3
-**Attempted**: Auth handling on HEAD requests
-**Result**: REVERTED (-4 tests)
-**Lesson**: Auth logic is complex - tests expect both success AND failure scenarios
+### 2025-11-17 Session 5 - Filename Truncation ✅
+**Fixed**: Test-recursive-pathmax.py (long filename handling)
+**Result**: +1 test (72→73/151, 48.3%)
+**Changes**: Added filename truncation logic in `recursive.rs:679-728`
+- Implemented GNU wget's CHOMP_BUFFER = 19 safety margin
+- Max filename length: 255 - 19 = 236 characters
+- Preserves file extensions while truncating base names
+**Lesson**: Clean implementation following GNU wget's url.c behavior
+**Status**: 73/151 tests (48.3%)
+
+### 2025-11-17 Session 4 - Architecture Investigation
+**Investigated**: Priority 1 tests (Test-504.py, Test-no_proxy-env.py)
+**Result**: No code changes - documented findings in docs/SESSION_4_FINDINGS.md
+**Discoveries**:
+- Test-504.py passes with `gnu_wget_compat=true` BUT breaks 5 auth tests
+- Auth state tracking relies on HEAD requests (client.rs:338)
+- GET auth retry doesn't populate `authenticated_hosts` (downloader.rs:815-849)
+- reqwest's NoProxy implementation differs from GNU wget
+**Lesson**: All Priority 1 tests require structural changes (5-10 hours each)
+**Status**: 72/151 tests maintained
+
+### 2025-11-16 Session 3 - Recursive Images Fix ✅
+**Fixed**: Test-recursive-include.py (srcset image parsing)
+**Result**: +1 test (71→72/151, 47.7%)
+**Changes**: Moved image extraction outside page_requisites block
+**Lesson**: Small, targeted fixes work best
 
 ### 2025-11-16 Session 2
 **Attempted**: robots.txt disable by default
 **Result**: REVERTED (-2 tests)
-**Lesson**: Some tests expect robots.txt, others don't - need to understand when GNU wget fetches it
+**Lesson**: Some tests expect robots.txt, others don't
 
 ### 2025-11-15 Session 1
 **Attempted**: --no-parallel mode + HEAD optimization
 **Result**: Both reverted due to regressions
-**Lesson**: Cannot broadly disable features without understanding exact wget behavior
+**Lesson**: Cannot broadly disable features without understanding exact behavior
 
-**Key takeaway**: Quick wins are exhausted. Remaining improvements require careful analysis and implementation (2-6 hours per test).
+**Key takeaway**: Priority 1 tests are NOT quick wins. Need 5-10 hours per test for proper architectural refactoring.
 
 ---
 

@@ -676,6 +676,53 @@ impl RecursiveDownloader {
             }
         }
 
+        // Truncate filename if it exceeds system limits
+        // GNU wget uses CHOMP_BUFFER = 19 as safety margin
+        // This matches wget's behavior in url.c
+        const CHOMP_BUFFER: usize = 19;
+        const MAX_FILENAME_LEN: usize = 255;
+        let max_allowed = MAX_FILENAME_LEN.saturating_sub(CHOMP_BUFFER);
+
+        // Collect data before mutating path to avoid borrow checker issues
+        let truncation_needed = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .map(|s| (s.to_string(), s.len() > max_allowed))
+            .unwrap_or((String::new(), false));
+
+        if truncation_needed.1 {
+            let filename_str = truncation_needed.0;
+            let original_len = filename_str.len();
+
+            // Preserve extension if possible
+            let truncated = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                // Calculate how much space we have for the base name
+                let ext_len = ext.len() + 1; // +1 for the dot
+                let base_max = max_allowed.saturating_sub(ext_len);
+
+                // Get the base name without extension
+                let stem = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(&filename_str);
+
+                // Truncate base name
+                let truncated_stem = &stem[..base_max.min(stem.len())];
+
+                format!("{}.{}", truncated_stem, ext)
+            } else {
+                // No extension, just truncate
+                filename_str[..max_allowed].to_string()
+            };
+
+            let truncated_len = truncated.len();
+
+            // Replace the filename in the path
+            path.set_file_name(&truncated);
+
+            tracing::debug!(original_len, truncated_len, "Truncated filename to fit system limits");
+        }
+
         Ok(path)
     }
 
