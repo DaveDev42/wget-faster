@@ -222,6 +222,22 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 9 - Cookie Integration Discovery
+**Investigated**: Test-cookie-expires.py failure root cause
+**Result**: Discovered critical architecture issue - custom CookieJar not used
+**Discoveries**:
+- Our custom `CookieJar` in cookies.rs (554 lines) is NEVER used at runtime
+- client.rs:119 uses reqwest's built-in cookie store instead: `builder.cookie_store(true)`
+- Reqwest's cookie handling doesn't match GNU wget behavior (expiry, Netscape format)
+- This explains why unit tests pass but Test-cookie-expires.py fails
+**Fix Required**: Major refactoring to replace reqwest cookies with manual handling
+- Disable reqwest cookie_store
+- Thread CookieJar through HttpClient, Downloader, RecursiveDownloader
+- Extract Set-Cookie from all responses, add Cookie to all requests
+- Estimated: 5-8 hours (high regression risk)
+**Decision**: Defer to dedicated session - requires careful incremental implementation
+**Status**: 73/151 tests maintained (no changes made)
+
 ### 2025-11-17 Session 8 - gnu_wget_compat Investigation & Test Analysis
 **Investigated**: CLI override behavior, auth regressions, actionable test categorization
 **Result**: No code changes - reverted attempted fix, documented 15 actionable tests
