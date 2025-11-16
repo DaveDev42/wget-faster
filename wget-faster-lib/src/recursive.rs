@@ -784,6 +784,40 @@ impl RecursiveDownloader {
                 }
             }
 
+            // Image srcset attribute (responsive images)
+            // Format: "url1, url2 descriptor, url3 descriptor"
+            // Example: "image1.png, image2.png 150w, image3.png 100x"
+            if let Ok(selector) = Selector::parse("img[srcset]") {
+                for element in document.select(&selector) {
+                    if let Some(srcset) = element.value().attr("srcset") {
+                        for entry in srcset.split(',') {
+                            // Split on whitespace and take first part (URL)
+                            // The rest are descriptors (150w, 2x, etc.)
+                            if let Some(url) = entry.trim().split_whitespace().next() {
+                                if let Ok(absolute_url) = self.resolve_url(base_url, url) {
+                                    links.push(absolute_url);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Source srcset attribute (picture element)
+            if let Ok(selector) = Selector::parse("source[srcset]") {
+                for element in document.select(&selector) {
+                    if let Some(srcset) = element.value().attr("srcset") {
+                        for entry in srcset.split(',') {
+                            if let Some(url) = entry.trim().split_whitespace().next() {
+                                if let Ok(absolute_url) = self.resolve_url(base_url, url) {
+                                    links.push(absolute_url);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // CSS
             if let Ok(selector) = Selector::parse("link[rel=stylesheet][href]") {
                 for element in document.select(&selector) {
