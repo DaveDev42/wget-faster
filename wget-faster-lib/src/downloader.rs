@@ -511,14 +511,24 @@ impl Downloader {
                     tracing::error!("HTTP 416 but file doesn't exist - this is an error");
                     return Err(Error::InvalidStatus(416));
                 },
-                ResponseStatus::ClientError | ResponseStatus::ServerError => {
-                    // Check content_on_error setting
+                ResponseStatus::ClientError => {
+                    // 4xx errors from HEAD: check content_on_error setting
                     // If false, return error immediately (don't create file)
                     // Otherwise continue to GET which will handle them properly
                     if !self.client.config().content_on_error {
                         return Err(Error::InvalidStatus(metadata.status_code));
                     }
                     // Continue to GET request to download error page
+                },
+                ResponseStatus::ServerError => {
+                    // 5xx errors from HEAD: always continue to GET
+                    // This allows GET request retry logic to handle server errors
+                    // Matches GNU wget behavior where --tries applies to actual download attempts (GET), not metadata checks (HEAD)
+                    tracing::debug!(
+                        status_code = metadata.status_code,
+                        "HEAD returned 5xx - will retry with GET requests"
+                    );
+                    // Continue to GET request which will handle retries
                 },
                 ResponseStatus::AuthChallenge => {
                     // Auth challenges should have been handled in get_metadata
