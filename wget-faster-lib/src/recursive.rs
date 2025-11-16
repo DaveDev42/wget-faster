@@ -132,11 +132,14 @@ impl RecursiveDownloader {
         mut download_config: DownloadConfig,
         recursive_config: RecursiveConfig,
     ) -> Result<Self> {
-        // Disable parallel downloads for recursive mode to match GNU wget behavior
-        // GNU wget doesn't send HEAD requests during recursive downloads - it just sends GET requests
-        // We disable parallel downloads (which triggers HEAD requests) to match this behavior
-        download_config.parallel_chunks = 1;
-        download_config.parallel_threshold = 0;
+        // Disable parallel downloads for NORMAL recursive mode to match GNU wget behavior
+        // GNU wget doesn't send HEAD requests during normal recursive downloads
+        // BUT in spider mode, GNU wget DOES send HEAD requests before GET
+        // So we only disable parallel downloads (which triggers HEAD requests) in non-spider mode
+        if !recursive_config.spider {
+            download_config.parallel_chunks = 1;
+            download_config.parallel_threshold = 0;
+        }
 
         Ok(Self {
             downloader: Downloader::new(download_config)?,
