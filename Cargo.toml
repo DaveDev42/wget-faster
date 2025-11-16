@@ -114,6 +114,7 @@ html5ever = "0.29"
 # Cookie support
 cookie_store = "0.21"
 cookie = "0.18"
+reqwest_cookie_store = "0.8"
 
 # Logging
 tracing = "0.1"

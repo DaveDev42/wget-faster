@@ -3,6 +3,7 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT_ENCODING, USER_AGENT},
     Client, ClientBuilder,
 };
+use reqwest_cookie_store::CookieStoreMutex;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -116,15 +117,38 @@ impl HttpClient {
 
         // Configure cookies
         if config.enable_cookies {
-            builder = builder.cookie_store(true);
-
-            // Load cookies from file if specified
-            if let Some(ref cookie_file) = config.cookie_file {
+            // Use reqwest_cookie_store instead of reqwest's built-in cookie_store
+            // This provides better cookie handling and fixes issues with cookies not being sent
+            let cookie_store = if let Some(ref cookie_file) = config.cookie_file {
+                // Load cookies from file if specified
                 if cookie_file.exists() {
-                    // Note: reqwest doesn't provide a way to load cookies from file directly
-                    // We'll handle this at a higher level
+                    match std::fs::File::open(cookie_file) {
+                        Ok(file) => {
+                            match cookie_store::CookieStore::load_json(std::io::BufReader::new(
+                                file,
+                            )) {
+                                Ok(store) => Arc::new(CookieStoreMutex::new(store)),
+                                Err(e) => {
+                                    tracing::warn!(cookie_file = ?cookie_file, error = %e, "Failed to parse cookie file, using empty store");
+                                    Arc::new(CookieStoreMutex::default())
+                                },
+                            }
+                        },
+                        Err(e) => {
+                            tracing::warn!(cookie_file = ?cookie_file, error = %e, "Failed to open cookie file, using empty store");
+                            Arc::new(CookieStoreMutex::default())
+                        },
+                    }
+                } else {
+                    // File doesn't exist yet, create empty store
+                    Arc::new(CookieStoreMutex::default())
                 }
-            }
+            } else {
+                // No cookie file specified, create empty in-memory store
+                Arc::new(CookieStoreMutex::default())
+            };
+
+            builder = builder.cookie_provider(cookie_store);
         }
 
         // Configure certificates

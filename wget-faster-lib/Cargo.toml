@@ -34,6 +34,7 @@ scraper = { workspace = true }
 html5ever = { workspace = true }
 cookie_store = { workspace = true }
 cookie = { workspace = true }
+reqwest_cookie_store = { workspace = true }
 tracing = { workspace = true }
 flate2 = { workspace = true }
 brotli = { workspace = true }
