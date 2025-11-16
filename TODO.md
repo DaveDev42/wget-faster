@@ -222,6 +222,17 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 6 - AUTH State Refactoring ✅
+**Fixed**: GET request auth tracking (partial Priority 1 fix)
+**Result**: No test count change (73/151 maintained, 48.3%)
+**Changes**: Added `authenticated_hosts` tracking to GET retry paths
+- client.rs:182-184: Added `mark_host_authenticated()` public method
+- downloader.rs:974-980: Track auth in `download_sequential` GET retry
+- downloader.rs:1129-1135: Track auth in `download_sequential_to_writer` GET retry
+**Impact**: Enables preemptive auth for subsequent requests after GET auth success
+**Lesson**: Foundational work - prepares for gnu_wget_compat mode and fixes auth efficiency
+**Status**: 73/151 tests (48.3%)
+
 ### 2025-11-17 Session 5 - Filename Truncation ✅
 **Fixed**: Test-recursive-pathmax.py (long filename handling)
 **Result**: +1 test (72→73/151, 48.3%)
