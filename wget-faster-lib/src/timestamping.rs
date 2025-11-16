@@ -161,6 +161,7 @@ mod tests {
             content_disposition: None,
             status_code: 200,
             headers: reqwest::header::HeaderMap::new(),
+            auth_succeeded: false,
         };
 
         let (action, _) = check_timestamp(path, &metadata)

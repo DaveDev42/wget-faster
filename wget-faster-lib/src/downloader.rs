@@ -58,13 +58,32 @@ impl Downloader {
         range: Option<&str>,
         if_modified_since: Option<std::time::SystemTime>,
     ) -> Result<reqwest::RequestBuilder> {
+        self.build_request_with_auth(url, range, if_modified_since, false)
+    }
+
+    /// Build a request with optional auth override
+    ///
+    /// If `force_preemptive_auth` is true, authentication will be added even if
+    /// `auth_no_challenge` is false. This is used when HEAD request succeeded with auth.
+    fn build_request_with_auth(
+        &self,
+        url: &str,
+        range: Option<&str>,
+        if_modified_since: Option<std::time::SystemTime>,
+        force_preemptive_auth: bool,
+    ) -> Result<reqwest::RequestBuilder> {
         let config = self.client.config();
+
+        // Check if we've previously authenticated to this host (via HttpClient's authenticated_hosts set)
+        // This is automatically managed by the client and implements GNU wget's behavior
+        // of remembering successful auth and not waiting for challenge on subsequent requests
 
         tracing::debug!(
             method = %config.method.as_str(),
             url = %url,
             has_range = range.is_some(),
             has_if_modified_since = if_modified_since.is_some(),
+            force_preemptive_auth,
             "Building HTTP request"
         );
 
@@ -117,10 +136,33 @@ impl Downloader {
             request = request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
         }
 
-        // Add authentication if configured and auth_no_challenge is set
-        if config.auth_no_challenge {
-            if let Some(ref auth) = config.auth {
-                tracing::debug!(username = %auth.username, "Adding preemptive Basic authentication");
+        // Add authentication if configured and either:
+        // 1. auth_no_challenge is set (preemptive auth flag), OR
+        // 2. force_preemptive_auth is true (from metadata.auth_succeeded), OR
+        // 3. We've previously authenticated successfully to this host (via HttpClient's authenticated_hosts set)
+        let host_previously_authenticated = url::Url::parse(url)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_string()))
+            .map_or(false, |h| self.client.authenticated_hosts_contains(&h));
+
+        if config.auth_no_challenge || force_preemptive_auth || host_previously_authenticated {
+            // Get credentials - either from config.auth or from .netrc
+            let auth_creds = if let Some(ref auth) = config.auth {
+                Some(auth.clone())
+            } else if host_previously_authenticated {
+                // If we've authenticated before but don't have config.auth, try .netrc
+                crate::auth_handler::get_credentials(url, config)
+            } else {
+                None
+            };
+
+            if let Some(auth) = auth_creds {
+                tracing::debug!(
+                    username = %auth.username,
+                    preemptive = force_preemptive_auth,
+                    host_authenticated = host_previously_authenticated,
+                    "Adding preemptive Basic authentication"
+                );
                 request = request.basic_auth(&auth.username, Some(&auth.password));
             }
         }
@@ -398,6 +440,7 @@ impl Downloader {
                 etag: None,
                 content_disposition: None,
                 headers: reqwest::header::HeaderMap::new(),
+                auth_succeeded: false,
             };
 
             let if_modified_since_time = if path.exists() {
@@ -591,6 +634,7 @@ impl Downloader {
                         progress_callback,
                         resume_from,
                         if_modified_since,
+                        metadata.auth_succeeded,
                     )
                     .await?
                 }
@@ -601,6 +645,7 @@ impl Downloader {
                     progress_callback,
                     resume_from,
                     if_modified_since,
+                    metadata.auth_succeeded,
                 )
                 .await?
             }
@@ -611,6 +656,7 @@ impl Downloader {
                 progress_callback,
                 resume_from,
                 if_modified_since,
+                metadata.auth_succeeded,
             )
             .await?
         };
@@ -883,6 +929,7 @@ impl Downloader {
         progress_callback: Option<ProgressCallback>,
         resume_from: u64,
         if_modified_since: Option<std::time::SystemTime>,
+        force_preemptive_auth: bool,
     ) -> Result<u64>
     where
         W: AsyncWriteExt + Unpin + Send,
@@ -893,7 +940,12 @@ impl Downloader {
             None
         };
 
-        let request = self.build_request(url, range_header.as_deref(), if_modified_since)?;
+        let request = self.build_request_with_auth(
+            url,
+            range_header.as_deref(),
+            if_modified_since,
+            force_preemptive_auth,
+        )?;
         let response = request.send().await?;
 
         let status_code = response.status().as_u16();

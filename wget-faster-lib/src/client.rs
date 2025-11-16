@@ -3,6 +3,8 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT_ENCODING, USER_AGENT},
     Client, ClientBuilder,
 };
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 /// HTTP client wrapper for download operations
@@ -21,6 +23,9 @@ use std::time::Duration;
 pub struct HttpClient {
     client: Client,
     config: DownloadConfig,
+    /// Hosts that have been successfully authenticated (for preemptive auth on subsequent requests)
+    /// This implements GNU wget's behavior of remembering successful auth and not waiting for challenge
+    authenticated_hosts: Arc<Mutex<HashSet<String>>>,
 }
 
 impl HttpClient {
@@ -138,7 +143,11 @@ impl HttpClient {
             .build()
             .map_err(|e| Error::ConfigError(format!("Failed to build HTTP client: {e}")))?;
 
-        Ok(Self { client, config })
+        Ok(Self {
+            client,
+            config,
+            authenticated_hosts: Arc::new(Mutex::new(HashSet::new())),
+        })
     }
 
     /// Get a reference to the underlying `reqwest::Client`
@@ -153,6 +162,14 @@ impl HttpClient {
     /// Returns the `DownloadConfig` used to create this client.
     pub fn config(&self) -> &DownloadConfig {
         &self.config
+    }
+
+    /// Check if a host has been successfully authenticated
+    ///
+    /// This is used to implement GNU wget's behavior of remembering successful
+    /// auth and not waiting for challenge on subsequent requests to the same host.
+    pub fn authenticated_hosts_contains(&self, host: &str) -> bool {
+        self.authenticated_hosts.lock().unwrap().contains(host)
     }
 
     /// Check if server supports range requests
@@ -200,6 +217,11 @@ impl HttpClient {
     ) -> Result<ResourceMetadata> {
         tracing::debug!(url = %url, has_if_modified_since = if_modified_since.is_some(), "Sending HEAD request for metadata");
 
+        // Extract host from URL for auth tracking
+        let host = url::Url::parse(url)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_string()));
+
         // Build HEAD request with optional If-Modified-Since header
         let mut request = self.client.head(url);
 
@@ -210,9 +232,28 @@ impl HttpClient {
             request = request.header(reqwest::header::IF_MODIFIED_SINCE, http_date);
         }
 
-        // Add authentication if configured and auth_no_challenge is set (preemptive auth)
-        if self.config.auth_no_challenge {
-            if let Some(ref auth) = self.config.auth {
+        // Add authentication if configured and either:
+        // 1. auth_no_challenge is set (preemptive auth), OR
+        // 2. We've previously authenticated successfully to this host
+        let host_previously_authenticated = host
+            .as_ref()
+            .map_or(false, |h| self.authenticated_hosts.lock().unwrap().contains(h));
+
+        let should_send_preemptive_auth =
+            self.config.auth_no_challenge || host_previously_authenticated;
+
+        if should_send_preemptive_auth {
+            // Get credentials - either from config.auth or from .netrc
+            let auth_creds = if let Some(ref auth) = self.config.auth {
+                Some(auth.clone())
+            } else if host_previously_authenticated {
+                // If we've authenticated before but don't have config.auth, try .netrc
+                crate::auth_handler::get_credentials(url, &self.config)
+            } else {
+                None
+            };
+
+            if let Some(auth) = auth_creds {
                 tracing::debug!(username = %auth.username, "Adding preemptive auth to HEAD request");
                 request = request.basic_auth(&auth.username, Some(&auth.password));
             }
@@ -227,6 +268,7 @@ impl HttpClient {
         if crate::auth_handler::should_retry_auth(status_code, &self.config) {
             // Get credentials (configured auth or .netrc)
             if let Some(auth) = crate::auth_handler::get_credentials(url, &self.config) {
+                tracing::debug!(username = %auth.username, "HEAD request auth challenge - retrying with credentials");
                 // Retry HEAD request with authentication
                 let mut retry_request = self
                     .client
@@ -241,10 +283,23 @@ impl HttpClient {
                 }
 
                 let retry_response = retry_request.send().await?;
+                let retry_status = retry_response.status().as_u16();
 
-                // If still unauthorized, return error (will be captured in metadata)
-                // Don't fail here - let the caller handle it
-                return Self::extract_metadata(retry_response).await;
+                // Extract metadata and mark auth as succeeded if response is 2xx
+                let mut metadata = Self::extract_metadata(retry_response).await?;
+                if retry_status >= 200 && retry_status < 300 {
+                    tracing::info!(host = ?host, "HEAD request authentication successful - will use preemptive auth for subsequent requests to this host");
+                    metadata.auth_succeeded = true;
+
+                    // Remember this host for future preemptive auth
+                    if let Some(h) = host {
+                        self.authenticated_hosts.lock().unwrap().insert(h);
+                    }
+                } else {
+                    tracing::warn!(retry_status, "HEAD request authentication failed");
+                }
+
+                return Ok(metadata);
             }
         }
 
@@ -301,6 +356,7 @@ impl HttpClient {
             content_disposition,
             status_code,
             headers,
+            auth_succeeded: false,
         })
     }
 }
@@ -334,6 +390,10 @@ pub struct ResourceMetadata {
 
     /// Raw response headers (for --server-response display)
     pub headers: HeaderMap,
+
+    /// Whether authentication was used and succeeded for this request
+    /// Used to enable preemptive auth for subsequent requests to the same host
+    pub auth_succeeded: bool,
 }
 
 impl ResourceMetadata {
