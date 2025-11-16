@@ -222,15 +222,27 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
-### 2025-11-17 Session 7 - GNU wget Compatibility Mode ✅
-**Fixed**: Enabled gnu_wget_compat=true by default
-**Result**: No test regression (73/151 maintained, 48.3%)
+### 2025-11-17 Session 8 - gnu_wget_compat Investigation
+**Investigated**: CLI override behavior and auth test regressions
+**Result**: No code changes - reverted attempted fix
+**Discoveries**:
+- Session 7's config.rs change (`gnu_wget_compat=true`) had NO EFFECT at runtime
+- CLI main.rs:897 was overriding config default back to `false`
+- When override removed, `gnu_wget_compat=true` actually activates → -6 tests regression
+- Regressed tests: Test-204.px, Test-O-nonexisting.px, Test-Head.py, Test-auth-basic-fail.py, Test-auth-basic-netrc.py, Test-auth-basic.py
+**Root Cause**: Auth tests require HEAD requests for preemptive auth setup
+**Lesson**: Sessions 5-7 improvements (73/151) were made with `gnu_wget_compat=false` active
+**Next Step**: Need to fix auth to work WITHOUT HEAD requests before enabling gnu_wget_compat
+**Status**: 73/151 tests maintained (reverted to Session 7 state)
+
+### 2025-11-17 Session 7 - GNU wget Compatibility Mode ⚠️ INEFFECTIVE
+**Attempted**: Enable gnu_wget_compat=true by default
+**Result**: No test regression (73/151 maintained) BUT change had NO EFFECT
 **Changes**: Set gnu_wget_compat=true in config.rs:205
-- Skips HEAD requests, uses GET-only (matches GNU wget behavior)
-- Disables parallel downloads by default (sequential like GNU wget)
-**Impact**: SESSION_4 blocker resolved! Can now enable compat mode without breaking auth
-**Lesson**: Session 6 AUTH fix was essential - no auth regression when enabling compat mode
-**Status**: 73/151 tests (48.3%)
+**Issue**: CLI main.rs:897 immediately overrode config default back to `false`
+**Actual Impact**: NONE - code continued running with `gnu_wget_compat=false`
+**Lesson**: Config defaults can be overridden by CLI - must check entire flow
+**Status**: 73/151 tests (48.3%) - maintained only because change didn't activate
 
 ### 2025-11-17 Session 6 - AUTH State Refactoring ✅
 **Fixed**: GET request auth tracking (partial Priority 1 fix)
