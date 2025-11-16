@@ -306,26 +306,40 @@ impl RecursiveDownloader {
         };
 
         // Try to fetch robots.txt
-        let robots_txt = match self.downloader.download_to_memory(&robots_url).await {
-            Ok(bytes) => {
-                // Parse the content
-                let content = String::from_utf8_lossy(&bytes);
+        // Use client().get() directly to avoid HEAD request (robots.txt doesn't need metadata)
+        let robots_txt = match self
+            .downloader
+            .get_client()
+            .client()
+            .get(&robots_url)
+            .send()
+            .await
+        {
+            Ok(response) if response.status().is_success() => {
+                match response.bytes().await {
+                    Ok(bytes) => {
+                        // Parse the content
+                        let content = String::from_utf8_lossy(&bytes);
 
-                // Save robots.txt to disk (unless in spider mode)
-                if !self.config.spider {
-                    if let Ok(local_path) = self.url_to_local_path(&robots_url, output_dir) {
-                        // Create parent directories
-                        if let Some(parent) = local_path.parent() {
-                            let _ = tokio::fs::create_dir_all(parent).await;
+                        // Save robots.txt to disk (unless in spider mode)
+                        if !self.config.spider {
+                            if let Ok(local_path) = self.url_to_local_path(&robots_url, output_dir)
+                            {
+                                // Create parent directories
+                                if let Some(parent) = local_path.parent() {
+                                    let _ = tokio::fs::create_dir_all(parent).await;
+                                }
+                                // Write the file
+                                let _ = tokio::fs::write(&local_path, bytes.as_ref()).await;
+                            }
                         }
-                        // Write the file
-                        let _ = tokio::fs::write(&local_path, bytes.as_ref()).await;
-                    }
-                }
 
-                Some(crate::robots::RobotsTxt::parse(&content))
+                        Some(crate::robots::RobotsTxt::parse(&content))
+                    },
+                    Err(_) => None,
+                }
             },
-            Err(_) => {
+            _ => {
                 // robots.txt not found or error - allow everything
                 None
             },
