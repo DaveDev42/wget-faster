@@ -2,6 +2,41 @@
 
 Context document for AI assistants working with the wget-faster codebase.
 
+## 📁 Documentation Policy
+
+**File Organization**: Keep project root clean with only essential markdown files
+
+### Core Documentation (Keep in Root)
+- **README.md** - User-facing project overview, installation, usage
+- **CLAUDE.md** - AI/LLM context, implementation details (this file)
+- **TODO.md** - Single source of truth for development roadmap
+  - **Policy**: Keep under 2000 lines total
+  - **Updates**: Append session results after each test run
+  - **Format**: Incremental additions, mark completed items
+  - **Analysis**: Add new findings, keep focused on actionable items
+
+### Supporting Documentation (Can Keep in Root)
+- **CHANGELOG.md** - Version history
+- **CONTRIBUTING.md** - Contribution guidelines
+- **SPEC.md** - Technical specifications
+- **LICENSE** - BSD-3-Clause license
+
+### Documentation to Consolidate or Delete
+- Analysis reports (python_test_*.md) → Move findings to TODO.md or delete
+- Setup summaries (CI_CD_*.md) → Keep only relevant parts in CLAUDE.md
+- Test results (PYTHON_TEST_RESULTS_*.md) → Delete (covered by test reports)
+- Integration docs (WGET_TEST_INTEGRATION.md) → Merge into CLAUDE.md if needed
+
+### Test Documentation (Separate Repository)
+- All test reports → ../wget-faster-test/reports/ (never in main repo)
+- Test analysis → Append summaries to TODO.md, keep detailed reports external
+
+### Policy for AI Assistants
+1. **Never create new markdown files in project root** without explicit request
+2. **Always consolidate** analysis into TODO.md (keep under 2000 lines)
+3. **Clean up** old analysis files after integrating findings
+4. **Reference** external test reports rather than copying into repo
+
 ## Project Overview
 
 **wget-faster** is a high-performance HTTP downloader in Rust that exceeds GNU wget's performance through:
