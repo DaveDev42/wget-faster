@@ -21,8 +21,8 @@ This is to test Metalink/HTTP with Metalink/XML Link headers. With --trust-serve
 ```
 Running Test Test-metalink-http-xml-trust.py
 Running Test Test-metalink-http-xml-trust.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --trust-server-names --metalink-over-http --metalink-index=2 http://localhost:51657/main.metalink 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--trust-server-names', '--metalink-over-http', '--metalink-index=2', 'http://localhost:51657/main.metalink']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --trust-server-names --metalink-over-http --metalink-index=2 http://localhost:56034/main.metalink 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--trust-server-names', '--metalink-over-http', '--metalink-index=2', 'http://localhost:56034/main.metalink']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-metalink-http-xml-trust.py-test'}
 Error: Expected file test1.metalink not found..
 

@@ -20,17 +20,17 @@
 ### stdout
 ```
 Running test Test-N-current
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config -N http://localhost:51393/somefile.txt
---2025-11-16 12:50:11--  http://localhost:51393/somefile.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config -N http://localhost:55774/somefile.txt
+--2025-11-16 13:36:41--  http://localhost:55774/somefile.txt
 Resolving localhost... 
-Connecting to localhost:51393... connected.
+Connecting to localhost:55774... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'somefile.txt'
 
 200 OK
 Length: unspecified
 
-2025-11-16 12:50:11 - 'somefile.txt' saved [295]
+2025-11-16 13:36:41 - 'somefile.txt' saved [295]
 
 Test failed: wrong content for file somefile.txt
 Mismatch at line 1, col 21:

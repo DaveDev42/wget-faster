@@ -22,11 +22,11 @@
 Skipped test: Wget misses feature 'iri'
 Features available from 'wget --version' output:
     large-file=1
-    ssl/rustls=1
-    ipv6=1
-    nls=1
     digest=1
+    ipv6=1
     https=1
+    nls=1
+    ssl/rustls=1
     iri=0
 
 ```

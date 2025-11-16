@@ -20,14 +20,14 @@
 ### stdout
 ```
 Running test Test-i-ftp
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config -i ftp://localhost:51463/urls.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config -i ftp://localhost:55844/urls.txt
 Test failed: wrong code returned (was: 1, expected: 0)
 
 ```
 
 ### stderr
 ```
-wgetf: failed to read input file from URL: Failed to download input file from URL: ftp://localhost:51463/urls.txt
+wgetf: failed to read input file from URL: Failed to download input file from URL: ftp://localhost:55844/urls.txt
 
 ```
 

@@ -20,7 +20,7 @@
 ### stdout
 ```
 Running test Test-E-k-K
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config -r -nd -E -k -K http://localhost:51363/index.php
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config -r -nd -E -k -K http://localhost:55744/index.php
 Test failed: file index.php.orig not downloaded
 
 ```

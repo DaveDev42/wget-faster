@@ -588,29 +588,29 @@ impl Downloader {
             0
         };
 
-        // Create or open file
-        // When --start-pos is used, always create a new file (even if resume_from > 0)
-        // because the file numbering logic will have created a new numbered file
-        // IMPORTANT: In timestamping mode, don't truncate existing files - we might get a 304
-        let mut file = if resume_from > 0 && self.client.config().start_pos.is_none() {
+        // In timestamping mode with existing file, download to temp file first
+        // Then compare timestamps and decide whether to replace original
+        let (mut file, temp_path) = if self.client.config().timestamping && path.exists() {
+            // Create temporary file path
+            let temp_path = PathBuf::from(format!("{}.wgetf-tmp", path.display()));
+            tracing::debug!(
+                original = %path.display(),
+                temp = %temp_path.display(),
+                "Timestamping mode: downloading to temporary file"
+            );
+            let file = File::create(&temp_path).await?;
+            (file, Some(temp_path))
+        } else if resume_from > 0 && self.client.config().start_pos.is_none() {
             // Resume mode: append to existing file
-            tokio::fs::OpenOptions::new()
+            let file = tokio::fs::OpenOptions::new()
                 .write(true)
                 .append(true)
                 .open(&path)
-                .await?
-        } else if self.client.config().timestamping && path.exists() {
-            // Timestamping mode with existing file: open for writing WITHOUT truncating
-            // If we get a 304, we'll keep the existing file as-is
-            // If we get a 200, we'll truncate and write new content
-            tokio::fs::OpenOptions::new()
-                .write(true)
-                .truncate(false)
-                .open(&path)
-                .await?
+                .await?;
+            (file, None)
         } else {
             // Normal mode or --start-pos mode or timestamping without existing file: create new file
-            File::create(&path).await?
+            (File::create(&path).await?, None)
         };
 
         // Use parallel download if supported and beneficial
@@ -663,10 +663,80 @@ impl Downloader {
             .await?
         };
 
+        // Handle timestamping mode: decide whether to keep new file or original
+        // Use Option to safely handle file ownership
+        let mut file_option = Some(file);
+        if let Some(ref tmp_path) = temp_path {
+            // We downloaded to a temporary file - compare timestamps
+            // Drop file handle before comparing/moving
+            drop(file_option.take().expect("file should be present"));
+
+            // Special case: 304 Not Modified (total_bytes == 0)
+            // Delete temp file and keep original
+            if total_bytes == 0 {
+                tracing::info!("HTTP 304 Not Modified - keeping original file, deleting temp");
+                tokio::fs::remove_file(tmp_path).await?;
+            } else {
+                // We got 200 OK with content - compare timestamps
+                // Get original file timestamp
+                let original_metadata = tokio::fs::metadata(&path).await?;
+                let original_time = original_metadata.modified()?;
+
+                // Compare with remote timestamp
+                let should_replace =
+                    if let Some(ref remote_modified) = actual_metadata.last_modified {
+                        if let Ok(remote_time) = httpdate::parse_http_date(remote_modified) {
+                            tracing::debug!(
+                                original_time = ?original_time,
+                                remote_time = ?remote_time,
+                                "Comparing timestamps (post-download)"
+                            );
+
+                            match original_time.cmp(&remote_time) {
+                                std::cmp::Ordering::Less => {
+                                    // Remote is newer - replace
+                                    tracing::info!("Remote file is newer - replacing original");
+                                    true
+                                },
+                                std::cmp::Ordering::Greater => {
+                                    // Local is newer - keep original
+                                    tracing::info!("Local file is newer - keeping original");
+                                    false
+                                },
+                                std::cmp::Ordering::Equal => {
+                                    // Same timestamp - keep original (don't replace)
+                                    tracing::info!("Same timestamp - keeping original file");
+                                    false
+                                },
+                            }
+                        } else {
+                            // Can't parse remote timestamp - replace anyway
+                            tracing::warn!("Failed to parse remote Last-Modified - replacing file");
+                            true
+                        }
+                    } else {
+                        // No remote timestamp - replace anyway
+                        tracing::info!("No remote Last-Modified header - replacing file");
+                        true
+                    };
+
+                if should_replace {
+                    // Replace original with temp file
+                    tracing::debug!(from = %tmp_path.display(), to = %path.display(), "Replacing original file with new version");
+                    tokio::fs::rename(tmp_path, &path).await?;
+                } else {
+                    // Keep original, delete temp file
+                    tracing::debug!(temp = %tmp_path.display(), "Deleting temporary file, keeping original");
+                    tokio::fs::remove_file(tmp_path).await?;
+                }
+            }
+        }
+
         // Check if we should create/keep the file
         // Remove empty files for 204 No Content or 0 bytes without resume
-        // Skip this check in timestamping mode - file handling is done in download_sequential_to_writer
-        if !skip_head
+        // Skip this check if we used temp_path (timestamping mode) - file handling is done above
+        if temp_path.is_none()
+            && !skip_head
             && !crate::response_handler::should_create_file(
                 metadata.status_code,
                 total_bytes,
@@ -674,8 +744,10 @@ impl Downloader {
             )
         {
             tracing::info!(path = %path.display(), "Removing empty file (should not create)");
-            // Drop the file handle before deleting
-            drop(file);
+            // Drop the file handle before deleting (if not already dropped)
+            if let Some(f) = file_option.take() {
+                drop(f);
+            }
 
             // Remove the empty file
             if let Err(e) = tokio::fs::remove_file(&path).await {

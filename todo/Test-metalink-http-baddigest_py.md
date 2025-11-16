@@ -21,8 +21,8 @@ This is to test Metalink/HTTP with a malformed base64 Digest header. With --trus
 ```
 Running Test Test-metalink-http-baddigest.py
 Running Test Test-metalink-http-baddigest.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --metalink-over-http http://localhost:51631/main.metalink 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--metalink-over-http', 'http://localhost:51631/main.metalink']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --metalink-over-http http://localhost:56028/main.metalink 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--metalink-over-http', 'http://localhost:56028/main.metalink']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-metalink-http-baddigest.py-test'}
 Error: Expected file main.metalink not found..
 
