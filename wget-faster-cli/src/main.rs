@@ -384,6 +384,17 @@ async fn download_url(downloader: &Downloader, url: &str, args: &Args) -> Result
     // Print saving to file
     if let Some(ref path) = output_path {
         output.print_saving_to(&path.display().to_string());
+
+        // When using -O (output-document), create the file before download
+        // This matches GNU wget behavior: the file is created even if download fails
+        // Only do this for -O flag, not for other output modes
+        if args.output_document.is_some() {
+            // Create empty file (or truncate if exists)
+            if let Err(e) = std::fs::File::create(path) {
+                eprintln!("wgetf: cannot write to '{}': {}", path.display(), e);
+                std::process::exit(3); // File I/O error
+            }
+        }
     }
 
     // Create progress callback
