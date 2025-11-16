@@ -317,8 +317,10 @@ impl ProxyConfig {
             if let Some(domain) = pattern.strip_prefix('.') {
                 // ".domain.com" matches only subdomains (e.g., "www.domain.com")
                 // NOT the domain itself
-                // Remove leading dot
-                if host.ends_with(&pattern) || host.ends_with(domain) && host != domain {
+                // Check if host ends with the pattern (including the dot)
+                // This ensures "working2.localhost" does NOT match ".working2.localhost"
+                // but "www.working2.localhost" DOES match ".working2.localhost"
+                if host.ends_with(&pattern) && host != domain {
                     return true;
                 }
             } else {
