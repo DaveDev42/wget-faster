@@ -623,9 +623,19 @@ impl Downloader {
             (File::create(&path).await?, None)
         };
 
+        // Track which file to potentially clean up on error
+        let created_file_path = if temp_path.is_some() {
+            temp_path.clone()
+        } else if resume_from == 0 {
+            // Only clean up if we created a new file (not resuming)
+            Some(path.clone())
+        } else {
+            None
+        };
+
         // Use parallel download if supported and beneficial
         // For sequential downloads, we also capture the actual metadata from the GET response
-        let (total_bytes, actual_metadata) = if metadata.supports_range && resume_from == 0 {
+        let download_result = if metadata.supports_range && resume_from == 0 {
             if let Some(total_size) = metadata.content_length {
                 if total_size > self.client.config().parallel_threshold {
                     // Use parallel for files > threshold
@@ -636,9 +646,8 @@ impl Downloader {
                         &mut file,
                         progress_callback,
                     )
-                    .await?;
-                    // For parallel downloads, use dummy metadata (we don't have GET response metadata)
-                    (total_size, metadata.clone())
+                    .await
+                    .map(|_| (total_size, metadata.clone()))
                 } else {
                     self.download_sequential_to_writer(
                         url,
@@ -648,7 +657,7 @@ impl Downloader {
                         if_modified_since,
                         metadata.auth_succeeded,
                     )
-                    .await?
+                    .await
                 }
             } else {
                 self.download_sequential_to_writer(
@@ -659,7 +668,7 @@ impl Downloader {
                     if_modified_since,
                     metadata.auth_succeeded,
                 )
-                .await?
+                .await
             }
         } else {
             self.download_sequential_to_writer(
@@ -670,7 +679,30 @@ impl Downloader {
                 if_modified_since,
                 metadata.auth_succeeded,
             )
-            .await?
+            .await
+        };
+
+        // If download failed, clean up the empty file
+        let (total_bytes, actual_metadata) = match download_result {
+            Ok(result) => result,
+            Err(e) => {
+                // Drop file handle before deleting
+                drop(file);
+
+                // Clean up empty file if download failed
+                if let Some(ref cleanup_path) = created_file_path {
+                    tracing::debug!(path = %cleanup_path.display(), "Download failed - cleaning up empty file");
+                    if let Err(remove_err) = tokio::fs::remove_file(cleanup_path).await {
+                        tracing::warn!(
+                            path = %cleanup_path.display(),
+                            error = %remove_err,
+                            "Failed to remove file after download error"
+                        );
+                    }
+                }
+
+                return Err(e);
+            },
         };
 
         // Handle timestamping mode: decide whether to keep new file or original
