@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.62s
+**Execution Time**: 0.61s
 
 ## Description
 
@@ -20,8 +20,8 @@ This is a Prototype Test File. Ideally this File should be copied and edited to 
 ### stdout
 ```
 Running Test Test-Proto.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --content-disposition --user=Sauron --password=TheEye http://localhost:56567/File1 http://localhost:56567/File2 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--content-disposition', '--user=Sauron', '--password=TheEye', 'http://localhost:56567/File1', 'http://localhost:56567/File2']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --content-disposition --user=Sauron --password=TheEye http://localhost:51555/File1 http://localhost:51555/File2 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--content-disposition', '--user=Sauron', '--password=TheEye', 'http://localhost:51555/File1', 'http://localhost:51555/File2']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-Proto.py-test'}
 Error: Expected file File1 not found..
 
@@ -29,9 +29,9 @@ Error: Expected file File1 not found..
 
 ### stderr
 ```
-127.0.0.1 - - [15/Nov/2025 13:43:10] "HEAD /File1 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 12:50:20] "HEAD /File1 HTTP/1.1" 401 -
 ----------------------------------------
-Exception occurred during processing of request from ('127.0.0.1', 56569)
+Exception occurred during processing of request from ('127.0.0.1', 51557)
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/server/http/http_server.py", line 326, in Authentication
     self.handle_auth(auth_rule)
@@ -78,10 +78,10 @@ Traceback (most recent call last):
        ~~~~~~~~~^^^^^^^
 TypeError: 'NoneType' object is not subscriptable
 ----------------------------------------
-wgetf: HTTP request failed: error sending request for url (http://localhost:56567/File1)
-127.0.0.1 - - [15/Nov/2025 13:43:10] "HEAD /File2 HTTP/1.1" 401 -
+wgetf: Failed to get metadata from: http://localhost:51555/File1
+127.0.0.1 - - [16/Nov/2025 12:50:20] "HEAD /File2 HTTP/1.1" 401 -
 ----------------------------------------
-Exception occurred during processing of request from ('127.0.0.1', 56571)
+Exception occurred during processing of request from ('127.0.0.1', 51559)
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/server/http/http_server.py", line 326, in Authentication
     self.handle_auth(auth_rule)
@@ -125,7 +125,7 @@ Traceback (most recent call last):
        ~~~~~~~~~^^^^^^^
 TypeError: 'NoneType' object is not subscriptable
 ----------------------------------------
-wgetf: HTTP request failed: error sending request for url (http://localhost:56567/File2)
+wgetf: Failed to get metadata from: http://localhost:51555/File2
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-Proto.py", line 71, in <module>
     ).begin ()

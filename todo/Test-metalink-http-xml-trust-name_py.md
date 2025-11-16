@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: missing_feature
-**Execution Time**: 0.59s
+**Execution Time**: 0.60s
 
 ## Description
 
@@ -21,8 +21,8 @@ This is to test Metalink/HTTP with Metalink/XML Link headers. With --trust-serve
 ```
 Running Test Test-metalink-http-xml-trust-name.py
 Running Test Test-metalink-http-xml-trust-name.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --trust-server-names --metalink-over-http --metalink-index=2 http://localhost:56874/main.metalink 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--trust-server-names', '--metalink-over-http', '--metalink-index=2', 'http://localhost:56874/main.metalink']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --trust-server-names --metalink-over-http --metalink-index=2 http://localhost:51655/main.metalink 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--trust-server-names', '--metalink-over-http', '--metalink-index=2', 'http://localhost:51655/main.metalink']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-metalink-http-xml-trust-name.py-test'}
 Error: Expected file newname.metalink not found..
 

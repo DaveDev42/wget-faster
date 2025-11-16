@@ -85,9 +85,6 @@ impl HttpClient {
         builder = builder.danger_accept_invalid_certs(!config.verify_ssl);
 
         // Configure proxy
-        // Note: no_proxy filtering is done per-request basis, not at client level
-        // reqwest doesn't support dynamic no_proxy, so we configure the proxy here
-        // and handle no_proxy logic in the request builder
         if let Some(proxy_config) = &config.proxy {
             let mut proxy = reqwest::Proxy::all(&proxy_config.url)
                 .map_err(|e| Error::ConfigError(format!("Invalid proxy URL: {e}")))?;
@@ -96,10 +93,16 @@ impl HttpClient {
                 proxy = proxy.basic_auth(username, password);
             }
 
-            // Set no_proxy list if provided
+            // Handle no_proxy list
+            // NOTE: reqwest's NoProxy implementation may have different behavior than GNU wget
+            // for edge cases like ".domain.com" patterns. In wget, ".domain.com" matches ONLY
+            // subdomains (*.domain.com), NOT the bare domain. reqwest may interpret this differently.
+            //
+            // For full wget compatibility, we would need to NOT use reqwest's proxy configuration
+            // and instead implement custom HTTP CONNECT proxy support. This is a known limitation.
+            //
+            // For now, we use reqwest's NoProxy which should work for most common cases.
             if !proxy_config.no_proxy.is_empty() {
-                // reqwest supports NO_PROXY via environment variable parsing
-                // But we need to handle it manually for consistency with wget
                 let no_proxy = reqwest::NoProxy::from_string(&proxy_config.no_proxy.join(","));
                 proxy = proxy.no_proxy(no_proxy);
             }

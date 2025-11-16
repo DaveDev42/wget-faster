@@ -3,7 +3,7 @@
 **Test Type**: perl
 **Status**: ❌ FAILED
 **Category**: 
-**Execution Time**: 0.10s
+**Execution Time**: 0.07s
 
 ## Description
 
@@ -19,7 +19,7 @@ Simulate a tunneling proxy to a HTTPS URL that needs authentication. Use a persi
 
 ### stdout
 ```
---2025-11-15 13:43:06--  https://no.such.domain/needs-auth.txt
+--2025-11-16 12:50:14--  https://no.such.domain/needs-auth.txt
 Resolving no.such.domain... 
 Connecting to no.such.domain:443... connected.
 HTTP request sent, awaiting response... 

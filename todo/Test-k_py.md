@@ -21,8 +21,8 @@ Test that Wget handles the --convert-links (-k) option correctly. Also tests tha
 ```
 Darwin
 Running Test Test-k.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config -k -r -nH --restrict-file-names=unix http://localhost:56857/index.html 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '-k', '-r', '-nH', '--restrict-file-names=unix', 'http://localhost:56857/index.html']
+/Users/dave/.cargo/bin/wgetf --debug --no-config -k -r -nH --restrict-file-names=unix http://localhost:51624/index.html 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '-k', '-r', '-nH', '--restrict-file-names=unix', 'http://localhost:51624/index.html']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-k.py-test'}
 Error: Contents of index.html do not match.
 
@@ -30,14 +30,14 @@ Error: Contents of index.html do not match.
 
 ### stderr
 ```
-127.0.0.1 - - [15/Nov/2025 13:44:45] "HEAD /index.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:44:45] "GET /index.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:44:45] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:44:45] "HEAD /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:44:45] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:44:45] "GET /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:44:45] "HEAD /site;sub:.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:44:45] "GET /site;sub:.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:25] "HEAD /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:25] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:25] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:25] "HEAD /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:25] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:25] "GET /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:25] "HEAD /site;sub:.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:25] "GET /site;sub:.html HTTP/1.1" 200 -
 --- Actual
 +++ Expected
 @@ -4,6 +4,6 @@

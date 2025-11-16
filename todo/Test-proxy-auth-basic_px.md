@@ -3,7 +3,7 @@
 **Test Type**: perl
 **Status**: ❌ FAILED
 **Category**: 
-**Execution Time**: 0.07s
+**Execution Time**: 0.05s
 
 ## Description
 
@@ -20,8 +20,8 @@
 ### stdout
 ```
 Running test Test-proxy-auth-basic
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config --user=fiddle-dee-dee --password=Dodgson -e http_proxy=localhost:56478 http://no.such.domain/needs-auth.txt
---2025-11-15 13:43:06--  http://no.such.domain/needs-auth.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config --user=fiddle-dee-dee --password=Dodgson -e http_proxy=localhost:51493 http://no.such.domain/needs-auth.txt
+--2025-11-16 12:50:14--  http://no.such.domain/needs-auth.txt
 Resolving no.such.domain... 
 Connecting to no.such.domain:80... connected.
 HTTP request sent, awaiting response... 

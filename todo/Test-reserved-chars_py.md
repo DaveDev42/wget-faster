@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.63s
+**Execution Time**: 0.60s
 
 ## Description
 
@@ -20,8 +20,8 @@ This test ensures that Wget keeps reserved characters in URLs in non-UTF-8 chars
 ### stdout
 ```
 Running Test Test-reserved-chars.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config  --spider -r http://localhost:57049/base.html 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--spider', '-r', 'http://localhost:57049/base.html']
+/Users/dave/.cargo/bin/wgetf --debug --no-config  --spider -r http://localhost:51764/base.html 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--spider', '-r', 'http://localhost:51764/base.html']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-reserved-chars.py-test'}
 {'HEAD /robots.txt'}
 Error: Not all files were crawled correctly..
@@ -30,20 +30,18 @@ Error: Not all files were crawled correctly..
 
 ### stderr
 ```
-127.0.0.1 - - [15/Nov/2025 13:45:08] "HEAD /base.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "GET /base.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "HEAD /base.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "HEAD /base.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "GET /base.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:45:08] "HEAD /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:45:08] "GET /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "HEAD /a%2Bb.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "GET /a%2Bb.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "HEAD /a%2Bb.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "HEAD /a%2Bb.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:45:08] "GET /a%2Bb.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "HEAD /base.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "GET /base.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "HEAD /base.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "GET /base.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:47] "HEAD /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:47] "GET /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "HEAD /a%2Bb.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "GET /a%2Bb.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "HEAD /a%2Bb.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:47] "GET /a%2Bb.html HTTP/1.1" 200 -
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-reserved-chars.py", line 55, in <module>
     ).begin ()

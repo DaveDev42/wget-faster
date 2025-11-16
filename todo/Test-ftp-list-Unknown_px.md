@@ -20,14 +20,14 @@
 ### stdout
 ```
 Running test Test-ftp-list-Unknown
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config --no-directories --recursive --level=1 --accept "?file.txt" ftp://localhost:56443/
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config --no-directories --recursive --level=1 --accept "?file.txt" ftp://localhost:51458/
 Test failed: wrong code returned (was: 1, expected: 0)
 
 ```
 
 ### stderr
 ```
-wgetf: recursive download failed: HTTP request failed: builder error for url (ftp://localhost:56443/)
+wgetf: recursive download failed: HTTP request failed: builder error for url (ftp://localhost:51458/)
 
 ```
 

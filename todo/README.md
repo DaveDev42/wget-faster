@@ -1,25 +1,51 @@
 # Test Failure Analysis
 
-**Generated from**: test_results_20251115_134509.json
-**Timestamp**: 2025-11-15T13:43:02.080732
-**Total Failed**: 108 / 169
-
-## CI/CD Issues 🔴
-
-**NEW (2025-11-15)**: CI/CD pipeline failing due to code quality issues
-
-**Critical**:
-- Security audit failing: Unmaintained dependency `fxhash` (via `scraper` 0.21.0)
-- Clippy warnings: Dead code, long literals, dependency duplicates
-
-See [`CI_Issues.md`](./CI_Issues.md) for complete analysis and fixes.
-
-**Action Required**: Fix CI issues before next test run
-
----
+**Generated from**: test_results_20251116_125047.json
+**Timestamp**: 2025-11-16T12:50:10.245426
+**Total Failed**: 110 / 169
 
 ## Summary by Category
 
+
+### unknown (37 tests)
+
+- [Test-E-k-K.px](./Test-E-k-K_px.md) (perl)
+- [Test-N--no-content-disposition-trivial.px](./Test-N_no-content-disposition-trivial_px.md) (perl)
+- [Test-N--no-content-disposition.px](./Test-N_no-content-disposition_px.md) (perl)
+- [Test-N-HTTP-Content-Disposition.px](./Test-N-HTTP-Content-Disposition_px.md) (perl)
+- [Test-N-current.px](./Test-N-current_px.md) (perl)
+- [Test-N-no-info.px](./Test-N-no-info_px.md) (perl)
+- [Test-N-old.px](./Test-N-old_px.md) (perl)
+- [Test-N-smaller.px](./Test-N-smaller_px.md) (perl)
+- [Test-N.px](./Test-N_px.md) (perl)
+- [Test-ftp-iri-disabled.px](./Test-ftp-iri-disabled_px.md) (perl)
+- [Test-ftp-iri-fallback.px](./Test-ftp-iri-fallback_px.md) (perl)
+- [Test-ftp-iri-recursive.px](./Test-ftp-iri-recursive_px.md) (perl)
+- [Test-ftp-iri.px](./Test-ftp-iri_px.md) (perl)
+- [Test-https-badcerts.px](./Test-https-badcerts_px.md) (perl)
+- [Test-https-clientcert.px](./Test-https-clientcert_px.md) (perl)
+- [Test-https-crl.px](./Test-https-crl_px.md) (perl)
+- [Test-https-pfs.px](./Test-https-pfs_px.md) (perl)
+- [Test-https-selfsigned.px](./Test-https-selfsigned_px.md) (perl)
+- [Test-https-tlsv1.px](./Test-https-tlsv1_px.md) (perl)
+- [Test-https-tlsv1x.px](./Test-https-tlsv1x_px.md) (perl)
+- [Test-https-weboftrust.px](./Test-https-weboftrust_px.md) (perl)
+- [Test-i-ftp.px](./Test-i-ftp_px.md) (perl)
+- [Test-idn-cmd-utf8.px](./Test-idn-cmd-utf8_px.md) (perl)
+- [Test-idn-cmd.px](./Test-idn-cmd_px.md) (perl)
+- [Test-idn-headers.px](./Test-idn-headers_px.md) (perl)
+- [Test-idn-meta.px](./Test-idn-meta_px.md) (perl)
+- [Test-idn-robots-utf8.px](./Test-idn-robots-utf8_px.md) (perl)
+- [Test-idn-robots.px](./Test-idn-robots_px.md) (perl)
+- [Test-iri-disabled.px](./Test-iri-disabled_px.md) (perl)
+- [Test-iri-forced-remote.px](./Test-iri-forced-remote_px.md) (perl)
+- [Test-iri-list.px](./Test-iri-list_px.md) (perl)
+- [Test-iri-percent.px](./Test-iri-percent_px.md) (perl)
+- [Test-iri.px](./Test-iri_px.md) (perl)
+- [Test-proxied-https-auth-keepalive.px](./Test-proxied-https-auth-keepalive_px.md) (perl)
+- [Test-proxied-https-auth.px](./Test-proxied-https-auth_px.md) (perl)
+- [Test-proxy-auth-basic.px](./Test-proxy-auth-basic_px.md) (perl)
+- [Test-stdouterr.px](./Test-stdouterr_px.md) (perl)
 
 ### missing_feature_metalink (32 tests)
 
@@ -56,39 +82,7 @@ See [`CI_Issues.md`](./CI_Issues.md) for complete analysis and fixes.
 - [Test-metalink-xml-urlbreak.py](./Test-metalink-xml-urlbreak_py.md) (python)
 - [Test-metalink-xml.py](./Test-metalink-xml_py.md) (python)
 
-### unknown (29 tests)
-
-- [Test-E-k-K.px](./Test-E-k-K_px.md) (perl)
-- [Test-O-nonexisting.px](./Test-O-nonexisting_px.md) (perl)
-- [Test-ftp-iri-disabled.px](./Test-ftp-iri-disabled_px.md) (perl)
-- [Test-ftp-iri-fallback.px](./Test-ftp-iri-fallback_px.md) (perl)
-- [Test-ftp-iri-recursive.px](./Test-ftp-iri-recursive_px.md) (perl)
-- [Test-ftp-iri.px](./Test-ftp-iri_px.md) (perl)
-- [Test-https-badcerts.px](./Test-https-badcerts_px.md) (perl)
-- [Test-https-clientcert.px](./Test-https-clientcert_px.md) (perl)
-- [Test-https-crl.px](./Test-https-crl_px.md) (perl)
-- [Test-https-pfs.px](./Test-https-pfs_px.md) (perl)
-- [Test-https-selfsigned.px](./Test-https-selfsigned_px.md) (perl)
-- [Test-https-tlsv1.px](./Test-https-tlsv1_px.md) (perl)
-- [Test-https-tlsv1x.px](./Test-https-tlsv1x_px.md) (perl)
-- [Test-https-weboftrust.px](./Test-https-weboftrust_px.md) (perl)
-- [Test-idn-cmd-utf8.px](./Test-idn-cmd-utf8_px.md) (perl)
-- [Test-idn-cmd.px](./Test-idn-cmd_px.md) (perl)
-- [Test-idn-headers.px](./Test-idn-headers_px.md) (perl)
-- [Test-idn-meta.px](./Test-idn-meta_px.md) (perl)
-- [Test-idn-robots-utf8.px](./Test-idn-robots-utf8_px.md) (perl)
-- [Test-idn-robots.px](./Test-idn-robots_px.md) (perl)
-- [Test-iri-disabled.px](./Test-iri-disabled_px.md) (perl)
-- [Test-iri-forced-remote.px](./Test-iri-forced-remote_px.md) (perl)
-- [Test-iri-list.px](./Test-iri-list_px.md) (perl)
-- [Test-iri-percent.px](./Test-iri-percent_px.md) (perl)
-- [Test-iri.px](./Test-iri_px.md) (perl)
-- [Test-proxied-https-auth-keepalive.px](./Test-proxied-https-auth-keepalive_px.md) (perl)
-- [Test-proxied-https-auth.px](./Test-proxied-https-auth_px.md) (perl)
-- [Test-proxy-auth-basic.px](./Test-proxy-auth-basic_px.md) (perl)
-- [Test-stdouterr.px](./Test-stdouterr_px.md) (perl)
-
-### missing_feature_ftp (14 tests)
+### missing_feature_ftp (13 tests)
 
 - [Test-ftp--start-pos.px](./Test-ftp_start-pos_px.md) (perl)
 - [Test-ftp-bad-list.px](./Test-ftp-bad-list_px.md) (perl)
@@ -103,7 +97,6 @@ See [`CI_Issues.md`](./CI_Issues.md) for complete analysis and fixes.
 - [Test-ftp-pasv-not-supported.px](./Test-ftp-pasv-not-supported_px.md) (perl)
 - [Test-ftp-recursive.px](./Test-ftp-recursive_px.md) (perl)
 - [Test-ftp.px](./Test-ftp_px.md) (perl)
-- [Test-i-ftp.px](./Test-i-ftp_px.md) (perl)
 
 ### skipped_ssl_tls (10 tests)
 
@@ -128,28 +121,20 @@ See [`CI_Issues.md`](./CI_Issues.md) for complete analysis and fixes.
 - [Test-recursive-include.py](./Test-recursive-include_py.md) (python)
 - [Test-recursive-pathmax.py](./Test-recursive-pathmax_py.md) (python)
 
-### test_framework_content_mismatch (6 tests)
+### test_framework_content_mismatch (5 tests)
 
 - [Test--convert-links--content-on-error.py](./Test_convert-links_content-on-error_py.md) (python)
-- [Test--rejected-log.py](./Test_rejected-log_py.md) (python)
 - [Test-cookie-expires.py](./Test-cookie-expires_py.md) (python)
 - [Test-k.py](./Test-k_py.md) (python)
 - [Test-no_proxy-env.py](./Test-no_proxy-env_py.md) (python)
 - [Test-redirect-crash.py](./Test-redirect-crash_py.md) (python)
 
-### test_framework_crawl_mismatch (5 tests)
+### test_framework_crawl_mismatch (4 tests)
 
 - [Test--spider-r.py](./Test_spider-r_py.md) (python)
 - [Test-504.py](./Test-504_py.md) (python)
-- [Test-condget.py](./Test-condget_py.md) (python)
 - [Test-recursive-basic.py](./Test-recursive-basic_py.md) (python)
 - [Test-reserved-chars.py](./Test-reserved-chars_py.md) (python)
-
-### timeout (3 tests)
-
-- [Test-auth-basic-netrc.py](./Test-auth-basic-netrc_py.md) (python)
-- [Test-auth-basic.py](./Test-auth-basic_py.md) (python)
-- [Test-auth-with-content-disposition.py](./Test-auth-with-content-disposition_py.md) (python)
 
 ### import_error (1 tests)
 

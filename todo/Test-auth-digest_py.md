@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.59s
+**Execution Time**: 0.09s
 
 ## Description
 
@@ -19,21 +19,23 @@ This test ensures Wget's Digest Authorization Negotiation.
 
 ### stdout
 ```
---2025-11-15 13:44:12--  http://localhost:56796/File1
+--2025-11-16 12:50:22--  http://localhost:51585/File1
 Resolving localhost... 
-Connecting to localhost:56796... connected.
+Connecting to localhost:51585... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File1'
 
---2025-11-15 13:44:12--  http://localhost:56796/File2
+[2m2025-11-16T03:50:22.912345Z[0m [33m WARN[0m [2m301:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
+--2025-11-16 12:50:22--  http://localhost:51585/File2
 Resolving localhost... 
-Connecting to localhost:56796... connected.
+Connecting to localhost:51585... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File2'
 
+[2m2025-11-16T03:50:22.912738Z[0m [33m WARN[0m [2m301:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
 Running Test Test-auth-digest.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --user=Pacman --password=Omnomnom http://localhost:56796/File1 http://localhost:56796/File2 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--user=Pacman', '--password=Omnomnom', 'http://localhost:56796/File1', 'http://localhost:56796/File2']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --user=Pacman --password=Omnomnom http://localhost:51585/File1 http://localhost:51585/File2 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--user=Pacman', '--password=Omnomnom', 'http://localhost:51585/File1', 'http://localhost:51585/File2']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-auth-digest.py-test'}
 Unable to Authenticate
 Unable to Authenticate
@@ -45,12 +47,12 @@ Error: Expected file File1 not found..
 
 ### stderr
 ```
-127.0.0.1 - - [15/Nov/2025 13:44:12] "HEAD /File1 HTTP/1.1" 401 -
-127.0.0.1 - - [15/Nov/2025 13:44:12] "HEAD /File1 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 12:50:22] "HEAD /File1 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 12:50:22] "HEAD /File1 HTTP/1.1" 401 -
 wget-faster: download failed: Invalid response status: 401
 wgetf: Invalid response status: 401
-127.0.0.1 - - [15/Nov/2025 13:44:12] "HEAD /File2 HTTP/1.1" 401 -
-127.0.0.1 - - [15/Nov/2025 13:44:12] "HEAD /File2 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 12:50:22] "HEAD /File2 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 12:50:22] "HEAD /File2 HTTP/1.1" 401 -
 wget-faster: download failed: Invalid response status: 401
 wgetf: Invalid response status: 401
 Traceback (most recent call last):

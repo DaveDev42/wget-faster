@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.62s
+**Execution Time**: 0.60s
 
 ## Description
 
@@ -20,58 +20,55 @@ This test executed Wget in Spider mode with recursive retrieval.
 ### stdout
 ```
 Running Test Test--spider-r.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --spider -r http://localhost:56488/ 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--spider', '-r', 'http://localhost:56488/']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --spider -r http://localhost:51503/ 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--spider', '-r', 'http://localhost:51503/']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test--spider-r.py-test'}
-{'HEAD /robots.txt', 'GET /dummy.txt', 'GET /nonexistent', 'GET /againnonexistent'}
+{'GET /againnonexistent', 'GET /nonexistent', 'HEAD /robots.txt', 'GET /dummy.txt'}
 Error: Not all files were crawled correctly..
 
 ```
 
 ### stderr
 ```
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD / HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD / HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD / HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /secondpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /secondpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /secondpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /secondpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /secondpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /nonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /nonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /nonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /nonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /nonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /thirdpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /thirdpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /thirdpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /thirdpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /thirdpage.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /dummy.txt HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /dummy.txt HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /dummy.txt HTTP/1.1" 200 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /againnonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /againnonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /againnonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "HEAD /againnonexistent HTTP/1.1" 404 -
-127.0.0.1 - - [15/Nov/2025 13:43:08] code 404, message Not Found
-127.0.0.1 - - [15/Nov/2025 13:43:08] "GET /againnonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /secondpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /secondpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /secondpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /secondpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /nonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /nonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /nonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /nonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /nonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /thirdpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /thirdpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /thirdpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /thirdpage.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /dummy.txt HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /dummy.txt HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /dummy.txt HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /againnonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /againnonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /againnonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "HEAD /againnonexistent HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 12:50:15] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 12:50:15] "GET /againnonexistent HTTP/1.1" 404 -
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test--spider-r.py", line 102, in <module>
     ).begin ()

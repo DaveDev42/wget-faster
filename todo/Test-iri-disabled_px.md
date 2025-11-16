@@ -3,7 +3,7 @@
 **Test Type**: perl
 **Status**: ❌ FAILED
 **Category**: 
-**Execution Time**: 0.10s
+**Execution Time**: 0.05s
 
 ## Description
 
@@ -20,7 +20,7 @@
 ### stdout
 ```
 Running test Test-iri-disabled
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config --no-iri -nH -r http://localhost:56455/
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config --no-iri -nH -r http://localhost:51470/
 Test failed: wrong code returned (was: 1, expected: 0)
 
 ```
