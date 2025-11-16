@@ -222,6 +222,22 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 10 - gnu_wget_compat Auth Timeout Investigation ⚠️ REVERTED
+**Attempted**: Enable gnu_wget_compat=true by setting clap default
+**Result**: REVERTED - 6 auth test timeouts + 3 other failures = -5 tests regression
+**Changes**: Modified args.rs:109 with `default_value_t = true` (REVERTED)
+**Test Results**: 68/151 tests (-5 from baseline of 73/151)
+**Failures**:
+- **6 auth timeouts** (30s each): Test-auth-basic-fail.py, Test-auth-basic-netrc.py, Test-auth-basic-netrc-user-given.py, Test-auth-basic.py, Test-auth-both.py, Test-auth-digest.py
+- **3 other tests**: Test-204.px, Test-O-nonexisting.px, Test-Head.py
+**Root Cause Analysis**: Auth tests timeout (NOT missing GET auth tracking from Session 6)
+- Timeouts suggest infinite loop or waiting behavior
+- Session 6's GET auth tracking IS present (downloader.rs:974-980, 1172-1179)
+- The issue is something ELSE about gnu_wget_compat mode
+**Key Finding**: gnu_wget_compat=true triggers auth timeouts - need deeper investigation
+**Lesson**: Confirm Session 8's finding - gnu_wget_compat breaks auth, but it's NOT because GET auth tracking is missing. There's an unknown interaction causing timeouts.
+**Status**: 73/151 tests maintained (all changes reverted)
+
 ### 2025-11-17 Session 9 - Cookie Integration Discovery
 **Investigated**: Test-cookie-expires.py failure root cause
 **Result**: Discovered critical architecture issue - custom CookieJar not used
