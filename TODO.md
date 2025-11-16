@@ -222,6 +222,16 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 7 - GNU wget Compatibility Mode ✅
+**Fixed**: Enabled gnu_wget_compat=true by default
+**Result**: No test regression (73/151 maintained, 48.3%)
+**Changes**: Set gnu_wget_compat=true in config.rs:205
+- Skips HEAD requests, uses GET-only (matches GNU wget behavior)
+- Disables parallel downloads by default (sequential like GNU wget)
+**Impact**: SESSION_4 blocker resolved! Can now enable compat mode without breaking auth
+**Lesson**: Session 6 AUTH fix was essential - no auth regression when enabling compat mode
+**Status**: 73/151 tests (48.3%)
+
 ### 2025-11-17 Session 6 - AUTH State Refactoring ✅
 **Fixed**: GET request auth tracking (partial Priority 1 fix)
 **Result**: No test count change (73/151 maintained, 48.3%)
