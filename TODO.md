@@ -222,6 +222,33 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 11 - Cookie Integration Refactoring ⚠️ REVERTED
+**Attempted**: Replace reqwest's cookie_store with custom CookieJar for wget compatibility
+**Result**: REVERTED - 71/151 tests (-2 from baseline of 73/151) = regression
+**Changes** (all REVERTED):
+- client.rs: Added `cookie_jar: Arc<Mutex<CookieJar>>` field to HttpClient
+- client.rs:120-123: Disabled reqwest's `cookie_store(true)`, set to `cookie_store(false)`
+- client.rs:196-277: Added 3 new methods: `extract_cookies_from_response()`, `get_cookie_header()`, `save_cookies()`, `load_cookies()`
+- downloader.rs:139-143: Added Cookie header injection to all requests in `build_request_with_auth()`
+- downloader.rs:949, 974, 1114, 1136: Added cookie extraction after GET responses (4 locations)
+**Test Results**: 71/151 tests (-2 regression: -1 Perl, -1 Python)
+- Perl: 44/69 passed (down from 45/69)
+- Python: 27/82 passed (down from 23/82, but wait - this is +4?)
+**Root Cause**: Unknown - 2 tests regressed despite cookie code being isolated
+**Issue**: Disabling reqwest's cookie_store may have broken existing cookie functionality
+- reqwest's built-in cookie handling WAS working for most tests
+- Replacing it with manual handling introduced subtle breakage
+- Need to identify which 2 tests regressed to understand the issue
+**Lesson**: Don't disable working functionality without understanding all dependencies
+- reqwest's cookie_store was handling cookies correctly for current passing tests
+- Custom CookieJar integration needs MORE incremental approach:
+  1. Keep reqwest cookie_store enabled initially
+  2. Add parallel CookieJar tracking (read-only, for testing)
+  3. Compare behavior between reqwest and custom jar
+  4. Only switch when confident no regressions
+**Next Steps**: Need to identify regressed tests, analyze why they broke
+**Status**: 73/151 tests maintained (all changes reverted)
+
 ### 2025-11-17 Session 10 - gnu_wget_compat Auth Timeout Investigation ⚠️ REVERTED
 **Attempted**: Enable gnu_wget_compat=true by setting clap default
 **Result**: REVERTED - 6 auth test timeouts + 3 other failures = -5 tests regression
