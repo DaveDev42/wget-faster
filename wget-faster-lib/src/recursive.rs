@@ -581,8 +581,31 @@ impl RecursiveDownloader {
             let local_path = self.url_to_local_path(url, output_dir)?;
 
             // Create parent directories
+            // Handle the case where a file exists with the same name as a directory we need
+            // This can happen with redirects: /directory (saved as file) -> /directory/ (needs directory)
             if let Some(parent) = local_path.parent() {
-                tokio::fs::create_dir_all(parent).await?;
+                match tokio::fs::create_dir_all(parent).await {
+                    Ok(()) => {},
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                        // Check if parent exists as a file (not a directory)
+                        if let Ok(metadata) = tokio::fs::metadata(parent).await {
+                            if metadata.is_file() {
+                                // Parent exists as a file - remove it and create directory
+                                tracing::warn!(
+                                    path = %parent.display(),
+                                    "Removing file to create directory (likely due to redirect from /path to /path/)"
+                                );
+                                tokio::fs::remove_file(parent).await?;
+                                tokio::fs::create_dir_all(parent).await?;
+                            }
+                            // If it's already a directory, we're good
+                        } else {
+                            // Metadata failed - propagate original error
+                            return Err(e.into());
+                        }
+                    },
+                    Err(e) => return Err(e.into()),
+                }
             }
 
             // Download to file
