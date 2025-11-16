@@ -614,7 +614,8 @@ impl Downloader {
         };
 
         // Use parallel download if supported and beneficial
-        let total_bytes = if metadata.supports_range && resume_from == 0 {
+        // For sequential downloads, we also capture the actual metadata from the GET response
+        let (total_bytes, actual_metadata) = if metadata.supports_range && resume_from == 0 {
             if let Some(total_size) = metadata.content_length {
                 if total_size > self.client.config().parallel_threshold {
                     // Use parallel for files > threshold
@@ -626,7 +627,8 @@ impl Downloader {
                         progress_callback,
                     )
                     .await?;
-                    total_size
+                    // For parallel downloads, use dummy metadata (we don't have GET response metadata)
+                    (total_size, metadata.clone())
                 } else {
                     self.download_sequential_to_writer(
                         url,
@@ -693,10 +695,12 @@ impl Downloader {
         }
 
         // Set file modification time from server if configured and available
+        // Use actual_metadata from GET response (which has the real Last-Modified header)
+        // instead of dummy metadata from HEAD request
         if self.client.config().use_server_timestamps {
             crate::timestamping::set_file_timestamp(
                 &path,
-                &metadata,
+                &actual_metadata,
                 self.client.config().verbose,
             )?;
         }
@@ -922,6 +926,7 @@ impl Downloader {
     }
 
     /// Sequential download to writer
+    /// Returns (bytes_downloaded, actual_metadata_from_response)
     async fn download_sequential_to_writer<W>(
         &self,
         url: &str,
@@ -930,7 +935,7 @@ impl Downloader {
         resume_from: u64,
         if_modified_since: Option<std::time::SystemTime>,
         force_preemptive_auth: bool,
-    ) -> Result<u64>
+    ) -> Result<(u64, crate::client::ResourceMetadata)>
     where
         W: AsyncWriteExt + Unpin + Send,
     {
@@ -969,13 +974,17 @@ impl Downloader {
                 let retry_response = retry_request.send().await?;
                 let retry_status = retry_response.status().as_u16();
 
+                // Extract metadata from retry response before processing
+                let retry_metadata =
+                    crate::client::HttpClient::extract_metadata_from_response(&retry_response);
+
                 // If still unauthorized, return error
                 if crate::auth_handler::is_auth_challenge(retry_status) {
                     return Err(Error::InvalidStatus(retry_status));
                 }
 
                 // Success! Continue with retry_response
-                return self
+                let bytes = self
                     .process_writer_response(
                         retry_response,
                         url,
@@ -983,11 +992,16 @@ impl Downloader {
                         progress_callback,
                         resume_from,
                     )
-                    .await;
+                    .await?;
+
+                return Ok((bytes, retry_metadata));
             }
             // No credentials available
             return Err(Error::InvalidStatus(status_code));
         }
+
+        // Extract metadata from response before consuming it
+        let metadata = crate::client::HttpClient::extract_metadata_from_response(&response);
 
         // Handle special status codes
         use crate::response_handler::ResponseStatus;
@@ -996,7 +1010,7 @@ impl Downloader {
         match response_status {
             ResponseStatus::NoContent => {
                 // 204 No Content - don't create file
-                return Ok(0);
+                return Ok((0, metadata));
             },
             ResponseStatus::NotModified => {
                 // 304 Not Modified - file is already up to date
@@ -1006,11 +1020,11 @@ impl Downloader {
                 writer.flush().await?;
                 // Return 0 to indicate no new bytes were downloaded
                 // The caller will handle keeping the existing file
-                return Ok(0);
+                return Ok((0, metadata));
             },
             ResponseStatus::RangeNotSatisfiable => {
                 // 416 Range Not Satisfiable - file is already complete
-                return Ok(resume_from);
+                return Ok((resume_from, metadata));
             },
             ResponseStatus::Success => {
                 // 200 OK or 206 Partial Content - proceed
@@ -1030,6 +1044,7 @@ impl Downloader {
 
         self.process_writer_response(response, url, writer, progress_callback, resume_from)
             .await
+            .map(|bytes| (bytes, metadata))
     }
 
     /// Helper to process response body for sequential downloads to writer

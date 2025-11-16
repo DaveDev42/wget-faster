@@ -309,8 +309,9 @@ impl HttpClient {
         Self::extract_metadata(response).await
     }
 
-    /// Extract metadata from a HEAD response
-    async fn extract_metadata(response: reqwest::Response) -> Result<ResourceMetadata> {
+    /// Extract metadata from a response reference (public helper for downloader)
+    /// This extracts metadata without consuming the response
+    pub fn extract_metadata_from_response(response: &reqwest::Response) -> ResourceMetadata {
         let supports_range = response
             .headers()
             .get(reqwest::header::ACCEPT_RANGES)
@@ -350,7 +351,7 @@ impl HttpClient {
         let status_code = response.status().as_u16();
         let headers = response.headers().clone();
 
-        Ok(ResourceMetadata {
+        ResourceMetadata {
             supports_range,
             content_length,
             last_modified,
@@ -360,7 +361,12 @@ impl HttpClient {
             status_code,
             headers,
             auth_succeeded: false,
-        })
+        }
+    }
+
+    /// Extract metadata from a HEAD response
+    async fn extract_metadata(response: reqwest::Response) -> Result<ResourceMetadata> {
+        Ok(Self::extract_metadata_from_response(&response))
     }
 }
 
