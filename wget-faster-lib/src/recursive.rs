@@ -99,6 +99,7 @@ pub struct RecursiveDownloader {
     link_converter: Option<LinkConverter>, // Link converter for -k flag
     rejected_urls: Vec<(String, String, Option<String>)>, // (URL, reason, parent_url) for tracking rejected URLs
     robots_cache: HashMap<String, Option<crate::robots::RobotsTxt>>, // Cache of robots.txt per host (None if not found/failed)
+    spider_content_cache: HashMap<String, Option<String>>, // Cache of HTML content in spider mode (None if download failed)
 }
 
 impl RecursiveDownloader {
@@ -147,6 +148,7 @@ impl RecursiveDownloader {
             link_converter: None,
             rejected_urls: Vec::new(),
             robots_cache: HashMap::new(),
+            spider_content_cache: HashMap::new(),
         })
     }
 
@@ -534,9 +536,14 @@ impl RecursiveDownloader {
         // In spider mode, just check if URL exists without downloading
         if self.config.spider {
             // Use download_to_memory to check the URL (won't save to disk)
+            // Also cache the content for later use in extract_links
             match self.downloader.download_to_memory(url).await {
-                Ok(_) => {
-                    // URL is accessible - return a dummy path
+                Ok(bytes) => {
+                    // URL is accessible - cache the content as string
+                    let content = String::from_utf8_lossy(&bytes).to_string();
+                    self.spider_content_cache
+                        .insert(url.to_string(), Some(content));
+                    // Return a dummy path
                     Ok(PathBuf::from("/dev/null"))
                 },
                 Err(e) => {
@@ -545,6 +552,8 @@ impl RecursiveDownloader {
                         // Track broken link
                         self.broken_links.push((url.to_string(), *status_code));
                     }
+                    // Cache the failure (None) so we don't try to download again
+                    self.spider_content_cache.insert(url.to_string(), None);
                     // In spider mode, we don't fail on errors - just track them
                     Ok(PathBuf::from("/dev/null"))
                 },
@@ -706,10 +715,19 @@ impl RecursiveDownloader {
     async fn extract_links(&self, file_path: &Path, base_url: &str) -> Result<Vec<String>> {
         // In spider mode, fetch the content from URL instead of file
         let content = if self.config.spider {
-            // Download HTML content to memory
-            match self.downloader.download_to_memory(base_url).await {
-                Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
-                Err(_) => return Ok(Vec::new()), // Can't extract links if download failed
+            // Check cache first - content was already downloaded in download_and_save()
+            if let Some(cached) = self.spider_content_cache.get(base_url) {
+                if let Some(content) = cached {
+                    content.clone()
+                } else {
+                    return Ok(Vec::new()); // Download failed, already tracked
+                }
+            } else {
+                // Cache miss (shouldn't happen in normal flow, but handle gracefully)
+                match self.downloader.download_to_memory(base_url).await {
+                    Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
+                    Err(_) => return Ok(Vec::new()), // Can't extract links if download failed
+                }
             }
         } else {
             tokio::fs::read_to_string(file_path).await?
