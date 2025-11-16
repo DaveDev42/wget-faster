@@ -266,6 +266,26 @@ impl HttpClient {
         let status_code = response.status().as_u16();
         tracing::debug!(status_code, "Received HEAD response");
 
+        // Handle 5xx server errors - return minimal metadata to allow GET fallback
+        // This enables retry logic in the download loop to work properly
+        if status_code >= 500 && status_code < 600 {
+            tracing::warn!(
+                status_code,
+                "HEAD request returned 5xx error - returning minimal metadata to allow GET fallback"
+            );
+            return Ok(ResourceMetadata {
+                supports_range: false,
+                content_length: None,
+                last_modified: None,
+                etag: None,
+                content_type: None,
+                content_disposition: None,
+                status_code,
+                headers: response.headers().clone(),
+                auth_succeeded: false,
+            });
+        }
+
         // Handle authentication challenges (401/407)
         // If we have credentials but didn't send them preemptively, retry with auth
         if crate::auth_handler::should_retry_auth(status_code, &self.config) {
@@ -287,6 +307,25 @@ impl HttpClient {
 
                 let retry_response = retry_request.send().await?;
                 let retry_status = retry_response.status().as_u16();
+
+                // Handle 5xx server errors on retry - return minimal metadata to allow GET fallback
+                if retry_status >= 500 && retry_status < 600 {
+                    tracing::warn!(
+                        retry_status,
+                        "HEAD request with auth returned 5xx error - returning minimal metadata to allow GET fallback"
+                    );
+                    return Ok(ResourceMetadata {
+                        supports_range: false,
+                        content_length: None,
+                        last_modified: None,
+                        etag: None,
+                        content_type: None,
+                        content_disposition: None,
+                        status_code: retry_status,
+                        headers: retry_response.headers().clone(),
+                        auth_succeeded: false,
+                    });
+                }
 
                 // Extract metadata and mark auth as succeeded if response is 2xx
                 let mut metadata = Self::extract_metadata(retry_response).await?;
