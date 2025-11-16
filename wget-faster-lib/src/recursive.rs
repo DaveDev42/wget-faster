@@ -127,7 +127,16 @@ impl RecursiveDownloader {
     /// let downloader = RecursiveDownloader::new(download_config, recursive_config)?;
     /// # Ok::<(), wget_faster_lib::Error>(())
     /// ```
-    pub fn new(download_config: DownloadConfig, recursive_config: RecursiveConfig) -> Result<Self> {
+    pub fn new(
+        mut download_config: DownloadConfig,
+        recursive_config: RecursiveConfig,
+    ) -> Result<Self> {
+        // Disable parallel downloads for recursive mode to match GNU wget behavior
+        // GNU wget doesn't send HEAD requests during recursive downloads - it just sends GET requests
+        // We disable parallel downloads (which triggers HEAD requests) to match this behavior
+        download_config.parallel_chunks = 1;
+        download_config.parallel_threshold = 0;
+
         Ok(Self {
             downloader: Downloader::new(download_config)?,
             config: recursive_config,
