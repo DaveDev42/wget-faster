@@ -222,6 +222,27 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 14 - Spider Mode HEAD Optimization (Partial Fix)
+**Attempted**: Optimize spider mode to reduce extra HEAD/GET requests
+**Result**: Baseline maintained (73/151 tests), partial progress made
+**Changes**: recursive.rs:546-607
+- Added `is_html_url_fast()` method to check extensions without sending HEAD
+- Modified `download_and_save()` to use fast check in spider mode
+- For .txt files: Send HEAD only (no GET) - matching GNU wget behavior
+- For .html files: Send HEAD + GET (to extract links)
+**Progress Made**:
+- ✅ Eliminated extra GET requests for known non-HTML files (.txt, .jpg, etc.)
+- ✅ Reduced most duplicate HEAD requests
+- ❌ Still failing: Files with uncertain extensions (/nonexistent) send GET instead of HEAD-only
+**Remaining Issues**:
+- URLs without extensions default to "treat as HTML" → send GET
+- GNU wget sends HEAD-only for uncertain files, then GET only if 200 OK + HTML content-type
+- Requires two-phase approach: HEAD first, then conditional GET based on status + content-type
+**Lesson**: Spider mode optimization is more complex than initially assessed
+- Needs HEAD → conditional GET logic, not simple extension-based routing
+- Full fix requires 3-5 more hours of careful refactoring
+**Status**: 73/151 tests maintained (baseline stable, partial improvement committed)
+
 ### 2025-11-17 Session 13 - Priority Test Verification
 **Attempted**: Start work on Priority 1 Test-reserved-chars.py
 **Result**: Discovered test already passes! TODO.md Priority list was outdated

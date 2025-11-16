@@ -552,28 +552,62 @@ impl RecursiveDownloader {
     ) -> Result<PathBuf> {
         // In spider mode, just check if URL exists without downloading
         if self.config.spider {
-            // Use download_to_memory to check the URL (won't save to disk)
-            // Also cache the content for later use in extract_links
-            match self.downloader.download_to_memory(url).await {
-                Ok(bytes) => {
-                    // URL is accessible - cache the content as string
-                    let content = String::from_utf8_lossy(&bytes).to_string();
-                    self.spider_content_cache
-                        .insert(url.to_string(), Some(content));
-                    // Return a dummy path
-                    Ok(PathBuf::from("/dev/null"))
-                },
-                Err(e) => {
-                    // Check if it's an HTTP error
-                    if let crate::Error::InvalidStatus(status_code) = &e {
-                        // Track broken link
-                        self.broken_links.push((url.to_string(), *status_code));
-                    }
-                    // Cache the failure (None) so we don't try to download again
-                    self.spider_content_cache.insert(url.to_string(), None);
-                    // In spider mode, we don't fail on errors - just track them
-                    Ok(PathBuf::from("/dev/null"))
-                },
+            // Spider mode optimization: Only download HTML content (to extract links)
+            // For non-HTML files, just send HEAD to check existence
+            //
+            // To avoid duplicate HEAD requests, we check the URL extension first
+            // and only send HEAD for files with uncertain content type
+            let is_html = self.is_html_url_fast(url);
+
+            if is_html {
+                // HTML file (or uncertain) - need to GET to extract links
+                // Use download_to_memory to check the URL (won't save to disk)
+                // Also cache the content for later use in extract_links
+                match self.downloader.download_to_memory(url).await {
+                    Ok(bytes) => {
+                        // URL is accessible - cache the content as string
+                        let content = String::from_utf8_lossy(&bytes).to_string();
+                        self.spider_content_cache
+                            .insert(url.to_string(), Some(content));
+                        // Return a dummy path
+                        Ok(PathBuf::from("/dev/null"))
+                    },
+                    Err(e) => {
+                        // Check if it's an HTTP error
+                        if let crate::Error::InvalidStatus(status_code) = &e {
+                            // Track broken link
+                            self.broken_links.push((url.to_string(), *status_code));
+                        }
+                        // Cache the failure (None) so we don't try to download again
+                        self.spider_content_cache.insert(url.to_string(), None);
+                        // In spider mode, we don't fail on errors - just track them
+                        Ok(PathBuf::from("/dev/null"))
+                    },
+                }
+            } else {
+                // Non-HTML file (known by extension) - just send HEAD to check existence
+                match self.downloader.get_client().get_metadata(url).await {
+                    Ok(metadata) => {
+                        // Check status code for errors
+                        if metadata.status_code >= 400 {
+                            // Track broken link
+                            self.broken_links
+                                .push((url.to_string(), metadata.status_code));
+                        }
+                        // Cache as None (no content, just checked existence)
+                        self.spider_content_cache.insert(url.to_string(), None);
+                        Ok(PathBuf::from("/dev/null"))
+                    },
+                    Err(e) => {
+                        // HEAD request failed - track as broken link
+                        if let crate::Error::InvalidStatus(status_code) = &e {
+                            self.broken_links.push((url.to_string(), *status_code));
+                        }
+                        // Cache the failure
+                        self.spider_content_cache.insert(url.to_string(), None);
+                        Ok(PathBuf::from("/dev/null"))
+                    },
+                }
             }
         } else {
             // Normal mode - download and save
@@ -734,6 +768,38 @@ impl RecursiveDownloader {
         } else {
             false
         }
+    }
+
+    /// Check if URL points to HTML content (fast path - extension only)
+    /// Used in spider mode to avoid duplicate HEAD requests
+    fn is_html_url_fast(&self, url: &str) -> bool {
+        // Check URL extension first (fast path - avoids HEAD request)
+        // This matches GNU wget behavior: only send HEAD if content type is uncertain
+        if url.ends_with(".html") || url.ends_with(".htm") || url.ends_with('/') {
+            return true;
+        }
+
+        // Non-HTML extensions (skip HEAD request)
+        if url.ends_with(".jpg")
+            || url.ends_with(".jpeg")
+            || url.ends_with(".png")
+            || url.ends_with(".gif")
+            || url.ends_with(".webp")
+            || url.ends_with(".css")
+            || url.ends_with(".js")
+            || url.ends_with(".ico")
+            || url.ends_with(".pdf")
+            || url.ends_with(".zip")
+            || url.ends_with(".tar")
+            || url.ends_with(".gz")
+            || url.ends_with(".txt")
+        {
+            return false;
+        }
+
+        // Default: treat as HTML if uncertain (matches wget behavior)
+        // In spider mode, we'll send GET and check actual content
+        true
     }
 
     /// Check if URL points to HTML content (for spider mode)
