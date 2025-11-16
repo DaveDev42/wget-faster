@@ -1186,6 +1186,24 @@ fn build_recursive_config(args: &Args) -> wget_faster_lib::RecursiveConfig {
     // Set no_directories (-nd/--no-directories)
     config.no_directories = args.no_directories;
 
+    // Set include_directories (-I flag)
+    if let Some(ref include_dirs) = args.include_directories {
+        config.include_directories = include_dirs
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+    }
+
+    // Set exclude_directories (-X flag)
+    if let Some(ref exclude_dirs) = args.exclude_directories {
+        config.exclude_directories = exclude_dirs
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+    }
+
     config
 }
 
