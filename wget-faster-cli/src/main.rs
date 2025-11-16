@@ -892,6 +892,10 @@ fn build_config(args: &Args) -> Result<DownloadConfig> {
         config.parallel_threshold = 0; // Disable threshold check
     }
 
+    // Set GNU wget compatibility mode
+    // This disables HEAD requests and uses sequential-only downloads for exact wget behavior
+    config.gnu_wget_compat = args.gnu_wget_compat;
+
     // Parse --restrict-file-names
     if let Some(ref restrict_str) = args.restrict_file_names {
         // Parse comma-separated list of restrictions

@@ -422,7 +422,9 @@ impl Downloader {
         // Skip HEAD request if:
         // 1. Timestamping mode (-N) - use GET with If-Modified-Since instead
         // 2. Simple download without parallel (no need to check Range support)
+        // 3. GNU wget compatibility mode (always skip HEAD for wget-compatible behavior)
         let skip_head = self.client.config().timestamping
+            || self.client.config().gnu_wget_compat
             || (self.client.config().parallel_threshold == 0
                 || self.client.config().parallel_chunks <= 1);
 

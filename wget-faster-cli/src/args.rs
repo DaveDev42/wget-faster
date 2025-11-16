@@ -105,6 +105,10 @@ pub struct Args {
     #[arg(long, overrides_with = "no_parallel")]
     pub no_parallel: bool,
 
+    /// GNU wget compatibility mode (disable HEAD requests, sequential-only)
+    #[arg(long, overrides_with = "gnu_wget_compat")]
+    pub gnu_wget_compat: bool,
+
     /// Write documents to FILE
     #[arg(short = 'O', long, value_name = "FILE")]
     pub output_document: Option<PathBuf>,

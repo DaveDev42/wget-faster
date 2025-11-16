@@ -131,6 +131,9 @@ pub struct DownloadConfig {
 
     /// Only follow HTTPS URLs (reject HTTP URLs)
     pub https_only: bool,
+
+    /// GNU wget compatibility mode (disable HEAD requests, sequential-only)
+    pub gnu_wget_compat: bool,
 }
 
 /// HTTP request method
@@ -199,6 +202,7 @@ impl Default for DownloadConfig {
             restrict_file_names: Vec::new(),      // No restrictions by default
             start_pos: None,                      // No start position by default
             https_only: false,                    // Accept both HTTP and HTTPS by default
+            gnu_wget_compat: false,               // Default to modern behavior
         }
     }
 }
