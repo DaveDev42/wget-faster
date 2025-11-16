@@ -85,10 +85,14 @@ impl LinkConverter {
             return Ok(());
         }
 
-        let backup_path = path.with_extension(format!(
-            "{}.orig",
-            path.extension().and_then(|e| e.to_str()).unwrap_or("")
-        ));
+        // Create backup path by replacing extension with .orig
+        // For files like "index.php.html", we want "index.php.orig" not "index.php.html.orig"
+        // This matches GNU wget's behavior: backup the original filename before -E extension
+        let backup_path = if let Some(stem) = path.file_stem() {
+            path.with_file_name(format!("{}.orig", stem.to_string_lossy()))
+        } else {
+            path.with_extension("orig")
+        };
 
         tokio::fs::copy(path, backup_path)
             .await

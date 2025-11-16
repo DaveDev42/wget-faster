@@ -57,8 +57,11 @@
 
 8. **Cookie handling edge cases** ✅ MOSTLY FIXED (Session 15)
    - Fixed: Replaced reqwest cookie_store with reqwest_cookie_store (+12 tests)
-   - Test-cookie-expires.py still fails (HEAD requests don't send cookies)
-   - Files: `client.rs:119-150`
+   - Remaining: Test-cookie-expires.py (Session 17 - GET→HEAD cookie sync issue)
+   - Issue: reqwest_cookie_store doesn't sync cookies from GET to immediate HEAD
+   - Attempted fix (Session 17): Skip HEAD when cookies enabled → -4 tests (too broad)
+   - Need surgical approach: Flush cookie store OR delay before HEAD OR conditional skip
+   - Files: `client.rs:119-150`, `downloader.rs:422-431`
 
 ### Priority 3: Complex Features (5+ hours each, ~10-15 tests)
 
@@ -222,6 +225,38 @@ git checkout <files>
 ---
 
 ## 📊 Recent Session History
+
+### 2025-11-17 Session 17 - Cookie HEAD Request Investigation ⚠️ REVERTED
+**Attempted**: Skip HEAD requests when cookies enabled to fix Test-cookie-expires.py
+**Result**: REVERTED - 69/151 tests (-4 from baseline of 73/151) = regression
+**Changes** (REVERTED): downloader.rs:422-431 - Added `|| self.client.config().enable_cookies` to skip_head condition
+**Test Results**: 69/151 tests (-4 regression: 45→43 Perl, 28→26 Python)
+**Root Cause**: Skipping HEAD requests when cookies enabled broke 4 non-cookie tests
+- The change was too broad - affected ALL downloads with cookies, not just problematic ones
+- Broke tests that rely on HEAD requests for metadata (Range support, Content-Length)
+**Investigation Findings**:
+- Test-cookie-expires.py failure: HEAD requests don't receive cookies set by previous GET
+- Flow: File1 GET sets cookie → File2 HEAD expects cookie but doesn't send it → File2 GET fails with 400
+- Root issue: reqwest_cookie_store synchronization between GET→HEAD requests
+- GET→GET cookie flow works ✅, but GET→HEAD cookie flow broken ❌
+**Why Fix Failed**:
+- Skipping HEAD solved cookie sync issue BUT removed Range/parallel download capability
+- 4 tests rely on HEAD metadata for proper download strategy selection
+- Need more surgical fix: only skip HEAD for specific cookie-dependent URLs, not all
+**Alternative Approaches** (deferred):
+1. Force cookie store flush after GET responses before next HEAD
+2. Add delay/retry logic for cookie availability
+3. Only skip HEAD when URL explicitly requires cookies (Set-Cookie in previous response)
+**Lesson**: Don't use broad conditional flags to fix narrow issues - causes regressions
+**Status**: 73/151 tests maintained (all changes reverted)
+
+### 2025-11-17 Session 16 - Auth Credential Merging ⚠️ REVERTED
+**Attempted**: Merge CLI auth (--user/--password) with .netrc credentials
+**Result**: REVERTED - Test timeouts (Test-auth-basic-netrc-pass-given.py, Test-auth-basic-netrc-user-given.py)
+**Changes** (REVERTED): netrc.rs, auth_handler.rs, client.rs, main.rs
+**Root Cause**: Implementation created infinite retry loops or deadlocks with partial credentials (empty username or password)
+**Lesson**: Auth credential merging needs more investigation - timeouts indicate deeper architectural issues
+**Status**: 73/151 tests maintained (reverted)
 
 ### 2025-11-17 Session 15 - Cookie System Fix ✅
 **Fixed**: Cookie handling by replacing reqwest's cookie_store with reqwest_cookie_store
