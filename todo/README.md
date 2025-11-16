@@ -1,8 +1,8 @@
 # Test Failure Analysis
 
-**Generated from**: test_results_20251116_135340.json
-**Timestamp**: 2025-11-16T13:53:02.910787
-**Total Failed**: 103 / 169
+**Generated from**: test_results_20251116_135735.json
+**Timestamp**: 2025-11-16T13:56:58.677374
+**Total Failed**: 102 / 169
 
 ## Summary by Category
 
@@ -42,10 +42,9 @@
 - [Test-metalink-xml-urlbreak.py](./Test-metalink-xml-urlbreak_py.md) (python)
 - [Test-metalink-xml.py](./Test-metalink-xml_py.md) (python)
 
-### unknown (30 tests)
+### unknown (29 tests)
 
 - [Test-E-k-K.px](./Test-E-k-K_px.md) (perl)
-- [Test-N-smaller.px](./Test-N-smaller_px.md) (perl)
 - [Test-ftp-iri-disabled.px](./Test-ftp-iri-disabled_px.md) (perl)
 - [Test-ftp-iri-fallback.px](./Test-ftp-iri-fallback_px.md) (perl)
 - [Test-ftp-iri-recursive.px](./Test-ftp-iri-recursive_px.md) (perl)

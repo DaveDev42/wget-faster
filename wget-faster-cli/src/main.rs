@@ -1226,19 +1226,22 @@ fn preprocess_args(args: Vec<String>) -> Vec<String> {
 fn print_version() {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    println!("GNU Wget {} built on {}.", VERSION, std::env::consts::OS);
+    println!("wget-faster {} built on {}.", VERSION, std::env::consts::OS);
     println!();
-    println!("+digest +https +ipv6 -iri +large-file +nls +ssl/rustls");
+    println!("A high-performance HTTP downloader compatible with GNU wget");
+    println!();
+    println!("Capabilities:");
+    println!("  +digest +https +ipv6 -iri +large-file +nls +ssl/rustls");
     println!();
     println!("Features:");
-    println!("    +http2         HTTP/2 support via reqwest");
-    println!("    +parallel      Parallel chunk downloads");
-    println!("    +adaptive      Adaptive performance tuning");
-    println!("    +cookies       Cookie support (Netscape format)");
-    println!("    +compression   gzip, deflate, brotli");
-    println!("    +recursive     Recursive downloads with HTML parsing");
-    println!("    +timestamping  If-Modified-Since support");
-    println!("    +resume        Resume partial downloads");
+    println!("  +http2         HTTP/2 support via reqwest");
+    println!("  +parallel      Parallel chunk downloads");
+    println!("  +adaptive      Adaptive performance tuning");
+    println!("  +cookies       Cookie support (Netscape format)");
+    println!("  +compression   gzip, deflate, brotli");
+    println!("  +recursive     Recursive downloads with HTML parsing");
+    println!("  +timestamping  If-Modified-Since support");
+    println!("  +resume        Resume partial downloads");
     println!();
     println!("Copyright (C) 2024 wget-faster contributors");
     println!("License BSD-3-Clause: BSD 3-Clause License");

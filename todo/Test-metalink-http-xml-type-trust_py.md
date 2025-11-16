@@ -21,8 +21,8 @@ This is to test Metalink/HTTP with Content-Type Metalink/XML. With --trust-serve
 ```
 Running Test Test-metalink-http-xml-type-trust.py
 Running Test Test-metalink-http-xml-type-trust.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --trust-server-names --metalink-over-http --metalink-index=0 http://localhost:58755/main.metalink 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--trust-server-names', '--metalink-over-http', '--metalink-index=0', 'http://localhost:58755/main.metalink']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --trust-server-names --metalink-over-http --metalink-index=0 http://localhost:59711/main.metalink 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--trust-server-names', '--metalink-over-http', '--metalink-index=0', 'http://localhost:59711/main.metalink']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-metalink-http-xml-type-trust.py-test'}
 Error: Expected file main.metalink not found..
 

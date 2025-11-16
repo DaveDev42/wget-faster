@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.09s
+**Execution Time**: 0.60s
 
 ## Description
 
@@ -20,26 +20,26 @@ Basic test of --recursive.
 ### stdout
 ```
 Running Test Test-recursive-basic.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --recursive --no-host-directories http://localhost:58830/a/File1.html 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--recursive', '--no-host-directories', 'http://localhost:58830/a/File1.html']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --recursive --no-host-directories http://localhost:59774/a/File1.html 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--recursive', '--no-host-directories', 'http://localhost:59774/a/File1.html']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-recursive-basic.py-test'}
-{'HEAD /a/File2.html', 'HEAD /a/File1.html', 'HEAD /robots.txt', 'HEAD /b/File3.html'}
+{'HEAD /a/File2.html', 'HEAD /b/File3.html', 'HEAD /a/File1.html', 'HEAD /robots.txt'}
 Error: Not all files were crawled correctly..
 
 ```
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:53:38] "HEAD /a/File1.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:38] "GET /a/File1.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:38] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:53:38] "HEAD /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:53:38] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:53:38] "GET /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:53:38] "HEAD /a/File2.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:38] "GET /a/File2.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:38] "HEAD /b/File3.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:38] "GET /b/File3.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] "HEAD /a/File1.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] "GET /a/File1.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:57:33] "HEAD /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:57:33] "GET /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] "HEAD /a/File2.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] "GET /a/File2.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] "HEAD /b/File3.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:33] "GET /b/File3.html HTTP/1.1" 200 -
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-recursive-basic.py", line 57, in <module>
     ).begin ()

@@ -3,7 +3,7 @@
 **Test Type**: perl
 **Status**: ❌ FAILED
 **Category**: 
-**Execution Time**: 0.04s
+**Execution Time**: 0.03s
 
 ## Description
 
@@ -20,10 +20,10 @@
 ### stdout
 ```
 Running test Test-ftp-pasv-not-supported
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config -S ftp://localhost:58557/afile.txt
---2025-11-16 13:53:05--  ftp://localhost:58557/afile.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config -S ftp://localhost:59530/afile.txt
+--2025-11-16 13:57:01--  ftp://localhost:59530/afile.txt
 Resolving localhost... 
-Connecting to localhost:58557... connected.
+Connecting to localhost:59530... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'afile.txt'
 
@@ -33,8 +33,8 @@ Test failed: wrong code returned (was: 1, expected: 8)
 
 ### stderr
 ```
-wget-faster: download failed: HTTP request failed: builder error for url (ftp://localhost:58557/afile.txt)
-wgetf: HTTP request failed: builder error for url (ftp://localhost:58557/afile.txt)
+wget-faster: download failed: HTTP request failed: builder error for url (ftp://localhost:59530/afile.txt)
+wgetf: HTTP request failed: builder error for url (ftp://localhost:59530/afile.txt)
 
 ```
 

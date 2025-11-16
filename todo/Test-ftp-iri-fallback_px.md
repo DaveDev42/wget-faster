@@ -24,10 +24,10 @@ Features available from 'wget --version' output:
     ssl/rustls=1
     ipv6=1
     https=1
-    iri=0
     large-file=1
     nls=1
     digest=1
+    iri=0
 
 ```
 

@@ -20,10 +20,10 @@
 ### stdout
 ```
 Running test Test-ftp
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config -S ftp://localhost:58559/afile.txt
---2025-11-16 13:53:05--  ftp://localhost:58559/afile.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config -S ftp://localhost:59532/afile.txt
+--2025-11-16 13:57:01--  ftp://localhost:59532/afile.txt
 Resolving localhost... 
-Connecting to localhost:58559... connected.
+Connecting to localhost:59532... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'afile.txt'
 
@@ -33,8 +33,8 @@ Test failed: wrong code returned (was: 1, expected: 0)
 
 ### stderr
 ```
-wget-faster: download failed: HTTP request failed: builder error for url (ftp://localhost:58559/afile.txt)
-wgetf: HTTP request failed: builder error for url (ftp://localhost:58559/afile.txt)
+wget-faster: download failed: HTTP request failed: builder error for url (ftp://localhost:59532/afile.txt)
+wgetf: HTTP request failed: builder error for url (ftp://localhost:59532/afile.txt)
 
 ```
 

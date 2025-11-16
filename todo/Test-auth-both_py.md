@@ -19,30 +19,30 @@ This test ensures Wget's Basic Authorization Negotiation. Also, we ensure that W
 
 ### stdout
 ```
---2025-11-16 13:53:13--  http://localhost:58690/File1
+--2025-11-16 13:57:10--  http://localhost:59646/File1
 Resolving localhost... 
-Connecting to localhost:58690... connected.
+Connecting to localhost:59646... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File1'
 
-[2m2025-11-16T04:53:13.930132Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m400
---2025-11-16 13:53:13--  http://localhost:58690/File2
+[2m2025-11-16T04:57:10.648197Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m400
+--2025-11-16 13:57:10--  http://localhost:59646/File2
 Resolving localhost... 
-Connecting to localhost:58690... connected.
+Connecting to localhost:59646... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File2'
 
-[2m2025-11-16T04:53:13.931644Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m400
---2025-11-16 13:53:13--  http://localhost:58690/File3
+[2m2025-11-16T04:57:10.650866Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m400
+--2025-11-16 13:57:10--  http://localhost:59646/File3
 Resolving localhost... 
-Connecting to localhost:58690... connected.
+Connecting to localhost:59646... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File3'
 
-[2m2025-11-16T04:53:13.933112Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
+[2m2025-11-16T04:57:10.651917Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
 Running Test Test-auth-both.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --user=Sauron --password=TheEye http://localhost:58690/File1 http://localhost:58690/File2 http://localhost:58690/File3 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--user=Sauron', '--password=TheEye', 'http://localhost:58690/File1', 'http://localhost:58690/File2', 'http://localhost:58690/File3']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --user=Sauron --password=TheEye http://localhost:59646/File1 http://localhost:59646/File2 http://localhost:59646/File3 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--user=Sauron', '--password=TheEye', 'http://localhost:59646/File1', 'http://localhost:59646/File2', 'http://localhost:59646/File3']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-auth-both.py-test'}
 Unable to Authenticate
 Header Authorization received
@@ -56,18 +56,18 @@ Error: Expected file File1 not found..
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:53:13] "HEAD /File1 HTTP/1.1" 401 -
-127.0.0.1 - - [16/Nov/2025 13:53:13] code 400, message Blacklisted Header Authorization received
-127.0.0.1 - - [16/Nov/2025 13:53:13] "HEAD /File1 HTTP/1.1" 400 -
+127.0.0.1 - - [16/Nov/2025 13:57:10] "HEAD /File1 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:10] code 400, message Blacklisted Header Authorization received
+127.0.0.1 - - [16/Nov/2025 13:57:10] "HEAD /File1 HTTP/1.1" 400 -
 wget-faster: download failed: Invalid response status: 400
 wgetf: Invalid response status: 400
-127.0.0.1 - - [16/Nov/2025 13:53:13] "HEAD /File2 HTTP/1.1" 401 -
-127.0.0.1 - - [16/Nov/2025 13:53:13] code 400, message Blacklisted Header Authorization received
-127.0.0.1 - - [16/Nov/2025 13:53:13] "HEAD /File2 HTTP/1.1" 400 -
+127.0.0.1 - - [16/Nov/2025 13:57:10] "HEAD /File2 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:10] code 400, message Blacklisted Header Authorization received
+127.0.0.1 - - [16/Nov/2025 13:57:10] "HEAD /File2 HTTP/1.1" 400 -
 wget-faster: download failed: Invalid response status: 400
 wgetf: Invalid response status: 400
-127.0.0.1 - - [16/Nov/2025 13:53:13] "HEAD /File3 HTTP/1.1" 401 -
-127.0.0.1 - - [16/Nov/2025 13:53:13] "HEAD /File3 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:10] "HEAD /File3 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:10] "HEAD /File3 HTTP/1.1" 401 -
 wget-faster: download failed: Invalid response status: 401
 wgetf: Invalid response status: 401
 Traceback (most recent call last):

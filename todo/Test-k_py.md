@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.59s
+**Execution Time**: 0.09s
 
 ## Description
 
@@ -21,8 +21,8 @@ Test that Wget handles the --convert-links (-k) option correctly. Also tests tha
 ```
 Darwin
 Running Test Test-k.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config -k -r -nH --restrict-file-names=unix http://localhost:58736/index.html 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '-k', '-r', '-nH', '--restrict-file-names=unix', 'http://localhost:58736/index.html']
+/Users/dave/.cargo/bin/wgetf --debug --no-config -k -r -nH --restrict-file-names=unix http://localhost:59692/index.html 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '-k', '-r', '-nH', '--restrict-file-names=unix', 'http://localhost:59692/index.html']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-k.py-test'}
 Error: Contents of index.html do not match.
 
@@ -30,14 +30,14 @@ Error: Contents of index.html do not match.
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:53:17] "HEAD /index.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:17] "GET /index.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:17] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:53:17] "HEAD /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:53:17] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:53:17] "GET /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:53:17] "HEAD /site;sub:.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:17] "GET /site;sub:.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:13] "HEAD /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:13] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:13] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:57:13] "HEAD /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:57:13] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:57:13] "GET /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:57:13] "HEAD /site;sub:.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:13] "GET /site;sub:.html HTTP/1.1" 200 -
 --- Actual
 +++ Expected
 @@ -4,6 +4,6 @@

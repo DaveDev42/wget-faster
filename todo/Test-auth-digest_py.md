@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.09s
+**Execution Time**: 0.10s
 
 ## Description
 
@@ -19,23 +19,23 @@ This test ensures Wget's Digest Authorization Negotiation.
 
 ### stdout
 ```
---2025-11-16 13:53:14--  http://localhost:58697/File1
+--2025-11-16 13:57:11--  http://localhost:59653/File1
 Resolving localhost... 
-Connecting to localhost:58697... connected.
+Connecting to localhost:59653... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File1'
 
-[2m2025-11-16T04:53:14.528989Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
---2025-11-16 13:53:14--  http://localhost:58697/File2
+[2m2025-11-16T04:57:11.253018Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
+--2025-11-16 13:57:11--  http://localhost:59653/File2
 Resolving localhost... 
-Connecting to localhost:58697... connected.
+Connecting to localhost:59653... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File2'
 
-[2m2025-11-16T04:53:14.529520Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
+[2m2025-11-16T04:57:11.253623Z[0m [33m WARN[0m [2m302:[0m HEAD request authentication failed [3mretry_status[0m[2m=[0m401
 Running Test Test-auth-digest.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --user=Pacman --password=Omnomnom http://localhost:58697/File1 http://localhost:58697/File2 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--user=Pacman', '--password=Omnomnom', 'http://localhost:58697/File1', 'http://localhost:58697/File2']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --user=Pacman --password=Omnomnom http://localhost:59653/File1 http://localhost:59653/File2 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--user=Pacman', '--password=Omnomnom', 'http://localhost:59653/File1', 'http://localhost:59653/File2']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-auth-digest.py-test'}
 Unable to Authenticate
 Unable to Authenticate
@@ -47,12 +47,12 @@ Error: Expected file File1 not found..
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:53:14] "HEAD /File1 HTTP/1.1" 401 -
-127.0.0.1 - - [16/Nov/2025 13:53:14] "HEAD /File1 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:11] "HEAD /File1 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:11] "HEAD /File1 HTTP/1.1" 401 -
 wget-faster: download failed: Invalid response status: 401
 wgetf: Invalid response status: 401
-127.0.0.1 - - [16/Nov/2025 13:53:14] "HEAD /File2 HTTP/1.1" 401 -
-127.0.0.1 - - [16/Nov/2025 13:53:14] "HEAD /File2 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:11] "HEAD /File2 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:57:11] "HEAD /File2 HTTP/1.1" 401 -
 wget-faster: download failed: Invalid response status: 401
 wgetf: Invalid response status: 401
 Traceback (most recent call last):

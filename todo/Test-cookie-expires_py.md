@@ -19,38 +19,38 @@ This test ensures that Wget handles Cookie expiry dates correctly. Simultaneuous
 
 ### stdout
 ```
---2025-11-16 13:53:16--  http://localhost:58726/File1
+--2025-11-16 13:57:12--  http://localhost:59682/File1
 Resolving localhost... 
-Connecting to localhost:58726... connected.
+Connecting to localhost:59682... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File1'
 
 200 OK
 Length: 12 (12B) [text/plain]
 
-2025-11-16 13:53:16 - 'File1' saved [12]
+2025-11-16 13:57:12 - 'File1' saved [12]
 
---2025-11-16 13:53:16--  http://localhost:58726/File2
+--2025-11-16 13:57:12--  http://localhost:59682/File2
 Resolving localhost... 
-Connecting to localhost:58726... connected.
+Connecting to localhost:59682... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File2'
 
---2025-11-16 13:53:16--  http://localhost:58726/File3
+--2025-11-16 13:57:12--  http://localhost:59682/File3
 Resolving localhost... 
-Connecting to localhost:58726... connected.
+Connecting to localhost:59682... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File3'
 
---2025-11-16 13:53:16--  http://localhost:58726/File4
+--2025-11-16 13:57:12--  http://localhost:59682/File4
 Resolving localhost... 
-Connecting to localhost:58726... connected.
+Connecting to localhost:59682... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File4'
 
 Running Test Test-cookie-expires.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config  http://localhost:58726/File1 http://localhost:58726/File2 http://localhost:58726/File3 http://localhost:58726/File4 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', 'http://localhost:58726/File1', 'http://localhost:58726/File2', 'http://localhost:58726/File3', 'http://localhost:58726/File4']
+/Users/dave/.cargo/bin/wgetf --debug --no-config  http://localhost:59682/File1 http://localhost:59682/File2 http://localhost:59682/File3 http://localhost:59682/File4 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', 'http://localhost:59682/File1', 'http://localhost:59682/File2', 'http://localhost:59682/File3', 'http://localhost:59682/File4']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-cookie-expires.py-test'}
 Header Cookie not found
 Header Cookie not found
@@ -61,19 +61,19 @@ Error: Contents of File2 do not match.
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:53:16] "HEAD /File1 HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:16] "GET /File1 HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:16] "HEAD /File2 HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:53:16] code 400, message Expected Header Cookie not found
-127.0.0.1 - - [16/Nov/2025 13:53:16] "GET /File2 HTTP/1.1" 400 -
+127.0.0.1 - - [16/Nov/2025 13:57:12] "HEAD /File1 HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:12] "GET /File1 HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:12] "HEAD /File2 HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:57:12] code 400, message Expected Header Cookie not found
+127.0.0.1 - - [16/Nov/2025 13:57:12] "GET /File2 HTTP/1.1" 400 -
 wget-faster: download failed: Invalid response status: 400
 wgetf: Invalid response status: 400
-127.0.0.1 - - [16/Nov/2025 13:53:16] code 400, message Expected Header Cookie not found
-127.0.0.1 - - [16/Nov/2025 13:53:16] "HEAD /File3 HTTP/1.1" 400 -
+127.0.0.1 - - [16/Nov/2025 13:57:12] code 400, message Expected Header Cookie not found
+127.0.0.1 - - [16/Nov/2025 13:57:12] "HEAD /File3 HTTP/1.1" 400 -
 wget-faster: download failed: Invalid response status: 400
 wgetf: Invalid response status: 400
-127.0.0.1 - - [16/Nov/2025 13:53:16] code 400, message Expected Header Cookie not found
-127.0.0.1 - - [16/Nov/2025 13:53:16] "HEAD /File4 HTTP/1.1" 400 -
+127.0.0.1 - - [16/Nov/2025 13:57:12] code 400, message Expected Header Cookie not found
+127.0.0.1 - - [16/Nov/2025 13:57:12] "HEAD /File4 HTTP/1.1" 400 -
 wget-faster: download failed: Invalid response status: 400
 wgetf: Invalid response status: 400
 --- Actual

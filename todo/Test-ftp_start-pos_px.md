@@ -3,7 +3,7 @@
 **Test Type**: perl
 **Status**: ❌ FAILED
 **Category**: 
-**Execution Time**: 0.04s
+**Execution Time**: 0.03s
 
 ## Description
 
@@ -20,10 +20,10 @@
 ### stdout
 ```
 Running test Test-ftp--start-pos
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config --start-pos=1 ftp://localhost:58547/dummy.txt
---2025-11-16 13:53:05--  ftp://localhost:58547/dummy.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config --start-pos=1 ftp://localhost:59520/dummy.txt
+--2025-11-16 13:57:01--  ftp://localhost:59520/dummy.txt
 Resolving localhost... 
-Connecting to localhost:58547... connected.
+Connecting to localhost:59520... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'dummy.txt'
 
@@ -33,8 +33,8 @@ Test failed: wrong code returned (was: 1, expected: 0)
 
 ### stderr
 ```
-wget-faster: download failed: HTTP request failed: builder error for url (ftp://localhost:58547/dummy.txt)
-wgetf: HTTP request failed: builder error for url (ftp://localhost:58547/dummy.txt)
+wget-faster: download failed: HTTP request failed: builder error for url (ftp://localhost:59520/dummy.txt)
+wgetf: HTTP request failed: builder error for url (ftp://localhost:59520/dummy.txt)
 
 ```
 
