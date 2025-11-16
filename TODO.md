@@ -222,16 +222,21 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
-### 2025-11-17 Session 8 - gnu_wget_compat Investigation
-**Investigated**: CLI override behavior and auth test regressions
-**Result**: No code changes - reverted attempted fix
+### 2025-11-17 Session 8 - gnu_wget_compat Investigation & Test Analysis
+**Investigated**: CLI override behavior, auth regressions, actionable test categorization
+**Result**: No code changes - reverted attempted fix, documented 15 actionable tests
 **Discoveries**:
 - Session 7's config.rs change (`gnu_wget_compat=true`) had NO EFFECT at runtime
 - CLI main.rs:897 was overriding config default back to `false`
 - When override removed, `gnu_wget_compat=true` actually activates → -6 tests regression
 - Regressed tests: Test-204.px, Test-O-nonexisting.px, Test-Head.py, Test-auth-basic-fail.py, Test-auth-basic-netrc.py, Test-auth-basic.py
 **Root Cause**: Auth tests require HEAD requests for preemptive auth setup
-**Lesson**: Sessions 5-7 improvements (73/151) were made with `gnu_wget_compat=false` active
+**Test Analysis**: Of 78 failing tests, only 15 actionable (rest are metalink/FTP/SSL)
+- Priority 1 (5-10h): Test-504.py, Test--spider-r.py, Test-no_proxy-env.py
+- Priority 2 (3-5h): 5 auth tests, Test-cookie-expires.py
+- Priority 3 (5+h): Test-k.py, Test--convert-links--content-on-error.py
+- Uncategorized: Test-E-k-K.px, Test-proxy-auth-basic.px, Test-stdouterr.px, Test-Parallel-Proto.py, Test-Proto.py
+**Lesson**: Sessions 5-7 improvements (73/151) were made with `gnu_wget_compat=false` active. NO quick wins remain - all tests require 3-10+ hour structural work.
 **Next Step**: Need to fix auth to work WITHOUT HEAD requests before enabling gnu_wget_compat
 **Status**: 73/151 tests maintained (reverted to Session 7 state)
 
