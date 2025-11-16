@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: missing_feature
-**Execution Time**: 0.58s
+**Execution Time**: 0.59s
 
 ## Description
 
@@ -21,8 +21,8 @@ This is to test Metalink as HTTP file support in Wget.
 ```
 Running Test Test-metalink-http.py
 Running Test Test-metalink-http.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --metalink-over-http --preferred-location=uk http://localhost:56046/test.meta http://localhost:56046/File2 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--metalink-over-http', '--preferred-location=uk', 'http://localhost:56046/test.meta', 'http://localhost:56046/File2']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --metalink-over-http --preferred-location=uk http://localhost:58761/test.meta http://localhost:58761/File2 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--metalink-over-http', '--preferred-location=uk', 'http://localhost:58761/test.meta', 'http://localhost:58761/File2']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-metalink-http.py-test'}
 Error: Expected file File2 not found..
 

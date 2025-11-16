@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 1.60s
+**Execution Time**: 1.61s
 
 ## Description
 
@@ -19,50 +19,50 @@ This test ensures that Wget handles a 504 Gateway Timeout response correctly.
 
 ### stdout
 ```
---2025-11-16 13:36:45--  http://localhost:55932/File1
+--2025-11-16 13:53:08--  http://localhost:58632/File1
 Resolving localhost... 
-Connecting to localhost:55932... connected.
+Connecting to localhost:58632... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File1'
 
---2025-11-16 13:36:46--  http://localhost:55932/File1
+--2025-11-16 13:53:09--  http://localhost:58632/File1
 Resolving localhost... 
-Connecting to localhost:55932... connected.
+Connecting to localhost:58632... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File1'
 
---2025-11-16 13:36:46--  http://localhost:55932/File2
+--2025-11-16 13:53:09--  http://localhost:58632/File2
 Resolving localhost... 
-Connecting to localhost:55932... connected.
+Connecting to localhost:58632... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File2'
 
 200 OK
 Length: 29 (29B) [text/plain]
 
-2025-11-16 13:36:46 - 'File2' saved [29]
+2025-11-16 13:53:09 - 'File2' saved [29]
 
 Running Test Test-504.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --tries=2 http://localhost:55932/File1 http://localhost:55932/File2 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--tries=2', 'http://localhost:55932/File1', 'http://localhost:55932/File2']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --tries=2 http://localhost:58632/File1 http://localhost:58632/File2 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--tries=2', 'http://localhost:58632/File1', 'http://localhost:58632/File2']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-504.py-test'}
 Custom Response code sent.
 Custom Response code sent.
-{'GET /File1', 'HEAD /File1', 'HEAD /File2'}
+{'HEAD /File2', 'HEAD /File1', 'GET /File1'}
 Error: Not all files were crawled correctly..
 
 ```
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:36:45] "HEAD /File1 HTTP/1.1" 504 -
+127.0.0.1 - - [16/Nov/2025 13:53:08] "HEAD /File1 HTTP/1.1" 504 -
 wget-faster: download failed: Invalid response status: 504
 wgetf: retrying in 1 seconds... (attempt 1/2)
-127.0.0.1 - - [16/Nov/2025 13:36:46] "HEAD /File1 HTTP/1.1" 504 -
+127.0.0.1 - - [16/Nov/2025 13:53:09] "HEAD /File1 HTTP/1.1" 504 -
 wget-faster: download failed: Invalid response status: 504
 wgetf: Invalid response status: 504
-127.0.0.1 - - [16/Nov/2025 13:36:46] "HEAD /File2 HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:36:46] "GET /File2 HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:09] "HEAD /File2 HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:09] "GET /File2 HTTP/1.1" 200 -
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-504.py", line 68, in <module>
     ).begin ()

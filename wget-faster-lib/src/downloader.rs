@@ -704,9 +704,22 @@ impl Downloader {
                                     false
                                 },
                                 std::cmp::Ordering::Equal => {
-                                    // Same timestamp - keep original (don't replace)
-                                    tracing::info!("Same timestamp - keeping original file");
-                                    false
+                                    // Same timestamp - check file sizes
+                                    // If sizes differ, download (matches GNU wget behavior)
+                                    let original_size = original_metadata.len();
+                                    if total_bytes != original_size {
+                                        tracing::info!(
+                                            original_size,
+                                            new_size = total_bytes,
+                                            "Same timestamp but different size - replacing file"
+                                        );
+                                        true
+                                    } else {
+                                        tracing::info!(
+                                            "Same timestamp and size - keeping original file"
+                                        );
+                                        false
+                                    }
                                 },
                             }
                         } else {
@@ -716,7 +729,10 @@ impl Downloader {
                         }
                     } else {
                         // No remote timestamp - replace anyway
-                        tracing::info!("No remote Last-Modified header - replacing file");
+                        tracing::info!(
+                            last_modified = ?actual_metadata.last_modified,
+                            "No remote Last-Modified header - replacing file anyway"
+                        );
                         true
                     };
 
@@ -769,7 +785,8 @@ impl Downloader {
         // Set file modification time from server if configured and available
         // Use actual_metadata from GET response (which has the real Last-Modified header)
         // instead of dummy metadata from HEAD request
-        if self.client.config().use_server_timestamps {
+        // IMPORTANT: Always set timestamp in timestamping mode (-N), as it's required for proper operation
+        if self.client.config().use_server_timestamps || self.client.config().timestamping {
             crate::timestamping::set_file_timestamp(
                 &path,
                 &actual_metadata,

@@ -1,46 +1,11 @@
 # Test Failure Analysis
 
-**Generated from**: test_results_20251116_133719.json
-**Timestamp**: 2025-11-16T13:36:39.737404
-**Total Failed**: 105 / 169
+**Generated from**: test_results_20251116_135340.json
+**Timestamp**: 2025-11-16T13:53:02.910787
+**Total Failed**: 103 / 169
 
 ## Summary by Category
 
-
-### unknown (32 tests)
-
-- [Test-E-k-K.px](./Test-E-k-K_px.md) (perl)
-- [Test-N-current.px](./Test-N-current_px.md) (perl)
-- [Test-N-no-info.px](./Test-N-no-info_px.md) (perl)
-- [Test-N-smaller.px](./Test-N-smaller_px.md) (perl)
-- [Test-ftp-iri-disabled.px](./Test-ftp-iri-disabled_px.md) (perl)
-- [Test-ftp-iri-fallback.px](./Test-ftp-iri-fallback_px.md) (perl)
-- [Test-ftp-iri-recursive.px](./Test-ftp-iri-recursive_px.md) (perl)
-- [Test-ftp-iri.px](./Test-ftp-iri_px.md) (perl)
-- [Test-https-badcerts.px](./Test-https-badcerts_px.md) (perl)
-- [Test-https-clientcert.px](./Test-https-clientcert_px.md) (perl)
-- [Test-https-crl.px](./Test-https-crl_px.md) (perl)
-- [Test-https-pfs.px](./Test-https-pfs_px.md) (perl)
-- [Test-https-selfsigned.px](./Test-https-selfsigned_px.md) (perl)
-- [Test-https-tlsv1.px](./Test-https-tlsv1_px.md) (perl)
-- [Test-https-tlsv1x.px](./Test-https-tlsv1x_px.md) (perl)
-- [Test-https-weboftrust.px](./Test-https-weboftrust_px.md) (perl)
-- [Test-i-ftp.px](./Test-i-ftp_px.md) (perl)
-- [Test-idn-cmd-utf8.px](./Test-idn-cmd-utf8_px.md) (perl)
-- [Test-idn-cmd.px](./Test-idn-cmd_px.md) (perl)
-- [Test-idn-headers.px](./Test-idn-headers_px.md) (perl)
-- [Test-idn-meta.px](./Test-idn-meta_px.md) (perl)
-- [Test-idn-robots-utf8.px](./Test-idn-robots-utf8_px.md) (perl)
-- [Test-idn-robots.px](./Test-idn-robots_px.md) (perl)
-- [Test-iri-disabled.px](./Test-iri-disabled_px.md) (perl)
-- [Test-iri-forced-remote.px](./Test-iri-forced-remote_px.md) (perl)
-- [Test-iri-list.px](./Test-iri-list_px.md) (perl)
-- [Test-iri-percent.px](./Test-iri-percent_px.md) (perl)
-- [Test-iri.px](./Test-iri_px.md) (perl)
-- [Test-proxied-https-auth-keepalive.px](./Test-proxied-https-auth-keepalive_px.md) (perl)
-- [Test-proxied-https-auth.px](./Test-proxied-https-auth_px.md) (perl)
-- [Test-proxy-auth-basic.px](./Test-proxy-auth-basic_px.md) (perl)
-- [Test-stdouterr.px](./Test-stdouterr_px.md) (perl)
 
 ### missing_feature_metalink (32 tests)
 
@@ -76,6 +41,39 @@
 - [Test-metalink-xml-trust.py](./Test-metalink-xml-trust_py.md) (python)
 - [Test-metalink-xml-urlbreak.py](./Test-metalink-xml-urlbreak_py.md) (python)
 - [Test-metalink-xml.py](./Test-metalink-xml_py.md) (python)
+
+### unknown (30 tests)
+
+- [Test-E-k-K.px](./Test-E-k-K_px.md) (perl)
+- [Test-N-smaller.px](./Test-N-smaller_px.md) (perl)
+- [Test-ftp-iri-disabled.px](./Test-ftp-iri-disabled_px.md) (perl)
+- [Test-ftp-iri-fallback.px](./Test-ftp-iri-fallback_px.md) (perl)
+- [Test-ftp-iri-recursive.px](./Test-ftp-iri-recursive_px.md) (perl)
+- [Test-ftp-iri.px](./Test-ftp-iri_px.md) (perl)
+- [Test-https-badcerts.px](./Test-https-badcerts_px.md) (perl)
+- [Test-https-clientcert.px](./Test-https-clientcert_px.md) (perl)
+- [Test-https-crl.px](./Test-https-crl_px.md) (perl)
+- [Test-https-pfs.px](./Test-https-pfs_px.md) (perl)
+- [Test-https-selfsigned.px](./Test-https-selfsigned_px.md) (perl)
+- [Test-https-tlsv1.px](./Test-https-tlsv1_px.md) (perl)
+- [Test-https-tlsv1x.px](./Test-https-tlsv1x_px.md) (perl)
+- [Test-https-weboftrust.px](./Test-https-weboftrust_px.md) (perl)
+- [Test-i-ftp.px](./Test-i-ftp_px.md) (perl)
+- [Test-idn-cmd-utf8.px](./Test-idn-cmd-utf8_px.md) (perl)
+- [Test-idn-cmd.px](./Test-idn-cmd_px.md) (perl)
+- [Test-idn-headers.px](./Test-idn-headers_px.md) (perl)
+- [Test-idn-meta.px](./Test-idn-meta_px.md) (perl)
+- [Test-idn-robots-utf8.px](./Test-idn-robots-utf8_px.md) (perl)
+- [Test-idn-robots.px](./Test-idn-robots_px.md) (perl)
+- [Test-iri-disabled.px](./Test-iri-disabled_px.md) (perl)
+- [Test-iri-forced-remote.px](./Test-iri-forced-remote_px.md) (perl)
+- [Test-iri-list.px](./Test-iri-list_px.md) (perl)
+- [Test-iri-percent.px](./Test-iri-percent_px.md) (perl)
+- [Test-iri.px](./Test-iri_px.md) (perl)
+- [Test-proxied-https-auth-keepalive.px](./Test-proxied-https-auth-keepalive_px.md) (perl)
+- [Test-proxied-https-auth.px](./Test-proxied-https-auth_px.md) (perl)
+- [Test-proxy-auth-basic.px](./Test-proxy-auth-basic_px.md) (perl)
+- [Test-stdouterr.px](./Test-stdouterr_px.md) (perl)
 
 ### missing_feature_ftp (13 tests)
 

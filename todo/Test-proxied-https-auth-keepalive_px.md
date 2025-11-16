@@ -19,7 +19,7 @@ Simulate a tunneling proxy to a HTTPS URL that needs authentication. Use a persi
 
 ### stdout
 ```
---2025-11-16 13:36:44--  https://no.such.domain/needs-auth.txt
+--2025-11-16 13:53:07--  https://no.such.domain/needs-auth.txt
 Resolving no.such.domain... 
 Connecting to no.such.domain:443... connected.
 HTTP request sent, awaiting response... 

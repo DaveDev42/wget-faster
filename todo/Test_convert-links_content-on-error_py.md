@@ -20,8 +20,8 @@ This test ensures that Wget link conversion works also on HTTP error pages.
 ### stdout
 ```
 Running Test Test--convert-links--content-on-error.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --no-host-directories -r -l2 --convert-links --content-on-error http://localhost:55878/a/x.html 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--no-host-directories', '-r', '-l2', '--convert-links', '--content-on-error', 'http://localhost:55878/a/x.html']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --no-host-directories -r -l2 --convert-links --content-on-error http://localhost:58594/a/x.html 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--no-host-directories', '-r', '-l2', '--convert-links', '--content-on-error', 'http://localhost:58594/a/x.html']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test--convert-links--content-on-error.py-test'}
 Custom Response code sent.
 Custom Response code sent.
@@ -31,12 +31,12 @@ Error: Contents of a/x.html do not match.
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:36:44] "HEAD /a/x.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:36:44] "GET /a/x.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:36:44] "HEAD /robots.txt HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:36:44] "GET /robots.txt HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:36:44] "HEAD /b/y.html HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:36:44] "GET /b/y.html HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:53:07] "HEAD /a/x.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:07] "GET /a/x.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:07] "HEAD /robots.txt HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:07] "GET /robots.txt HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:07] "HEAD /b/y.html HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:53:07] "GET /b/y.html HTTP/1.1" 404 -
 --- Actual
 +++ Expected
 @@ -6,6 +6,6 @@

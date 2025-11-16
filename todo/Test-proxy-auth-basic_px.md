@@ -20,8 +20,8 @@
 ### stdout
 ```
 Running test Test-proxy-auth-basic
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config --user=fiddle-dee-dee --password=Dodgson -e http_proxy=localhost:55874 http://no.such.domain/needs-auth.txt
---2025-11-16 13:36:44--  http://no.such.domain/needs-auth.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config --user=fiddle-dee-dee --password=Dodgson -e http_proxy=localhost:58590 http://no.such.domain/needs-auth.txt
+--2025-11-16 13:53:07--  http://no.such.domain/needs-auth.txt
 Resolving no.such.domain... 
 Connecting to no.such.domain:80... connected.
 HTTP request sent, awaiting response... 

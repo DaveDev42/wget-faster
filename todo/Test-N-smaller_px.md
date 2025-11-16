@@ -20,17 +20,17 @@
 ### stdout
 ```
 Running test Test-N-smaller
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config -N http://localhost:55780/somefile.txt
---2025-11-16 13:36:41--  http://localhost:55780/somefile.txt
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config -N http://localhost:58496/somefile.txt
+--2025-11-16 13:53:04--  http://localhost:58496/somefile.txt
 Resolving localhost... 
-Connecting to localhost:55780... connected.
+Connecting to localhost:58496... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'somefile.txt'
 
 200 OK
 Length: unspecified
 
-2025-11-16 13:36:41 - 'somefile.txt' saved [112]
+2025-11-16 13:53:04 - 'somefile.txt' saved [112]
 
 Test failed: wrong content for file somefile.txt
 Sizes don't match: expected = 112, actual = 295

@@ -3,7 +3,7 @@
 **Test Type**: perl
 **Status**: ❌ FAILED
 **Category**: 
-**Execution Time**: 0.03s
+**Execution Time**: 0.04s
 
 ## Description
 
@@ -20,14 +20,14 @@
 ### stdout
 ```
 Running test Test-ftp-bad-list
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config -nH -Nc -r ftp://localhost:55832/
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config -nH -Nc -r ftp://localhost:58548/
 Test failed: wrong code returned (was: 1, expected: 0)
 
 ```
 
 ### stderr
 ```
-wgetf: recursive download failed: HTTP request failed: builder error for url (ftp://localhost:55832/)
+wgetf: recursive download failed: HTTP request failed: builder error for url (ftp://localhost:58548/)
 
 ```
 

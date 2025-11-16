@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: test_framework_error
-**Execution Time**: 0.60s
+**Execution Time**: 0.59s
 
 ## Description
 
@@ -19,21 +19,21 @@ This test ensures Wget uses credentials from .netrc for Basic Authorization Nego
 
 ### stdout
 ```
---2025-11-16 13:36:49--  http://localhost:55958/File1
+--2025-11-16 13:53:12--  http://localhost:58675/File1
 Resolving localhost... 
-Connecting to localhost:55958... connected.
+Connecting to localhost:58675... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File1'
 
---2025-11-16 13:36:49--  http://localhost:55958/File2
+--2025-11-16 13:53:12--  http://localhost:58675/File2
 Resolving localhost... 
-Connecting to localhost:55958... connected.
+Connecting to localhost:58675... connected.
 HTTP request sent, awaiting response... 
 Saving to: 'File2'
 
 Running Test Test-auth-basic-netrc-pass-given.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --password=TheEye http://localhost:55958/File1 http://localhost:55958/File2 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--password=TheEye', 'http://localhost:55958/File1', 'http://localhost:55958/File2']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --password=TheEye http://localhost:58675/File1 http://localhost:58675/File2 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--password=TheEye', 'http://localhost:58675/File1', 'http://localhost:58675/File2']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-auth-basic-netrc-pass-given.py-test'}
 Unable to Authenticate
 Header Authorization not found
@@ -43,11 +43,11 @@ Error: Expected file File1 not found..
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:36:49] "HEAD /File1 HTTP/1.1" 401 -
+127.0.0.1 - - [16/Nov/2025 13:53:12] "HEAD /File1 HTTP/1.1" 401 -
 wget-faster: download failed: Invalid response status: 401
 wgetf: Invalid response status: 401
-127.0.0.1 - - [16/Nov/2025 13:36:49] code 400, message Expected Header Authorization not found
-127.0.0.1 - - [16/Nov/2025 13:36:49] "HEAD /File2 HTTP/1.1" 400 -
+127.0.0.1 - - [16/Nov/2025 13:53:12] code 400, message Expected Header Authorization not found
+127.0.0.1 - - [16/Nov/2025 13:53:12] "HEAD /File2 HTTP/1.1" 400 -
 wget-faster: download failed: Invalid response status: 400
 wgetf: Invalid response status: 400
 Traceback (most recent call last):

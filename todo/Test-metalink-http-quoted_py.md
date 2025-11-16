@@ -3,7 +3,7 @@
 **Test Type**: python
 **Status**: ❌ FAILED
 **Category**: missing_feature
-**Execution Time**: 0.60s
+**Execution Time**: 0.59s
 
 ## Description
 
@@ -21,8 +21,8 @@ This is to test Metalink/HTTP quoted values support in Wget.
 ```
 Running Test Test-metalink-http-quoted.py
 Running Test Test-metalink-http-quoted.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --metalink-over-http --preferred-location=uk http://localhost:56030/test.meta http://localhost:56030/File2 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--metalink-over-http', '--preferred-location=uk', 'http://localhost:56030/test.meta', 'http://localhost:56030/File2']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --metalink-over-http --preferred-location=uk http://localhost:58745/test.meta http://localhost:58745/File2 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--metalink-over-http', '--preferred-location=uk', 'http://localhost:58745/test.meta', 'http://localhost:58745/File2']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-metalink-http-quoted.py-test'}
 Error: Expected file File2 not found..
 

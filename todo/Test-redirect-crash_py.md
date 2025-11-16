@@ -20,8 +20,8 @@
 ### stdout
 ```
 Running Test Test-redirect-crash.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --recursive -e robots=off http://localhost:56130/File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--recursive', '-e', 'robots=off', 'http://localhost:56130/File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --recursive -e robots=off http://localhost:58858/File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--recursive', '-e', 'robots=off', 'http://localhost:58858/File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-redirect-crash.py-test'}
 Custom Response code sent.
 Custom Response code sent.
@@ -33,18 +33,18 @@ Actual: 1.
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory HTTP/1.1" 301 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory HTTP/1.1" 301 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/index.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory HTTP/1.1" 301 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory HTTP/1.1" 301 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /File%20formats/Images/SVG,%20Scalable%20Vector%20Graphics/html,%20W3C%20v1.2%20rec%20(tiny)/directory/ HTTP/1.1" 200 -
 wgetf: recursive download failed: IO error: No such file or directory (os error 2)
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-redirect-crash.py", line 70, in <module>

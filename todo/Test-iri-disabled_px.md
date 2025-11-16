@@ -20,7 +20,7 @@
 ### stdout
 ```
 Running test Test-iri-disabled
-Calling /Users/dave/.cargo/bin/wgetf -d --no-config --no-iri -nH -r http://localhost:55851/
+Calling /Users/dave/.cargo/bin/wgetf -d --no-config --no-iri -nH -r http://localhost:58567/
 Test failed: wrong code returned (was: 1, expected: 0)
 
 ```

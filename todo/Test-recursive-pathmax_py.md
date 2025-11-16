@@ -20,27 +20,27 @@ Basic test of --recursive.
 ### stdout
 ```
 Running Test Test-recursive-pathmax.py
-/Users/dave/.cargo/bin/wgetf --debug --no-config --recursive --no-host-directories http://localhost:56116/ 
-['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--recursive', '--no-host-directories', 'http://localhost:56116/']
+/Users/dave/.cargo/bin/wgetf --debug --no-config --recursive --no-host-directories http://localhost:58844/ 
+['/Users/dave/.cargo/bin/wgetf', '--debug', '--no-config', '--recursive', '--no-host-directories', 'http://localhost:58844/']
 {'HOME': '/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-recursive-pathmax.py-test'}
-Error: Expected file deeper/than/zovgafsyfobzxpxaaivibdagicxnddsbcuigsmxylvttklwakytrqajbxdyihvzvmqhpvxhdabjfctqdrftwahgcsdndmmpmrfekcdwrxoqpkweluqvvzfdugkfysnpgfntpahixesxecseortvxzgftxftenlybrubhqygcjtlzxpjogkpckmivboyupqzlmqgchthtyxdqrwfmcjvxyswehrpngxhddsrdrrjkinpy not found..
+Error: Expected file deeper/than/mvryeyasjaqkrpgkuineyxlpgvojruimppjntivohiegynzwsspqdystktgoaeeosdbxjginhtwzxwwhbriejemdyfqpktkzmgmejoggfjggrvouaqlrphpmotfetskqvcnokxocokpceeshgltneidvbtlxixcrjvhvxsdfjvxrcpiyosyyiiswenvpxnnxhpfzabqkdlvnuecxkcmdowjzvenzcmgsyynwsfkywnog not found..
 
 ```
 
 ### stderr
 ```
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD / HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] code 404, message Not Found
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /robots.txt HTTP/1.1" 404 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /a/File2.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /a/File2.html HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /deeper/than/sanitryyybkbgjmxnyfjwnaxudkpcwemjmdkvgfdhalibxntasaettcmllgaqqnsigroisidyrosnpmoxuvbbihgmxejvuyoeyhvakysjxnexxszoolqhywueitzewvmzcobjmkbyglsfncckzyzdtpmngxiugfuwugwbhlxqbkopobjzivrfdvjmklnmnotdmqodyobspwlsdhkzwuifdchljfvxuuidrppeilnakos HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /deeper/than/sanitryyybkbgjmxnyfjwnaxudkpcwemjmdkvgfdhalibxntasaettcmllgaqqnsigroisidyrosnpmoxuvbbihgmxejvuyoeyhvakysjxnexxszoolqhywueitzewvmzcobjmkbyglsfncckzyzdtpmngxiugfuwugwbhlxqbkopobjzivrfdvjmklnmnotdmqodyobspwlsdhkzwuifdchljfvxuuidrppeilnakos HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "HEAD /deeper/than/zovgafsyfobzxpxaaivibdagicxnddsbcuigsmxylvttklwakytrqajbxdyihvzvmqhpvxhdabjfctqdrftwahgcsdndmmpmrfekcdwrxoqpkweluqvvzfdugkfysnpgfntpahixesxecseortvxzgftxftenlybrubhqygcjtlzxpjogkpckmivboyupqzlmqgchthtyxdqrwfmcjvxyswehrpngxhddsrdrrjkinpyk HTTP/1.1" 200 -
-127.0.0.1 - - [16/Nov/2025 13:37:18] "GET /deeper/than/zovgafsyfobzxpxaaivibdagicxnddsbcuigsmxylvttklwakytrqajbxdyihvzvmqhpvxhdabjfctqdrftwahgcsdndmmpmrfekcdwrxoqpkweluqvvzfdugkfysnpgfntpahixesxecseortvxzgftxftenlybrubhqygcjtlzxpjogkpckmivboyupqzlmqgchthtyxdqrwfmcjvxyswehrpngxhddsrdrrjkinpyk HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD / HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] code 404, message Not Found
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /robots.txt HTTP/1.1" 404 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /a/File2.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /a/File2.html HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /deeper/than/xkdaynuafyzeggzkpsmjidqbekvtfwpxvlnmgjdwpigjgyytarrgaypydqqavokxysyppipbmqkevbdzbckiobarxbjdasnkswjwwzvqzqjtwdxzwnqmyibtjlaulglkriugzjmhzgthuhwcigsnvcgucfdolznchhbmijqysezyiylvvheppfzthlewujmsvnvdnwakjyoawuiylcrwouigfaydndcakiwyfocuyhgb HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /deeper/than/xkdaynuafyzeggzkpsmjidqbekvtfwpxvlnmgjdwpigjgyytarrgaypydqqavokxysyppipbmqkevbdzbckiobarxbjdasnkswjwwzvqzqjtwdxzwnqmyibtjlaulglkriugzjmhzgthuhwcigsnvcgucfdolznchhbmijqysezyiylvvheppfzthlewujmsvnvdnwakjyoawuiylcrwouigfaydndcakiwyfocuyhgb HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "HEAD /deeper/than/mvryeyasjaqkrpgkuineyxlpgvojruimppjntivohiegynzwsspqdystktgoaeeosdbxjginhtwzxwwhbriejemdyfqpktkzmgmejoggfjggrvouaqlrphpmotfetskqvcnokxocokpceeshgltneidvbtlxixcrjvhvxsdfjvxrcpiyosyyiiswenvpxnnxhpfzabqkdlvnuecxkcmdowjzvenzcmgsyynwsfkywnoga HTTP/1.1" 200 -
+127.0.0.1 - - [16/Nov/2025 13:53:39] "GET /deeper/than/mvryeyasjaqkrpgkuineyxlpgvojruimppjntivohiegynzwsspqdystktgoaeeosdbxjginhtwzxwwhbriejemdyfqpktkzmgmejoggfjggrvouaqlrphpmotfetskqvcnokxocokpceeshgltneidvbtlxixcrjvhvxsdfjvxrcpiyosyyiiswenvpxnnxhpfzabqkdlvnuecxkcmdowjzvenzcmgsyynwsfkywnoga HTTP/1.1" 200 -
 Traceback (most recent call last):
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/Test-recursive-pathmax.py", line 77, in <module>
     ).begin ()
@@ -59,7 +59,7 @@ Traceback (most recent call last):
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
   File "/Users/dave/Projects/github.com/wget-faster-test/wget-repo/testenv/conf/expected_files.py", line 66, in __call__
     raise TestFailed("Expected file %s not found." % file.name)
-exc.test_failed.TestFailed: Expected file deeper/than/zovgafsyfobzxpxaaivibdagicxnddsbcuigsmxylvttklwakytrqajbxdyihvzvmqhpvxhdabjfctqdrftwahgcsdndmmpmrfekcdwrxoqpkweluqvvzfdugkfysnpgfntpahixesxecseortvxzgftxftenlybrubhqygcjtlzxpjogkpckmivboyupqzlmqgchthtyxdqrwfmcjvxyswehrpngxhddsrdrrjkinpy not found.
+exc.test_failed.TestFailed: Expected file deeper/than/mvryeyasjaqkrpgkuineyxlpgvojruimppjntivohiegynzwsspqdystktgoaeeosdbxjginhtwzxwwhbriejemdyfqpktkzmgmejoggfjggrvouaqlrphpmotfetskqvcnokxocokpceeshgltneidvbtlxixcrjvhvxsdfjvxrcpiyosyyiiswenvpxnnxhpfzabqkdlvnuecxkcmdowjzvenzcmgsyynwsfkywnog not found.
 
 ```
 
