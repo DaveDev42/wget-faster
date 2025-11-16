@@ -175,6 +175,14 @@ impl HttpClient {
         self.authenticated_hosts.lock().unwrap().contains(host)
     }
 
+    /// Mark a host as successfully authenticated
+    ///
+    /// This enables preemptive auth for subsequent requests to the same host,
+    /// matching GNU wget's behavior.
+    pub fn mark_host_authenticated(&self, host: String) {
+        self.authenticated_hosts.lock().unwrap().insert(host);
+    }
+
     /// Check if server supports range requests
     pub async fn supports_range(&self, url: &str) -> Result<bool> {
         let response = self.client.head(url).send().await?;

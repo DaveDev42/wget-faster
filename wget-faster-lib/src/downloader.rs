@@ -969,6 +969,16 @@ impl Downloader {
 
                 // Success! Continue with retry_response
                 tracing::info!("Authentication successful");
+
+                // Remember this host for future preemptive auth (matches HEAD request behavior)
+                if let Some(host) = url::Url::parse(url)
+                    .ok()
+                    .and_then(|u| u.host_str().map(|h| h.to_string()))
+                {
+                    self.client.mark_host_authenticated(host.clone());
+                    tracing::debug!(host = ?host, "GET request authentication successful - will use preemptive auth for subsequent requests");
+                }
+
                 return self
                     .process_sequential_response(retry_response, url, progress_callback)
                     .await;
@@ -1117,6 +1127,16 @@ impl Downloader {
                 }
 
                 // Success! Continue with retry_response
+
+                // Remember this host for future preemptive auth (matches HEAD request behavior)
+                if let Some(host) = url::Url::parse(url)
+                    .ok()
+                    .and_then(|u| u.host_str().map(|h| h.to_string()))
+                {
+                    self.client.mark_host_authenticated(host.clone());
+                    tracing::debug!(host = ?host, "GET request authentication successful - will use preemptive auth for subsequent requests");
+                }
+
                 let bytes = self
                     .process_writer_response(
                         retry_response,
