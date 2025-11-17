@@ -294,7 +294,19 @@ impl LinkConverter {
         if let Some(target_path) = self.url_to_path.get(&normalized_str) {
             // Convert absolute path to relative path from base directory
             if let Ok(relative) = target_path.strip_prefix(&self.base_dir) {
-                return Some(relative.to_string_lossy().to_string());
+                let relative_str = relative.to_string_lossy();
+
+                // GNU wget compatibility: add "./" prefix if the filename contains ':'
+                // and has no directory separators (basedirs == 0)
+                // This prevents filenames like "site;sub:.html" from being misinterpreted
+                // Reference: GNU wget's construct_relative() in src/convert.c
+                let needs_prefix = !relative_str.contains('/') && relative_str.contains(':');
+
+                if needs_prefix {
+                    return Some(format!("./{}", relative_str));
+                } else {
+                    return Some(relative_str.to_string());
+                }
             }
         }
 
