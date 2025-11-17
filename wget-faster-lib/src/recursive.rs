@@ -552,62 +552,66 @@ impl RecursiveDownloader {
     ) -> Result<PathBuf> {
         // In spider mode, just check if URL exists without downloading
         if self.config.spider {
-            // Spider mode optimization: Only download HTML content (to extract links)
-            // For non-HTML files, just send HEAD to check existence
+            // Spider mode two-phase approach (matches GNU wget behavior):
+            // Phase 1: Always send HEAD first to check status and content-type
+            // Phase 2: Only send GET if HEAD returns 200 OK AND content is HTML
             //
-            // To avoid duplicate HEAD requests, we check the URL extension first
-            // and only send HEAD for files with uncertain content type
-            let is_html = self.is_html_url_fast(url);
+            // This ensures broken links (404) only get HEAD, not GET
 
-            if is_html {
-                // HTML file (or uncertain) - need to GET to extract links
-                // Use download_to_memory to check the URL (won't save to disk)
-                // Also cache the content for later use in extract_links
-                match self.downloader.download_to_memory(url).await {
-                    Ok(bytes) => {
-                        // URL is accessible - cache the content as string
-                        let content = String::from_utf8_lossy(&bytes).to_string();
-                        self.spider_content_cache
-                            .insert(url.to_string(), Some(content));
-                        // Return a dummy path
-                        Ok(PathBuf::from("/dev/null"))
-                    },
-                    Err(e) => {
-                        // Check if it's an HTTP error
-                        if let crate::Error::InvalidStatus(status_code) = &e {
-                            // Track broken link
-                            self.broken_links.push((url.to_string(), *status_code));
-                        }
-                        // Cache the failure (None) so we don't try to download again
+            match self.downloader.get_client().get_metadata(url).await {
+                Ok(metadata) => {
+                    // Check if URL returned success status
+                    if metadata.status_code >= 400 {
+                        // Track broken link (4xx/5xx errors)
+                        self.broken_links
+                            .push((url.to_string(), metadata.status_code));
+                        // Cache failure - no GET needed for broken links
                         self.spider_content_cache.insert(url.to_string(), None);
-                        // In spider mode, we don't fail on errors - just track them
-                        Ok(PathBuf::from("/dev/null"))
-                    },
-                }
-            } else {
-                // Non-HTML file (known by extension) - just send HEAD to check existence
-                match self.downloader.get_client().get_metadata(url).await {
-                    Ok(metadata) => {
-                        // Check status code for errors
-                        if metadata.status_code >= 400 {
-                            // Track broken link
-                            self.broken_links
-                                .push((url.to_string(), metadata.status_code));
+                        return Ok(PathBuf::from("/dev/null"));
+                    }
+
+                    // HEAD returned 200 OK - check if we need to GET (for HTML content only)
+                    let is_html = if let Some(ref content_type) = metadata.content_type {
+                        content_type.contains("text/html")
+                    } else {
+                        // No content-type - check URL extension
+                        self.is_html_url_fast(url)
+                    };
+
+                    if is_html {
+                        // HTML content - send GET to extract links
+                        match self.downloader.download_to_memory(url).await {
+                            Ok(bytes) => {
+                                // Cache the content for link extraction
+                                let content = String::from_utf8_lossy(&bytes).to_string();
+                                self.spider_content_cache
+                                    .insert(url.to_string(), Some(content));
+                                Ok(PathBuf::from("/dev/null"))
+                            },
+                            Err(e) => {
+                                // GET failed after successful HEAD - track as error
+                                if let crate::Error::InvalidStatus(status_code) = &e {
+                                    self.broken_links.push((url.to_string(), *status_code));
+                                }
+                                self.spider_content_cache.insert(url.to_string(), None);
+                                Ok(PathBuf::from("/dev/null"))
+                            },
                         }
-                        // Cache as None (no content, just checked existence)
-                        self.spider_content_cache.insert(url.to_string(), None);
-                        Ok(PathBuf::from("/dev/null"))
-                    },
-                    Err(e) => {
-                        // HEAD request failed - track as broken link
-                        if let crate::Error::InvalidStatus(status_code) = &e {
-                            self.broken_links.push((url.to_string(), *status_code));
-                        }
-                        // Cache the failure
+                    } else {
+                        // Non-HTML file - HEAD only, no GET needed
                         self.spider_content_cache.insert(url.to_string(), None);
                         Ok(PathBuf::from("/dev/null"))
-                    },
-                }
+                    }
+                },
+                Err(e) => {
+                    // HEAD request failed - track as broken link
+                    if let crate::Error::InvalidStatus(status_code) = &e {
+                        self.broken_links.push((url.to_string(), *status_code));
+                    }
+                    // Cache failure - no GET needed
+                    self.spider_content_cache.insert(url.to_string(), None);
+                    Ok(PathBuf::from("/dev/null"))
+                },
             }
         } else {
             // Normal mode - download and save
