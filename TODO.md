@@ -226,6 +226,27 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 20 - Test-504.py Investigation (Deferred) 📋
+**Investigated**: Test-504.py (Priority 1) - HTTP 504 Gateway Timeout handling
+**Result**: Confirmed 5-10h complexity - deferred to future multi-session effort
+**Current Behavior**: `HEAD /File1` (504), `GET /File1` (504), retry, `HEAD /File2`, `GET /File2`
+**Expected Behavior**: `GET /File1` (504), retry `GET /File1` (504), `GET /File2` (no HEAD requests)
+**Root Cause**: wgetf sends HEAD before GET for all downloads (except `gnu_wget_compat=true`)
+- Enabling `gnu_wget_compat=true` fixes Test-504.py BUT breaks 6 auth tests (Session 10)
+- Auth tests require HEAD requests for preemptive auth setup
+- This is fundamental architectural conflict
+**Why Complex**:
+- Test-504.py needs NO HEAD requests (GET only)
+- Auth tests NEED HEAD requests for preemptive auth
+- Cannot enable `gnu_wget_compat=true` globally without breaking auth
+**Required Fix** (5-10 hours):
+1. Make auth work WITHOUT requiring HEAD requests, OR
+2. Make HEAD requests conditional based on context (auth vs non-auth), OR
+3. Implement smarter HEAD skip logic (only skip HEAD when safe)
+**Decision**: Deferred - requires sustained multi-session architectural refactoring
+**Lesson**: Sessions 4, 7-10 all attempted this - confirmed it's not a quick fix
+**Status**: 74/151 tests maintained (49.0%)
+
 ### 2025-11-17 Session 19 - Spider Mode Two-Phase Implementation ✅
 **Fixed**: Test--spider-r.py (Priority 1) - Extra GET requests for broken links in spider mode
 **Result**: +1 test (73→74/151, 49.0%) - Spider mode now matches GNU wget behavior
