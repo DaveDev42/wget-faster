@@ -904,3 +904,59 @@ reqwest `.cookie_store(true)` works for GET but HEAD requests don't send cookies
 
 **Commits**: 0 (all changes reverted)
 
+### 2025-11-17 Session 34 - Test-auth-digest.py Digest Auth ⚠️ REVERTED (-2 regression)
+**Target**: Test-auth-digest.py - Digest authentication support
+**Result**: REVERTED - Caused -2 test regression (same issue as Session 10)
+**Test Count**: 75/151 (-2 from baseline of 77/151)
+
+**Problem Analysis**:
+- Test-auth-digest.py uses Digest authentication (qop="auth" and qop=None variants)
+- Digest auth requires challenge-response: Server sends 401 → Client computes hash → Retry with auth header
+- reqwest only supports Basic auth via `.basic_auth()`, NOT Digest auth
+- Current code forces `.basic_auth()` on HEAD requests, which doesn't work for Digest
+- GET requests work because reqwest has some Digest support, but HEAD doesn't
+
+**Implementation Attempted** (downloader.rs:452):
+- Added condition to skip_head: `|| self.client.config().auth.is_some()`
+- Logic: Skip HEAD entirely when `--user` and `--password` provided
+- Goal: Let GET handle both Basic and Digest auth challenge-response
+
+**Test Results**: 75/151 passed (-2 regression)
+- **Broke auth tests** that were passing:
+  - Test-auth-basic.py: NOW FAILING (was passing) ❌
+  - Test-auth-basic-fail.py: NOW FAILING (was passing) ❌
+  - Test-auth-both.py: NOW FAILING (was passing) ❌
+- Test-auth-digest.py: STILL FAILING (no improvement) ❌
+- Net result: -2 tests without fixing target
+
+**Why It Failed**:
+- Skipping HEAD breaks Basic auth tests that rely on HEAD for:
+  1. Preemptive auth state tracking (client.rs:338 - `authenticated_hosts`)
+  2. HEAD requests test auth before committing to full GET download
+  3. Range support detection requires HEAD metadata
+- This is EXACTLY the same issue as Session 10:
+  - Session 10 tried enabling `gnu_wget_compat=true` → broke 6 auth tests
+  - Session 34 tried skipping HEAD when auth provided → broke 2 auth tests
+  - Both approaches disable HEAD, both break existing auth functionality
+
+**Root Cause**: Fundamental architectural conflict
+- Basic auth tests NEED HEAD requests for proper auth flow
+- Digest auth tests FAIL with HEAD requests (reqwest limitation)
+- Cannot satisfy both without implementing proper Digest auth support in reqwest/client.rs
+
+**Required Fix** (5-10+ hours):
+1. Implement proper Digest auth handling in client.rs, OR
+2. Detect auth type (Basic vs Digest) and selectively skip HEAD for Digest only, OR
+3. Add reqwest Digest auth middleware/support
+4. All options require significant refactoring
+
+**Decision**: REVERTED - All changes to downloader.rs reverted with `git checkout`
+**Status**: 77/151 tests (baseline restored)
+
+**Lesson**: Auth tests are Priority 2 for good reason - cannot fix without major refactoring
+- Test-auth-digest.py requires proper Digest auth implementation
+- Cannot use simple "skip HEAD" approach without breaking other auth tests
+- Defer to future dedicated 5-10 hour session for proper Digest auth implementation
+
+**Commits**: 0 (all changes reverted)
+
