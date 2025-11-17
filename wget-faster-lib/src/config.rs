@@ -316,11 +316,11 @@ impl ProxyConfig {
 
             if let Some(domain) = pattern.strip_prefix('.') {
                 // ".domain.com" matches only subdomains (e.g., "www.domain.com")
-                // NOT the domain itself
-                // Check if host ends with the pattern (including the dot)
-                // This ensures "working2.localhost" does NOT match ".working2.localhost"
-                // but "www.working2.localhost" DOES match ".working2.localhost"
-                if host.ends_with(&pattern) && host != domain {
+                // NOT the domain itself (GNU wget behavior)
+                // For pattern ".working2.localhost" and host "www.working2.localhost":
+                //   - Check if host ends with ".working2.localhost" (domain with leading dot)
+                //   - But NOT if host == "working2.localhost" (the domain itself)
+                if host.ends_with(&format!(".{domain}")) && host != domain {
                     return true;
                 }
             } else {
