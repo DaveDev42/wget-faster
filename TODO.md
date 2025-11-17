@@ -1,14 +1,15 @@
 # TODO - wget-faster Development Roadmap
 
 **Current Version**: v0.0.5
-**Test Coverage**: 74/151 tests (49.0%) - Session 19 spider mode fix
+**Test Coverage**: 76/151 tests (50.3%) - Session 22 link backup fix - **50% MILESTONE ACHIEVED! 🎉**
 **Last Updated**: 2025-11-17
 
 ---
 
 ## 🎯 Next Steps - v0.0.5
 
-**Goal**: Incremental test improvements (target: 75-85 tests, 44-50%)
+**Goal**: ✅ ACHIEVED! 50% milestone (76/151 tests, 50.3%)
+**Status**: All quick wins completed. Remaining tests require 3-10 hour architectural work.
 **Strategy**: Fix one test at a time, verify immediately, commit only if no regression
 
 ### Priority 1: Architectural Changes Required (5-10 hours each)
@@ -225,6 +226,32 @@ git checkout <files>
 ---
 
 ## 📊 Recent Session History
+
+### 2025-11-17 Session 23-24 - Cookie Sync & Link Encoding Investigations 📋
+**Investigated**: Test-k.py (link URL encoding) and Test-cookie-expires.py (cookie sync)
+**Result**: Both deferred - require architectural changes
+**Attempts**:
+1. **Test-k.py**: URL encoding in link conversion
+   - Tried: Add `./` prefix + percent-encoding for special chars (`;` → `%3B`)
+   - Issue: Test-E-k-K.px expects NO `./` prefix, Test-k.py expects WITH prefix
+   - Regression: -2 tests (broke Test-E-k-K.px)
+   - Root cause: Different tests have different link conversion expectations
+   - Need: Understand GNU wget's exact rules for when to add `./` prefix
+   - Reverted: link_converter.rs changes
+
+2. **Test-cookie-expires.py**: Cookie not sent from HEAD to next request
+   - Problem: `HEAD /File1` sets cookie → `HEAD /File2` doesn't send it
+   - Tried: Skip HEAD when cookies enabled (`skip_head || enable_cookies`)
+   - Regression: -5 tests (same as Session 17)
+   - Root cause: Many tests need HEAD requests for Range support check
+   - Need: Better cookie jar sync OR conditional HEAD skip logic
+   - Reverted: downloader.rs changes
+
+**Status**: 76/151 tests maintained (50.3%)
+**Lesson**: Both issues require deep GNU wget behavior analysis, not quick fixes
+**Complexity**:
+- Test-k.py: 3-5 hours (link conversion rules research)
+- Test-cookie-expires.py: 3-5 hours (cookie sync mechanism)
 
 ### 2025-11-17 Session 22 - Link Conversion Backup Fix ✅
 **Fixed**: Test-E-k-K.px (Priority 3) - Unnecessary .orig backup files for unchanged HTML
