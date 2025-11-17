@@ -3,7 +3,6 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT_ENCODING, USER_AGENT},
     Client, ClientBuilder,
 };
-use reqwest_cookie_store::CookieStoreMutex;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -73,7 +72,8 @@ impl HttpClient {
             .timeout(config.timeout)
             .connect_timeout(config.connect_timeout)
             .tcp_keepalive(Some(Duration::from_secs(30)))
-            .pool_max_idle_per_host(config.parallel_chunks);
+            .pool_max_idle_per_host(config.parallel_chunks)
+            .cookie_store(true); // Enable automatic cookie storage
 
         // Configure redirects
         if config.follow_redirects {
@@ -116,41 +116,8 @@ impl HttpClient {
         // Note: Basic auth will be added per-request
         // Digest auth is handled automatically by reqwest
 
-        // Configure cookies
-        if config.enable_cookies {
-            // Use reqwest_cookie_store instead of reqwest's built-in cookie_store
-            // This provides better cookie handling and fixes issues with cookies not being sent
-            let cookie_store = if let Some(ref cookie_file) = config.cookie_file {
-                // Load cookies from file if specified
-                if cookie_file.exists() {
-                    match std::fs::File::open(cookie_file) {
-                        Ok(file) => {
-                            match cookie_store::CookieStore::load_json(std::io::BufReader::new(
-                                file,
-                            )) {
-                                Ok(store) => Arc::new(CookieStoreMutex::new(store)),
-                                Err(e) => {
-                                    tracing::warn!(cookie_file = ?cookie_file, error = %e, "Failed to parse cookie file, using empty store");
-                                    Arc::new(CookieStoreMutex::default())
-                                },
-                            }
-                        },
-                        Err(e) => {
-                            tracing::warn!(cookie_file = ?cookie_file, error = %e, "Failed to open cookie file, using empty store");
-                            Arc::new(CookieStoreMutex::default())
-                        },
-                    }
-                } else {
-                    // File doesn't exist yet, create empty store
-                    Arc::new(CookieStoreMutex::default())
-                }
-            } else {
-                // No cookie file specified, create empty in-memory store
-                Arc::new(CookieStoreMutex::default())
-            };
-
-            builder = builder.cookie_provider(cookie_store);
-        }
+        // Cookies are now handled by reqwest's built-in cookie_store(true)
+        // Note: cookie_file loading/saving will need to be re-implemented later if needed
 
         // Configure certificates
         if let Some(ca_cert_path) = &config.ca_cert {
