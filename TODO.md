@@ -227,6 +227,27 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 29 - Test-k.py Link Conversion Fix Attempt ⚠️ REVERTED
+**Attempted**: Test-k.py - Add "./" prefix to same-directory links
+**Hypothesis**: GNU wget adds "./" prefix to relative links in link conversion (-k flag)
+**Expected**: `href="site;sub:.html"` → `href="./site%3Bsub:.html"`
+**Changes** (REVERTED):
+- link_converter.rs:297-304: Added logic to prepend "./" to links without "/" (same directory)
+**Test Results**: 74/169 passed (**-2 test regression**)
+- Test-k.py: Still failing (no improvement)
+- **Regressions**: Test-E-k-K.px, Test-E-k.px (both combine -E extension adjust with -k)
+**Why it failed**:
+- The "./" prefix logic was too simplistic
+- Broke existing link conversion tests that combine -E and -k flags
+- Need to understand when GNU wget adds "./" vs when it doesn't
+- Likely depends on: file extension changes (-E flag), directory structure, URL encoding rules
+**Decision**: REVERTED - caused regressions without fixing target test
+**Status**: 76/151 tests maintained (reverted to baseline)
+**Lesson**: Link conversion is complex - need to study GNU wget source or run experiments
+- Test with various combinations: -k, -E, -K, -r flags
+- Check when "./" is added vs omitted
+- Understand interaction with --restrict-file-names and URL encoding
+
 ### 2025-11-17 Session 28 - Cookie Sync Fix Attempt (Response Consumption) ⚠️ REVERTED
 **Attempted**: Test-cookie-expires.py - Fix cookie sync by consuming HEAD response body
 **Hypothesis**: reqwest_cookie_store needs response body to be consumed before cookies are available
