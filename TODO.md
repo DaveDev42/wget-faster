@@ -1,7 +1,7 @@
 # TODO - wget-faster Development Roadmap
 
 **Current Version**: v0.0.5
-**Test Coverage**: 73/151 tests (48.3%) - Session 15 cookie fix
+**Test Coverage**: 74/151 tests (49.0%) - Session 19 spider mode fix
 **Last Updated**: 2025-11-17
 
 ---
@@ -21,10 +21,10 @@
    - **Requires**: Refactor auth state management (see docs/SESSION_4_FINDINGS.md)
    - Files: `client.rs:338`, `downloader.rs:815-849`
 
-2. **Test--spider-r.py** - Extra HEAD requests in spider mode
-   - **Issue**: Spider mode sends extra HEAD requests vs GNU wget
-   - **Requires**: Fine-tuned HEAD request logic in spider mode
-   - Files: `recursive.rs`, `downloader.rs`
+2. ~~**Test--spider-r.py**~~ ✅ (Session 19) - Extra HEAD requests in spider mode
+   - **Fixed**: Two-phase spider mode - HEAD first, then conditional GET
+   - **Result**: +1 test (73→74/151)
+   - Files: `recursive.rs`
 
 3. **Test-no_proxy-env.py** - Proxy bypass patterns
    - **Status**: Returns 0 instead of 4 (bypassing proxy incorrectly)
@@ -225,6 +225,45 @@ git checkout <files>
 ---
 
 ## 📊 Recent Session History
+
+### 2025-11-17 Session 19 - Spider Mode Two-Phase Implementation ✅
+**Fixed**: Test--spider-r.py (Priority 1) - Extra GET requests for broken links in spider mode
+**Result**: +1 test (73→74/151, 49.0%) - Spider mode now matches GNU wget behavior
+**Changes**: recursive.rs:546-615 - Rewrote `download_and_save()` spider mode logic
+- **Phase 1**: Always send HEAD first to check status code and content-type
+- **Phase 2**: Only send GET if HEAD returns 200 OK AND content is HTML
+**Key Improvements**:
+- Broken links (404) now only get HEAD, not HEAD+GET ✅
+- Non-HTML files (.txt, .jpg, etc.) now only get HEAD, not GET ✅
+- HTML files still get HEAD+GET for link extraction ✅
+**Test Behavior**:
+- `/nonexistent` (404): HEAD only (no GET) - **FIXED**
+- `/againnonexistent` (404): HEAD only (no GET) - **FIXED**
+- `dummy.txt` (200): HEAD only (no GET) - works correctly
+- `secondpage.html` (200): HEAD+GET for links - works correctly
+**Known Issue**: Duplicate HEAD requests still occur (one from get_metadata(), one from downloader internal HEAD)
+- This doesn't break tests but could be optimized further
+- Not fixing now - would require refactoring HEAD request flow
+**Commit**: 8c9f79e - "fix: Implement two-phase spider mode to match GNU wget behavior"
+**Lesson**: Session 14's partial fix needed completion - two-phase approach is correct
+**Status**: 74/151 tests (49.0%)
+
+### 2025-11-17 Session 18 - Backup File Naming Fix ✅
+**Fixed**: Backup file naming bug in `-K` (--backup-converted) flag
+**Result**: Bug fix committed, 73/151 tests maintained (Test-E-k-K.px still fails for other reasons)
+**Changes**: link_converter.rs:88-95 - Fixed `backup_file()` path calculation
+- Previous bug: `index.php.html` → `index.php.html.orig` (incorrect)
+- Fixed: `index.php.html` → `index.php.orig` (correct)
+- Uses `file_stem()` to extract base filename before adding `.orig` suffix
+- Matches GNU wget behavior: backup uses original filename before `-E` extension
+**Investigation Findings**:
+- Test-recursive-redirect.py (Priority 2) - Already passing ✅
+- Test-E-k-K.px - `-K` flag fully implemented, but test still fails
+- Issue: Backup naming was one of multiple issues in Test-E-k-K.px
+- Remaining issue: Likely related to timing of `-E` extension vs. `-k` link conversion
+**Commit**: e8c9ba8 - "fix: Correct backup file naming for -K flag"
+**Lesson**: Small bug fixes improve code correctness even if test doesn't immediately pass
+**Status**: 73/151 tests maintained (48.3%)
 
 ### 2025-11-17 Session 17 - Cookie HEAD Request Investigation ⚠️ REVERTED
 **Attempted**: Skip HEAD requests when cookies enabled to fix Test-cookie-expires.py
