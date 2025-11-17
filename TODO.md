@@ -43,11 +43,10 @@
 
 ### Priority 2: Medium Effort (3-5 hours each, ~10-15 tests)
 
-6. **Recursive download improvements**
+6. ~~**Recursive download improvements**~~ ✅ ALL PASSING
    - ~~Test-recursive-include.py~~ ✅ (Session 3)
    - ~~Test-recursive-pathmax.py~~ ✅ (Session 5)
-   - Test-recursive-redirect.py
-   - Files: `recursive.rs`
+   - ~~Test-recursive-redirect.py~~ ✅ (Already passing)
 
 7. **Authentication edge cases**
    - Test-auth-basic-netrc-pass-given.py
