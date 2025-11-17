@@ -1,8 +1,8 @@
 # TODO - wget-faster Development Roadmap
 
 **Current Version**: v0.0.5
-**Test Coverage**: 77/151 tests (51.0%) - MAINTAINED ✓
-**Last Updated**: 2025-11-17 (Session 32)
+**Test Coverage**: 77/169 tests (45.6%) - MAINTAINED ✓
+**Last Updated**: 2025-11-17 (Session 37)
 
 ---
 
@@ -26,11 +26,10 @@
    - **Result**: +1 test (73→74/151)
    - Files: `recursive.rs`
 
-3. **Test-no_proxy-env.py** - Proxy bypass patterns
-   - **Status**: Returns 0 instead of 4 (bypassing proxy incorrectly)
-   - **Issue**: reqwest's NoProxy != GNU wget's no_proxy logic
-   - **Requires**: Custom proxy implementation per-request (not ClientBuilder)
-   - Files: `client.rs:88-111`, `config.rs:297-335`
+3. ~~**Test-no_proxy-env.py**~~ ✅ (Session 37) - Proxy bypass patterns
+   - **Fixed**: Corrected dot-prefixed no_proxy pattern matching
+   - **Result**: +0 tests (77→77/169, already passing in baseline)
+   - Files: `config.rs:323`
 
 4. **Test-reserved-chars.py** - URL encoding in recursive mode
    - Reserved character handling in URLs
