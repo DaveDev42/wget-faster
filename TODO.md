@@ -227,6 +227,27 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 28 - Cookie Sync Fix Attempt (Response Consumption) ⚠️ REVERTED
+**Attempted**: Test-cookie-expires.py - Fix cookie sync by consuming HEAD response body
+**Hypothesis**: reqwest_cookie_store needs response body to be consumed before cookies are available
+**Changes** (REVERTED):
+- client.rs:440-448: Modified `extract_metadata()` to call `response.bytes().await`
+- Goal: Force response body consumption to trigger cookie extraction
+**Test Results**: 76/169 passed (same as baseline)
+- Test-cookie-expires.py: Still failing (no improvement)
+- No regressions (baseline maintained)
+**Why it failed**:
+- Response body consumption alone is insufficient
+- reqwest_cookie_store likely extracts cookies from headers immediately
+- The sync issue is more fundamental - possibly request builder caching or client state
+**Decision**: REVERTED - approach didn't work, no point keeping dead code
+**Status**: 76/151 tests maintained
+**Lesson**: Cookie sync issue requires deeper investigation, possibly:
+1. Check if HEAD requests use different request builder path
+2. Verify cookie_provider is being called for HEAD requests
+3. Add explicit logging to see when cookies are stored/retrieved
+4. Consider if reqwest client's internal state is being bypassed
+
 ### 2025-11-17 Session 27 - Cookie Sync Deep Investigation 📋
 **Investigated**: Test-cookie-expires.py cookie sync issue (3-5 hour task)
 **Findings**: Confirmed architectural limitation in reqwest_cookie_store
