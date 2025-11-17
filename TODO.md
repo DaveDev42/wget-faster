@@ -1,8 +1,8 @@
 # TODO - wget-faster Development Roadmap
 
 **Current Version**: v0.0.5
-**Test Coverage**: 77/151 tests (51.0%) - Session 31 Test-504.py fix ✅
-**Last Updated**: 2025-11-17
+**Test Coverage**: 77/151 tests (51.0%) - MAINTAINED ✓
+**Last Updated**: 2025-11-17 (Session 32)
 
 ---
 
@@ -801,3 +801,48 @@ git checkout <files>
 ---
 
 **Keep this file under 2000 lines. For detailed test analysis, see ../wget-faster-test/reports/**
+
+### 2025-11-17 Session 32 - Cookie Storage Investigation (PARTIAL FIX)
+**Target**: Test-cookie-expires.py - Cookie synchronization across multiple URL downloads
+**Result**: Baseline maintained at 77/151, partial cookie fix implemented
+**Implementation**: Enable reqwest built-in `.cookie_store(true)`
+
+**Problem Analysis**:
+- Initial investigation found reqwest_cookie_store v0.8 CookieStoreMutex was not storing cookies
+- Debug logging revealed `cookie_count=0` even after GET responses with Set-Cookie headers
+- Root cause: `.cookie_provider(CookieStoreMutex)` OVERRIDES `.cookie_store(true)` and prevents automatic cookie storage  
+- reqwest requires `.cookie_store(true)` for automatic cookie handling, not custom providers
+
+**Changes** (client.rs):
+1. Enable automatic cookies: Added `.cookie_store(true)` to ClientBuilder (line 76)
+2. Remove custom provider: Disabled `.cookie_provider()` call (was overriding automatic storage)
+3. Clean up: Removed CookieStoreMutex import and cookie_store field
+4. Note: Cookie file loading/saving will need reimplementation later
+
+**Test Results**: Python tests 31/82 (maintained baseline)
+
+**Cookie Tests Status**:
+- Test-cookie.py: PASSING ✅ (cookies work for 2 URLs)
+- Test-cookie-401.py: PASSING ✅ (cookies with 401 response)
+- Test-cookie-domain-mismatch.py: PASSING ✅ (cookie domain validation)
+- Test-cookie-expires.py: FAILING ❌ (4 URLs - HEAD doesn't send cookies)
+
+**Known Issue - HEAD Request Cookie Problem**:
+```
+Sequence: HEAD /File1 → GET /File1 (receives cookie) → HEAD /File2 (NO COOKIE!) → GET /File2 (fail)
+Expected: HEAD /File2 should send cookie from GET /File1
+```
+reqwest `.cookie_store(true)` works for GET but HEAD requests don't send cookies from the store.
+
+**Attempted Solutions**:
+1. Skip HEAD when cookies enabled → -5 test regression → REVERTED
+2. Session 17 also tried HEAD skip → -4 regression
+
+**Future Work**:
+- Investigate why reqwest HEAD requests don't include cookies from cookie_store
+- Consider filing bug report with reqwest if this is unexpected behavior
+- Alternative: Implement cookie file save/load manually
+
+**Commits**: 1 commit (cookie_store fix)
+**Status**: 77/151 tests (maintained)
+
