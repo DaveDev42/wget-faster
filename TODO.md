@@ -227,6 +227,34 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 25 - Auth Credential Merging Investigation ⚠️ REVERTED
+**Attempted**: Test-auth-basic-netrc-pass-given.py - Merge CLI password with .netrc username
+**Result**: REVERTED - Test-auth-basic-netrc-user-given.py timeout (30s) = same issue as Session 16
+**Changes** (REVERTED):
+- main.rs:720-732: Set `config.auth` even when only `--password` provided (empty username)
+- auth_handler.rs:9-112: Rewrote `get_credentials()` to merge partial credentials from CLI and .netrc
+**Test Case**: CLI has `--password=TheEye`, .netrc has `login Sauron` → Should merge to `Sauron:TheEye`
+**Implementation Logic**:
+1. Check if CLI has complete credentials (both username and password) → use directly
+2. Try to load .netrc credentials for the host
+3. Merge: Use CLI username if present, else .netrc username; Use CLI password if present, else .netrc password
+4. Return merged AuthConfig
+**Test Results**: 76/169 tests (maintained count, but introduced timeout)
+- Test-auth-basic-netrc-pass-given.py: Still fails with 401 on retry
+- Test-auth-basic-netrc-user-given.py: NEW TIMEOUT (30s) - same as Session 16
+**Root Cause**: Unknown - credential merging creates infinite loop or deadlock
+- HEAD requests get 401 twice (initial + retry with auth), suggesting credentials not working
+- Inverse test (username from CLI, password from .netrc) times out completely
+- Similar pattern to Session 16's timeout when merging opposite direction
+**Why It Failed**:
+- Auth credential merging appears to have fundamental architectural issues
+- Both directions (CLI user + .netrc pass, CLI pass + .netrc user) cause problems
+- Not just a simple merge - something deeper about how auth state is tracked
+**Lesson**: Auth credential merging is a 5-10 hour architectural task, not a quick fix
+**Decision**: Defer both auth merging tests (Test-auth-basic-netrc-pass-given.py and Test-auth-basic-netrc-user-given.py) to future dedicated session
+**Status**: 76/151 tests maintained (all changes reverted)
+**Commits**: None (reverted before commit)
+
 ### 2025-11-17 Session 23-24 - Cookie Sync & Link Encoding Investigations 📋
 **Investigated**: Test-k.py (link URL encoding) and Test-cookie-expires.py (cookie sync)
 **Result**: Both deferred - require architectural changes
