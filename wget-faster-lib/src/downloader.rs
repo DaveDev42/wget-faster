@@ -363,7 +363,8 @@ impl Downloader {
     /// }
     /// ```
     pub async fn download_to_file(&self, url: &str, path: PathBuf) -> Result<DownloadResult> {
-        self.download_to_file_with_progress(url, path, None).await
+        self.download_to_file_with_progress(url, path, None, false)
+            .await
     }
 
     /// Download a URL to a file with progress tracking
@@ -418,6 +419,7 @@ impl Downloader {
         url: &str,
         path: PathBuf,
         progress_callback: Option<ProgressCallback>,
+        is_retry: bool,
     ) -> Result<DownloadResult> {
         // If method is HEAD, send HEAD request and return without downloading
         // This matches GNU wget --method=HEAD behavior: check headers only, no file creation
@@ -435,10 +437,15 @@ impl Downloader {
         // 1. Timestamping mode (-N) - use GET with If-Modified-Since instead
         // 2. Simple download without parallel (no need to check Range support)
         // 3. GNU wget compatibility mode (always skip HEAD for wget-compatible behavior)
+        // 4. Retry attempt - HEAD was already sent in first attempt, don't repeat
+        // 5. Low retry count (< 5) - user wants fast failure, don't waste time on HEAD
+        //    This matches GNU wget behavior with --tries=N where N is small
         let skip_head = self.client.config().timestamping
             || self.client.config().gnu_wget_compat
             || (self.client.config().parallel_threshold == 0
-                || self.client.config().parallel_chunks <= 1);
+                || self.client.config().parallel_chunks <= 1)
+            || is_retry
+            || self.client.config().retry.max_retries < 5;
 
         // Get metadata first (unless skipping HEAD)
         // If timestamping is enabled, use GET with If-Modified-Since header instead of HEAD
@@ -932,7 +939,7 @@ impl Downloader {
             },
 
             Output::File(path) => {
-                self.download_to_file_with_progress(url, path, progress_callback)
+                self.download_to_file_with_progress(url, path, progress_callback, false)
                     .await
             },
         }

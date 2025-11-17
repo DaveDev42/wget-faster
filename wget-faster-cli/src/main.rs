@@ -203,8 +203,9 @@ async fn main() {
 
         loop {
             attempt += 1;
+            let is_retry = attempt > 1;
 
-            match download_url(&downloader, url, &args).await {
+            match download_url(&downloader, url, &args, is_retry).await {
                 Ok(bytes) => {
                     total_downloaded += bytes;
                     break;
@@ -268,7 +269,12 @@ async fn main() {
     std::process::exit(exit_code);
 }
 
-async fn download_url(downloader: &Downloader, url: &str, args: &Args) -> Result<u64> {
+async fn download_url(
+    downloader: &Downloader,
+    url: &str,
+    args: &Args,
+    is_retry: bool,
+) -> Result<u64> {
     // Parse URL
     let parsed_url = Url::parse(url).with_context(|| format!("Failed to parse URL: {url}"))?;
 
@@ -416,7 +422,7 @@ async fn download_url(downloader: &Downloader, url: &str, args: &Args) -> Result
         }
 
         downloader
-            .download_to_file_with_progress(url, path.clone(), Some(progress_callback))
+            .download_to_file_with_progress(url, path.clone(), Some(progress_callback), is_retry)
             .await
     } else {
         // Download to stdout
