@@ -87,26 +87,27 @@ impl HttpClient {
 
         // Configure proxy
         if let Some(proxy_config) = &config.proxy {
-            let mut proxy = reqwest::Proxy::all(&proxy_config.url)
-                .map_err(|e| Error::ConfigError(format!("Invalid proxy URL: {e}")))?;
+            // Clone proxy_config for use in the closure
+            let proxy_config_clone = proxy_config.clone();
 
-            if let Some((username, password)) = &proxy_config.auth {
-                proxy = proxy.basic_auth(username, password);
-            }
+            // Use custom proxy predicate to implement wget-compatible no_proxy logic
+            // This ensures ".domain.com" matches ONLY subdomains, NOT the bare domain
+            let proxy = reqwest::Proxy::custom(move |url| {
+                // Check if this URL should bypass the proxy
+                if proxy_config_clone.should_bypass(url.as_str()) {
+                    return None; // No proxy for this URL
+                }
 
-            // Handle no_proxy list
-            // NOTE: reqwest's NoProxy implementation may have different behavior than GNU wget
-            // for edge cases like ".domain.com" patterns. In wget, ".domain.com" matches ONLY
-            // subdomains (*.domain.com), NOT the bare domain. reqwest may interpret this differently.
-            //
-            // For full wget compatibility, we would need to NOT use reqwest's proxy configuration
-            // and instead implement custom HTTP CONNECT proxy support. This is a known limitation.
-            //
-            // For now, we use reqwest's NoProxy which should work for most common cases.
-            if !proxy_config.no_proxy.is_empty() {
-                let no_proxy = reqwest::NoProxy::from_string(&proxy_config.no_proxy.join(","));
-                proxy = proxy.no_proxy(no_proxy);
-            }
+                // URL doesn't match no_proxy patterns - use the configured proxy URL
+                Some(proxy_config_clone.url.clone())
+            });
+
+            // Add proxy authentication if configured
+            let proxy = if let Some((username, password)) = &proxy_config.auth {
+                proxy.basic_auth(username, password)
+            } else {
+                proxy
+            };
 
             builder = builder.proxy(proxy);
         }
