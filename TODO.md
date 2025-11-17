@@ -226,6 +226,27 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 21 - no_proxy Domain Matching Fix ✅
+**Fixed**: Test-no_proxy-env.py (Priority 1) - Proxy bypass patterns with dot-prefixed domains
+**Result**: +1 test (74→75/151, 49.7%) - wget-compatible no_proxy matching now works
+**Changes**: client.rs:88-112 - Replaced reqwest::NoProxy with custom Proxy::custom() predicate
+**Root Cause**: reqwest's `NoProxy::from_string()` had different semantics than GNU wget for dot-prefixed patterns
+**Implementation**:
+- Used `Proxy::custom()` closure to check each URL against `ProxyConfig::should_bypass()`
+- Removed reliance on reqwest's built-in NoProxy implementation
+- Now correctly implements wget's exact matching logic:
+  - `"domain.com"` matches `domain.com` AND `*.domain.com` (Cases #1, #2) ✅
+  - `".domain.com"` matches ONLY `*.domain.com`, NOT bare domain (Cases #3, #4) ✅
+**Test Cases Verified** (all 5 cases from Test-no_proxy-env.py):
+1. Exact domain match without dot: `working1.localhost` → bypass proxy ✅
+2. Subdomain match without dot: `www.working1.localhost` → bypass proxy ✅
+3. Exact domain with dot prefix: `working2.localhost` vs `.working2.localhost` → use proxy ✅
+4. Subdomain match with dot prefix: `www.working2.localhost` → bypass proxy ✅
+5. No match: `www.example.localhost` → use proxy ✅
+**Commit**: cc7770c - "fix: Implement wget-compatible no_proxy domain matching logic"
+**Status**: 75/151 tests (49.7%)
+**Lesson**: The `should_bypass()` method was already correctly implemented in config.rs, just wasn't being used!
+
 ### 2025-11-17 Session 20 - Test-504.py Investigation (Deferred) 📋
 **Investigated**: Test-504.py (Priority 1) - HTTP 504 Gateway Timeout handling
 **Result**: Confirmed 5-10h complexity - deferred to future multi-session effort
