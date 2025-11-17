@@ -227,6 +227,41 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 30 - Test-504.py Investigation (Too Complex - Deferred) 📋
+**Investigated**: Test-504.py - HTTP 504 timeout handling with retries
+**Test Expectation**: With `--tries=2`, expect `GET /File1` (504) → `GET /File1` (504) → `GET /File2` (200)
+**Actual Behavior**: `HEAD /File1` (504) → `GET /File1` (504) → retry → `HEAD /File1` (504) → `GET /File1` (504) → `HEAD /File2` → `GET /File2`
+**Root Cause**: Retry loop in main.rs:204-265 calls `download_url()` repeatedly, each call sends fresh HEAD request
+**The Problem**:
+- wgetf sends HEAD before GET to check Range support and content length
+- On retry, HEAD is sent again (wastes a request, breaks test expectations)
+- GNU wget never sends HEAD for non-parallel downloads
+- Files in test are small (< 1KB), won't trigger parallel anyway (threshold: 10MB)
+**Existing Workaround**: Setting `gnu_wget_compat=true` skips ALL HEAD requests
+- Test-504.py passes with this flag
+- BUT: Breaks 5 auth tests (Test-auth-*.py) that need HEAD for proper auth flow
+- Not acceptable as global solution
+**Potential Solutions** (all complex, 5-10 hour effort):
+1. **Track retry state**: Pass `is_retry` flag through call chain (main.rs → download_url → downloader)
+   - Pro: Surgical fix, only affects retries
+   - Con: Requires threading parameter through 5+ function signatures
+2. **Per-URL state tracking**: Remember which URLs had 5xx from HEAD, skip HEAD on retry
+   - Pro: Precise, handles edge cases
+   - Con: Requires HashMap state in downloader, lifecycle management
+3. **Smart HEAD skipping**: Skip HEAD when file likely won't use parallel
+   - Current logic already skips HEAD when `parallel_threshold==0` or `parallel_chunks<=1`
+   - Could extend: Skip HEAD when `max_retries < threshold` (heuristic)
+   - Con: Weird heuristic, might break other tests
+4. **Refactor retry logic**: Move retries into downloader instead of main.rs
+   - Pro: Clean architecture, full control over HEAD/GET sequence
+   - Con: Major refactoring, 10+ hours
+**Decision**: Deferred - requires sustained architectural work (5-10 hours)
+**Status**: 76/151 tests maintained (no changes made)
+**Lesson**: Test-504.py is blocked by fundamental retry architecture design
+- Quick fixes either break auth tests or are too hacky
+- Proper solution needs retry refactoring or per-URL state tracking
+- This is a known limitation documented in TODO.md Priority 1
+
 ### 2025-11-17 Session 29 - Test-k.py Link Conversion Fix Attempt ⚠️ REVERTED
 **Attempted**: Test-k.py - Add "./" prefix to same-directory links
 **Hypothesis**: GNU wget adds "./" prefix to relative links in link conversion (-k flag)
