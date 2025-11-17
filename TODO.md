@@ -2,7 +2,7 @@
 
 **Current Version**: v0.0.5
 **Test Coverage**: 77/169 tests (45.6%) - MAINTAINED ✓
-**Last Updated**: 2025-11-17 (Session 37)
+**Last Updated**: 2025-11-17 (Session 38)
 
 ---
 
@@ -48,12 +48,14 @@
    - ~~Test-recursive-pathmax.py~~ ✅ (Session 5)
    - ~~Test-recursive-redirect.py~~ ✅ (Already passing)
 
-7. **Authentication edge cases**
-   - Test-auth-basic-netrc-pass-given.py
-   - Test-auth-basic-netrc-user-given.py
-   - Test-auth-both.py
-   - Test-auth-digest.py
-   - Files: `client.rs`, `downloader.rs`
+7. **Authentication edge cases** (REQUIRES IMPLEMENTATION)
+   - Test-auth-basic-netrc-pass-given.py - FAILING (needs .netrc + CLI credential merging)
+   - Test-auth-basic-netrc-user-given.py - FAILING (needs .netrc + CLI credential merging)
+   - Test-auth-both.py - FAILING (needs basic+digest auth handling)
+   - Test-auth-digest.py - FAILING (needs digest authentication)
+   - **Issue**: .netrc credentials not merged with command-line --user/--password
+   - **Issue**: Digest auth not implemented
+   - Files: `client.rs`, `downloader.rs`, `config.rs`
 
 8. **Cookie handling edge cases** ✅ MOSTLY FIXED (Session 15)
    - Fixed: Replaced reqwest cookie_store with reqwest_cookie_store (+12 tests)
