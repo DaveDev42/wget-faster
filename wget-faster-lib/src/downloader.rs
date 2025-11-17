@@ -419,6 +419,18 @@ impl Downloader {
         path: PathBuf,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<DownloadResult> {
+        // If method is HEAD, send HEAD request and return without downloading
+        // This matches GNU wget --method=HEAD behavior: check headers only, no file creation
+        if matches!(self.client.config().method, crate::config::HttpMethod::Head) {
+            let metadata = self.client.get_metadata(url).await?;
+            tracing::info!(url = %url, "HEAD method requested - returning metadata without download");
+            return Ok(DownloadResult {
+                data: DownloadedData::new_memory(Bytes::new()),
+                url: url.to_string(),
+                metadata,
+            });
+        }
+
         // Skip HEAD request if:
         // 1. Timestamping mode (-N) - use GET with If-Modified-Since instead
         // 2. Simple download without parallel (no need to check Range support)
