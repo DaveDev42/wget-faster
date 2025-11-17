@@ -31,9 +31,10 @@
    - **Result**: +0 tests (77→77/169, already passing in baseline)
    - Files: `config.rs:323`
 
-4. **Test-reserved-chars.py** - URL encoding in recursive mode
-   - Reserved character handling in URLs
-   - Files: `recursive.rs`
+4. ~~**Test-reserved-chars.py**~~ ✅ (Already passing) - URL encoding in recursive mode
+   - **Status**: URL encoding preserved correctly (`a%2Bb.html` → `a%2Bb.html`)
+   - **Result**: +0 tests (77→77/169, already passing in baseline)
+   - No code changes needed
 
 5. **Test-redirect-crash.py** - Redirect with special characters
    - URL path encoding issues
