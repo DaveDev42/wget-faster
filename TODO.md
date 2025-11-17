@@ -36,9 +36,10 @@
    - **Result**: +0 tests (77→77/169, already passing in baseline)
    - No code changes needed
 
-5. **Test-redirect-crash.py** - Redirect with special characters
-   - URL path encoding issues
-   - Files: `client.rs`, `downloader.rs`
+5. ~~**Test-redirect-crash.py**~~ ✅ (Already passing) - Redirect with special characters
+   - **Status**: Redirects with URL-encoded paths handled correctly
+   - **Result**: +0 tests (77→77/169, already passing in baseline)
+   - No code changes needed
 
 ### Priority 2: Medium Effort (3-5 hours each, ~10-15 tests)
 
