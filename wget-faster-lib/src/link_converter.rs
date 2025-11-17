@@ -103,9 +103,6 @@ impl LinkConverter {
 
     /// Convert links in an HTML file
     async fn convert_html_file(&self, path: &Path, base_url: &str) -> Result<()> {
-        // Backup original file if requested
-        self.backup_file(path).await?;
-
         // Read HTML content
         let content = tokio::fs::read_to_string(path)
             .await
@@ -114,10 +111,21 @@ impl LinkConverter {
         // Convert links
         let converted = self.convert_html_content(&content, base_url)?;
 
-        // Write converted content back
-        tokio::fs::write(path, converted)
-            .await
-            .map_err(Error::IoError)?;
+        // Only backup and save if content actually changed (GNU wget behavior)
+        // If no links were converted, don't create .orig file
+        if converted != content {
+            // Backup original file before writing converted version
+            self.backup_file(path).await?;
+
+            // Write converted content back
+            tokio::fs::write(path, converted)
+                .await
+                .map_err(Error::IoError)?;
+
+            tracing::debug!(path = %path.display(), "Links converted and file updated");
+        } else {
+            tracing::debug!(path = %path.display(), "No link conversions needed");
+        }
 
         Ok(())
     }
