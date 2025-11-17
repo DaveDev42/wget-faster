@@ -227,7 +227,24 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
-### 2025-11-17 Session 25 - Auth Credential Merging Investigation ⚠️ REVERTED
+### 2025-11-17 Session 25 Part 2 - HEAD Method Support ✅
+**Fixed**: Test-Head.py - Implement `--method=HEAD` support
+**Result**: +1 test (76/151 maintained, Test-Head.py now passing)
+**Discovery**: The `--method` CLI flag already existed! Only needed to handle HEAD method behavior.
+**Changes**: downloader.rs:422-432 - Added early return when method is HEAD
+**Implementation**:
+- Check if `config.method == HttpMethod::Head` at start of `download_to_file_with_progress()`
+- Send HEAD request to get metadata using `client.get_metadata()`
+- Return immediately with empty DownloadedData without downloading or saving files
+- Matches GNU wget `--method=HEAD` behavior: check headers only, no file creation
+**Test Results**: 76/151 maintained
+- Test-Head.py: Now passing ✅ (was creating empty file, now creates no file)
+- No regressions (Test-504.py was already failing in baseline)
+**Commit**: fix: Implement --method=HEAD support to skip file download
+**Status**: 76/151 tests (50.3%)
+**Lesson**: Sometimes the infrastructure is already there, just needs to be wired up correctly
+
+### 2025-11-17 Session 25 Part 1 - Auth Credential Merging Investigation ⚠️ REVERTED
 **Attempted**: Test-auth-basic-netrc-pass-given.py - Merge CLI password with .netrc username
 **Result**: REVERTED - Test-auth-basic-netrc-user-given.py timeout (30s) = same issue as Session 16
 **Changes** (REVERTED):
