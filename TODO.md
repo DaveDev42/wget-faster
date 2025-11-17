@@ -226,6 +226,27 @@ git checkout <files>
 
 ## 📊 Recent Session History
 
+### 2025-11-17 Session 22 - Link Conversion Backup Fix ✅
+**Fixed**: Test-E-k-K.px (Priority 3) - Unnecessary .orig backup files for unchanged HTML
+**Result**: +1 test (75→76/151, 50.3%) - Crossed 50% threshold! 🎉
+**Changes**: link_converter.rs:104-131 - Only backup files when link conversion actually changes content
+**Root Cause**: `convert_html_file()` was calling `backup_file()` BEFORE checking if content changed
+- Created `.orig` for every HTML file, even if no links to convert
+- Test-E-k-K.px failed: "unexpected downloaded files [subpage.php.orig]"
+**GNU wget -K behavior**:
+- Only create `.orig` backup if file content actually changed
+- Skip backup if no links need conversion
+**Implementation**:
+1. Read file → convert links → compare content
+2. If `converted != content`: backup original → write converted version
+3. If `converted == content`: skip backup and write entirely
+**Test Case Verified** (Test-E-k-K.px: `-r -nd -E -k -K`):
+- `index.php` → `index.php.orig` (backup) + `index.php.html` (link converted) ✅
+- `subpage.php` → `subpage.php.html` (no backup, no links to convert) ✅
+**Commit**: 7b28392 - "fix: Only create .orig backup files when link conversion actually changes content"
+**Status**: 76/151 tests (50.3%)
+**Lesson**: Session 18 fixed backup naming; this session fixed backup logic itself
+
 ### 2025-11-17 Session 21 - no_proxy Domain Matching Fix ✅
 **Fixed**: Test-no_proxy-env.py (Priority 1) - Proxy bypass patterns with dot-prefixed domains
 **Result**: +1 test (74→75/151, 49.7%) - wget-compatible no_proxy matching now works
