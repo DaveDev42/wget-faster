@@ -2,7 +2,7 @@
 
 **Current Version**: v0.0.5
 **Test Coverage**: 77/169 tests (45.6%) - MAINTAINED ✓
-**Last Updated**: 2025-11-17 (Session 38)
+**Last Updated**: 2025-11-17 (Session 38 - Auth partial implementation documented, reverted)
 
 ---
 
@@ -55,7 +55,8 @@
    - Test-auth-digest.py - FAILING (needs digest authentication)
    - **Issue**: .netrc credentials not merged with command-line --user/--password
    - **Issue**: Digest auth not implemented
-   - Files: `client.rs`, `downloader.rs`, `config.rs`
+   - **Session 38 Partial Implementation**: Credential merging works, but authenticated_hosts tracking broken
+   - Files: `client.rs`, `downloader.rs`, `config.rs`, `auth_handler.rs`
 
 8. **Cookie handling edge cases** ✅ MOSTLY FIXED (Session 15)
    - Fixed: Replaced reqwest cookie_store with reqwest_cookie_store (+12 tests)
@@ -905,6 +906,60 @@ reqwest `.cookie_store(true)` works for GET but HEAD requests don't send cookies
 - Better to tackle Test-no_proxy-env.py, Test-reserved-chars.py, or auth tests next
 
 **Commits**: 0 (all changes reverted)
+
+### 2025-11-17 Session 38 - Auth Credential Merging (PARTIAL - REVERTED)
+**Target**: Test-auth-basic-netrc-pass-given.py, Test-auth-basic-netrc-user-given.py
+**Result**: REVERTED - Credential merging works, but authenticated_hosts tracking broken
+**Status**: 77/151 tests maintained (no regression, changes reverted)
+
+**Problem Analysis**:
+- Tests require merging CLI auth (`--user`/`--password`) with .netrc credentials
+- Example: CLI has `--password=TheEye`, .netrc has `login Sauron` → Should merge to `Sauron:TheEye`
+- GNU wget behavior: merge partial credentials from both sources
+
+**Implementation** (auth_handler.rs):
+1. Rewrote `get_credentials()` with 6-case credential merging logic:
+   - Both username+password from CLI → use CLI only
+   - Only username from CLI → merge with .netrc password
+   - Only password from CLI → merge with .netrc username
+   - No CLI auth → use .netrc
+   - Empty CLI auth → fall back to .netrc
+2. Added .netrc hostname lookup from URL
+3. Added tracing::debug for credential resolution flow
+
+**Test Results**: 77/151 maintained, but auth tests still fail
+```
+HEAD /File1 (401) → Retry with auth (401) → HEAD /File2 (400 "Expected Header Authorization not found")
+```
+
+**Root Cause Analysis**:
+- First issue: Credential merging WORKS ✅ (logs show correct username:password merged)
+- Second issue: Authenticated_hosts tracking BROKEN ❌
+  - File1 authenticates successfully (second attempt)
+  - File2 should receive preemptive auth (because File1 succeeded)
+  - But File2 doesn't get Authorization header → 400 error
+- Problem: `authenticated_hosts` set not properly tracking successful auth across requests
+
+**Why Partial**:
+- Phase 1 (credential merging): COMPLETE ✅
+- Phase 2 (auth state tracking): INCOMPLETE ❌
+- Requires 3-5 hours more work to fix authenticated_hosts management
+
+**Required Fix** (estimated 3-5 hours):
+1. Find where `authenticated_hosts.insert()` is called after successful auth
+2. Trace request flow to understand why File2 HEAD doesn't check `authenticated_hosts`
+3. Fix preemptive auth logic in `build_request_with_auth()` or `should_use_preemptive_auth()`
+4. May need to modify `downloader.rs` request building logic
+
+**Decision**: Defer - auth state management is complex architectural work
+**Commits**: 0 (changes reverted to maintain baseline)
+**Lesson**: Authentication is more than credential resolution - requires proper state tracking across multi-request sessions
+
+### 2025-11-17 Session 37 - Test-no_proxy-env.py Already Passing ✅
+**Target**: Test-no_proxy-env.py (Priority 1)
+**Result**: Already passing in baseline - no changes needed
+**Status**: 77/169 tests maintained (test was already passing)
+**Findings**: Session 21 fixed this test, TODO.md Priority list needed updating
 
 ### 2025-11-17 Session 34 - Test-auth-digest.py Digest Auth ⚠️ REVERTED (-2 regression)
 **Target**: Test-auth-digest.py - Digest authentication support
