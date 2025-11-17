@@ -846,3 +846,61 @@ reqwest `.cookie_store(true)` works for GET but HEAD requests don't send cookies
 **Commits**: 1 commit (cookie_store fix)
 **Status**: 77/151 tests (maintained)
 
+### 2025-11-17 Session 33 - Test-k.py Link Conversion ⚠️ REVERTED (-2 regression)
+**Target**: Test-k.py - Link conversion with URL encoding for special characters (`;`, `:`)
+**Result**: REVERTED - Caused -2 test regression (Test-E-k.px, Test-E-k-K.px)
+**Test Count**: 75/151 (-2 from baseline of 77/151)
+
+**Problem Analysis**:
+- Test-k.py expects: `href="site;sub:.html"` → `href="./site%3Bsub:.html"` (with "./" prefix + URL encoding)
+- Test-E-k.px expects: `href="http://localhost:.../subpage.php"` → `href="subpage.php.html"` (NO "./") prefix)
+- Conflicting requirements - different tests expect different link conversion behavior
+
+**Implementation Attempted** (link_converter.rs):
+1. Added percent_encoding imports and URL_ENCODE_SET constant
+2. Modified `convert_url_to_relative()` to:
+   - URL-encode path components (`;` → `%3B`, `:` → `%3A`, space → `%20`, etc.)
+   - Add "./" prefix for same-directory files (no "/" in path)
+   - Preserve directory structure for multi-level paths
+
+**GNU wget Source Analysis**:
+- Found `local_quote_string()` function in convert.c
+- Encodes only: `%`, `#`, `;`, ` ` (space), `?` (if adjust_extension enabled)
+- Does NOT encode `:` (colon) - Test-k.py expects `site%3Bsub:.html` (`:` unencoded)
+- Does NOT unconditionally add "./" prefix
+
+**Why It Failed**:
+- Adding "./" prefix to ALL same-directory files broke Test-E-k.px
+- Test-E-k.px output: `href="./subpage.php.html"` instead of `href="subpage.php.html"`
+- Diff: "ref=\"./sub" vs "ref=\"subpa" (mismatch at line 6, col 11)
+- Test-E-k.px only expects "./" prefix in certain contexts (unclear when)
+
+**Root Cause**: Link conversion rules are complex and context-dependent
+- The "./" prefix appears related to:
+  1. File extension changes (`.html` → `site%3Bsub%3A.html` needs "./" ?)
+  2. Special characters in filename requiring encoding
+  3. --restrict-file-names option interaction
+  4. Combination of -E (adjust extension) and -k (convert links) flags
+- Current understanding insufficient - need deeper GNU wget behavior analysis
+
+**Test Results**: 75/151 passed (-2 regression)
+- Test-E-k.px: NOW FAILING (was passing) ❌
+- Test-E-k-K.px: NOW FAILING (was passing) ❌
+- Test-k.py: STILL FAILING (no improvement) ❌
+- Net result: -2 tests without fixing target
+
+**Decision**: REVERTED - All changes to link_converter.rs reverted with `git checkout`
+**Status**: 77/151 tests (baseline restored)
+
+**Lesson**: Link conversion is Priority 3 for a reason - requires 5+ hours of:
+1. Testing GNU wget behavior with various flag combinations (-k, -E, -K, --restrict-file-names)
+2. Understanding when "./" prefix is added vs omitted
+3. Checking interaction between URL encoding, filename escaping, and path construction
+4. Possibly reviewing more GNU wget source code (convert.c, url.c)
+
+**Next Steps**: Move to different Priority 1 or Priority 2 task
+- Test-k.py, Test--convert-links--content-on-error.py deferred to future dedicated session
+- Better to tackle Test-no_proxy-env.py, Test-reserved-chars.py, or auth tests next
+
+**Commits**: 0 (all changes reverted)
+
